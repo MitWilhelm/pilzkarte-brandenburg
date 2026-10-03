@@ -1,9 +1,9 @@
-// Open-Meteo-Client: lädt 14 Tage Vergangenheit + 7 Tage Prognose und prüft die Antwort an der Grenze.
+// Open-Meteo-Client: lädt 20 Tage Vergangenheit + 7 Tage Prognose und prüft die Antwort an der Grenze.
 // Rate-Limit (kostenlos, nur nicht-kommerziell): < 10.000 Abrufe/Tag, < 600/Minute. Kein Retry:
 // ein Fehler wird mit Ursache weitergereicht und auf der Seite angezeigt. Lizenz der Daten: CC-BY-4.0.
 import type { Tageswetter } from "../wachstum.ts";
 
-export const TAGE_ZURUECK = 14;
+export const TAGE_ZURUECK = 20; // Pilze fruchten bis ~3 Wochen nach dem Regen-Auslöser
 const TAGE_VORAUS = 8; // heute + 7 Tage
 const STUNDEN_PRO_TAG = 24;
 const ENDPUNKT = "https://api.open-meteo.com/v1/forecast";

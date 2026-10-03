@@ -9,11 +9,11 @@ const echteAntwort: unknown = JSON.parse(
   readFileSync(new URL("./fixtures/openmeteo_joachimsthal.json", import.meta.url), "utf8"),
 );
 
-test("die echte Antwort ergibt 22 Tage mit heute an Position 14", () => {
+test("die echte Antwort ergibt 28 Tage mit heute an Position 20", () => {
   const reihe = wetterAusAntwort(echteAntwort);
-  assert.equal(reihe.tage.length, 22);
-  assert.equal(reihe.heute, 14);
-  assert.equal(reihe.tage[0]?.datum, "2026-09-19");
+  assert.equal(reihe.tage.length, 28);
+  assert.equal(reihe.heute, 20);
+  assert.equal(reihe.tage[0]?.datum, "2026-09-13");
 });
 
 test("Bodentemperatur und Bodenfeuchte sind plausible Tagesmittel", () => {
@@ -36,8 +36,8 @@ test("eine Antwort ohne Tageswerte meldet eine verletzte Invariante", () => {
   assert.throws(() => wetterAusAntwort({ hourly: {} }), /Invariante verletzt: Open-Meteo-Antwort ohne Feld daily/);
 });
 
-test("die Abfrage-URL fordert 14 Tage Vergangenheit in Ortszeit an", () => {
+test("die Abfrage-URL fordert 20 Tage Vergangenheit in Ortszeit an", () => {
   const url = new URL(wetterUrl(52.979, 13.745));
-  assert.equal(url.searchParams.get("past_days"), "14");
+  assert.equal(url.searchParams.get("past_days"), "20");
   assert.equal(url.searchParams.get("timezone"), "Europe/Berlin");
 });
