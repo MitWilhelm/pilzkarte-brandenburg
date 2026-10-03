@@ -26,7 +26,7 @@ from pipeline.habitat import (
 )
 from pipeline.nachbarschaft import mischfaktor
 
-__all__ = ["main"]
+__all__ = ["lies_anteile", "main"]
 
 DATEN = Path("daten")
 OHNE_BODEN = -1.0
@@ -34,7 +34,7 @@ PIXEL_IN_HEKTAR = 0.01
 STUFEN_GRENZEN = (60, 70, 80, 90)
 
 
-def _lies_anteile() -> dict[str, list[Standortanteil]]:
+def lies_anteile() -> dict[str, list[Standortanteil]]:
     anteile: dict[str, list[Standortanteil]] = {}
     with (DATEN / "stok_antworten.jsonl").open(encoding="utf-8") as datei:
         for zeile in datei:
@@ -83,7 +83,7 @@ def _heatmap(baumarten: npt.NDArray[np.uint16], boden: npt.NDArray[np.float32], 
 
 
 def main() -> None:
-    anteile = _lies_anteile()
+    anteile = lies_anteile()
     for gebiet in TESTGEBIETE:
         with rasterio.open(DATEN / f"{gebiet.name}_baumarten.tif") as quelle:
             baumarten = quelle.read(1)

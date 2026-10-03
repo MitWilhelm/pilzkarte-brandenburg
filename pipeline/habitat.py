@@ -18,6 +18,7 @@ __all__ = [
     "Standort",
     "Standortanteil",
     "baumart_punkte",
+    "beschreibe_standort",
     "boden_punkte",
     "gesamtwert",
     "lies_standort",
@@ -102,6 +103,22 @@ def lies_standort(code: str) -> Standort:
         feuchte=int(treffer["feuchte"]),
         is_nass=treffer["nass"] != "",
     )
+
+
+_NAEHRKRAFT_TEXT = {"A": "arm", "Z": "ziemlich arm", "M": "mittel", "K": "kräftig", "R": "reich"}
+_FEUCHTE_TEXT = {1: "frisch", 2: "mäßig frisch", 3: "trocken (vermutet)"}
+_NASS_TEXT = "nass"
+
+
+def beschreibe_standort(anteile: list[Standortanteil]) -> str:
+    """Lesbarer Text für die Punkt-Info, z. B. '60 % ziemlich arm, mäßig frisch · 40 % mittel, frisch'."""
+    teile: list[str] = []
+    for eintrag in anteile:
+        standort = lies_standort(eintrag.code)
+        feuchte = _NASS_TEXT if standort.is_nass else _FEUCHTE_TEXT.get(standort.feuchte, f"Feuchte {standort.feuchte}")
+        prozent = eintrag.anteil * 100 // ANTEILE_GESAMT
+        teile.append(f"{prozent} % {_NAEHRKRAFT_TEXT[standort.naehrkraft]}, {feuchte} ({eintrag.code})")
+    return " · ".join(teile)
 
 
 def baumart_punkte(pilz: Pilzart, baumart_code: int) -> float:

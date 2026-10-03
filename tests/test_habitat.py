@@ -8,6 +8,7 @@ from pipeline.habitat import (
     Standort,
     Standortanteil,
     baumart_punkte,
+    beschreibe_standort,
     boden_punkte,
     gesamtwert,
     lies_standort,
@@ -93,3 +94,8 @@ def test_werte_ausserhalb_von_null_bis_eins_melden_eine_verletzte_invariante() -
 
 def test_wirtsbaeume_des_pfifferlings_schliessen_erle_und_kronenverlust_aus() -> None:
     assert wirt_codes("pfifferling") == frozenset({0, 1, 2, 3, 4, 5, 6, 7})
+
+
+def test_standortbeschreibung_nennt_anteile_naehrkraft_und_feuchte_in_worten() -> None:
+    anteile = [Standortanteil(code="Z2", anteil=6), Standortanteil(code="NK1", anteil=4)]
+    assert beschreibe_standort(anteile) == "60 % ziemlich arm, mäßig frisch (Z2) · 40 % kräftig, nass (NK1)"
