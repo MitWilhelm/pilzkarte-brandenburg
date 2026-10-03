@@ -185,3 +185,19 @@ export function indexverlauf(tage: readonly Tageswetter[], heute: number, pilz: 
   }
   return verlauf;
 }
+
+const INDEX_WORTE: readonly { readonly ab: number; readonly wort: string }[] = [
+  { ab: 80, wort: "Sehr günstig" },
+  { ab: 60, wort: "Günstig" },
+  { ab: 40, wort: "Mittel" },
+  { ab: 20, wort: "Mäßig" },
+  { ab: 0, wort: "Ungünstig" },
+];
+
+export function indexWort(index: number): string {
+  const treffer = INDEX_WORTE.find((stufe) => index >= stufe.ab);
+  if (treffer === undefined) {
+    throw new Error(`Invariante verletzt: Index ${String(index)} ist negativ`);
+  }
+  return treffer.wort;
+}

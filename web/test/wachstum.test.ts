@@ -75,3 +75,10 @@ test("zehn Tage nach kräftigem Regen bei mildem feuchtem Boden ergibt im Oktobe
 test("ein Tag außerhalb der Reihe meldet eine verletzte Invariante", () => {
   assert.throws(() => tagesindex(reihe([0]), 3, "pfifferling"), /Invariante verletzt/);
 });
+
+test("die Wortskala ordnet den Index in fünf Stufen ein", async () => {
+  const { indexWort } = await import("../src/wachstum.ts");
+  assert.equal(indexWort(85), "Sehr günstig");
+  assert.equal(indexWort(20), "Mäßig");
+  assert.equal(indexWort(0), "Ungünstig");
+});
