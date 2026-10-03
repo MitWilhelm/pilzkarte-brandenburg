@@ -113,18 +113,17 @@ async function start(): Promise<void> {
   void aktualisiereGebietsindex(zustand);
 
   const karte = erzeugeKarte(element("karte", HTMLElement), erstes.mitte);
+  // "style.load" statt "load": "load" wartet auf die OSM-Kacheln, und bei schwachem Netz im Wald
+  // würde die Heatmap sonst erst mit dem Hintergrund erscheinen. Der Listener steht vor dem await,
+  // damit das einmalige Ereignis nicht verpasst wird.
+  const stilGeladen = karte.once("style.load");
   const ebenen: Kartenebene[] = await Promise.all(
     gebiete.map(async (gebiet) => ({ gebiet, daten: await ladeDatenbild(gebiet) })),
   );
-  const fuegeHinzu = (): void => {
-    fuegeEbenenHinzu(karte, ebenen, KANAL[zustand.pilz]);
-  };
-  if (karte.isStyleLoaded()) {
-    fuegeHinzu();
-  } else {
-    karte.on("load", fuegeHinzu); // "load" feuert nur einmal
-  }
+  await stilGeladen;
+  fuegeEbenenHinzu(karte, ebenen, KANAL[zustand.pilz]);
 
+  // Erst nach dem Einfügen der Ebenen: bodenAnPunkt fragt die Boden-Ebene ab.
   karte.on("click", (ereignis) => {
     void zeigeStelle(karte, ebenen, zustand, ereignis);
   });
