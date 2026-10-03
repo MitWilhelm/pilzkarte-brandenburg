@@ -2,6 +2,7 @@
 // OSM-Kacheln: Nutzungsrichtlinie verlangt Namensnennung und geringe Last (private Nutzung).
 import maplibregl from "maplibre-gl";
 import { faerbeOverlay, type Gebiet, type Pilzkanal } from "./geo.ts";
+import type { MarkierterHotspot } from "./hotspots.ts";
 
 const OSM_KACHELN = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_HINWEIS = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap-Mitwirkende</a>';
@@ -11,6 +12,10 @@ const MAX_ZOOM = 19;
 const START_ZOOM = 13;
 const HEATMAP_DECKKRAFT = 0.68;
 const BODEN_LINIENBREITE = 0.6;
+const HOTSPOT_QUELLE = "hotspots";
+const HOTSPOT_RADIUS = 20; // Bildschirmpixel: bleibt bei jedem Zoom gut antippbar und sichtbar
+const HOTSPOT_RAND_BREITE = 7;
+const HOTSPOT_RING_BREITE = 3;
 
 export interface Kartenebene {
   readonly gebiet: Gebiet;
@@ -122,4 +127,49 @@ export function bodenAnPunkt(karte: maplibregl.Map, punkt: maplibregl.Point, geb
   }
   const boden: unknown = treffer.properties["boden"];
   return typeof boden === "string" ? boden : null;
+}
+
+/** Ring-Ebene für Brennpunkte; liegt über der Heatmap, die Daten kommen mit zeigeHotspots. */
+export function fuegeHotspotEbeneHinzu(karte: maplibregl.Map): void {
+  karte.addSource(HOTSPOT_QUELLE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  // Zwei Ringe: dunkler Rand für Kontrast auf Rot und Gelb, heller Ring darüber.
+  karte.addLayer({
+    id: "hotspot-rand",
+    type: "circle",
+    source: HOTSPOT_QUELLE,
+    paint: {
+      "circle-radius": HOTSPOT_RADIUS,
+      "circle-opacity": 0,
+      "circle-stroke-width": HOTSPOT_RAND_BREITE,
+      "circle-stroke-color": "#1f3a2a",
+      "circle-stroke-opacity": 0.85,
+    },
+  });
+  karte.addLayer({
+    id: "hotspot-ring",
+    type: "circle",
+    source: HOTSPOT_QUELLE,
+    paint: {
+      "circle-radius": HOTSPOT_RADIUS,
+      "circle-opacity": 0,
+      "circle-stroke-width": HOTSPOT_RING_BREITE,
+      // weiß: heute günstig; gelb: nur in den letzten Tagen günstig
+      "circle-stroke-color": ["match", ["get", "art"], "letzte-tage", "#ffd34d", "#ffffff"],
+    },
+  });
+}
+
+export function zeigeHotspots(karte: maplibregl.Map, hotspots: readonly MarkierterHotspot[]): void {
+  const quelle = karte.getSource(HOTSPOT_QUELLE);
+  if (!(quelle instanceof maplibregl.GeoJSONSource)) {
+    throw new Error("Invariante verletzt: Hotspot-Quelle fehlt");
+  }
+  quelle.setData({
+    type: "FeatureCollection",
+    features: hotspots.map((hotspot) => ({
+      type: "Feature",
+      properties: { flaecheHektar: hotspot.flaecheHektar, art: hotspot.art },
+      geometry: { type: "Point", coordinates: [hotspot.laenge, hotspot.breite] },
+    })),
+  });
 }

@@ -49,7 +49,7 @@ export const STUFEN: readonly { readonly ab: number; readonly name: string; read
   { ab: 50, name: "Möglich", farbe: { rot: 250, gruen: 228, blau: 150 } },
 ];
 
-function mercatorY(breite: number): number {
+export function mercatorY(breite: number): number {
   return Math.log(Math.tan(Math.PI / 4 + (breite * GRAD_ZU_RAD) / 2));
 }
 

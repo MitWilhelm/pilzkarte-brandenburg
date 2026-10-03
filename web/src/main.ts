@@ -1,6 +1,16 @@
 // Einstieg der Webseite: lädt Gebiete und Daten-Bilder, baut die Karte und verbindet Bedienung, Wetter und Tafel.
 import maplibregl from "maplibre-gl";
-import { bodenAnPunkt, erzeugeKarte, fuegeEbenenHinzu, zeigeBodengrenzen, zeigePilz, type Kartenebene } from "./karte.ts";
+import {
+  bodenAnPunkt,
+  erzeugeKarte,
+  fuegeEbenenHinzu,
+  fuegeHotspotEbeneHinzu,
+  zeigeBodengrenzen,
+  zeigeHotspots,
+  zeigePilz,
+  type Kartenebene,
+} from "./karte.ts";
+import { findeHotspots, hotspotart, type MarkierterHotspot } from "./hotspots.ts";
 import { baumartName, pixelAnStelle, stufeninfo, type Gebiet, type Pilzkanal } from "./geo.ts";
 import { ladeDatenbild, ladeGebiete } from "./clients/daten.ts";
 import { ladeWetter, type Wetterreihe } from "./clients/openmeteo.ts";
@@ -21,6 +31,7 @@ const KANAL: Readonly<Record<Pilzart, Pilzkanal>> = { steinpilz: 1, pfifferling:
 const KANAELE_PRO_PIXEL = 4;
 const WETTER_RASTER_GRAD = 0.02; // ~2 km: nahe Punkte teilen sich einen Wetterabruf
 const FLUG_ZOOM = 13;
+const TAGE_RUECKBLICK = 7; // so weit zurück zählt ein günstiger Index für ältere, große Pilze
 const SCHUTZHINWEISE: Readonly<Record<string, string>> = {
   schwaerzesee:
     "Der Schwärzesee und das Schwärzetal liegen im Naturschutzgebiet „Nonnenfließ-Schwärzetal“. Dort kann das Sammeln verboten sein. Bitte Schilder vor Ort beachten.",
@@ -63,6 +74,34 @@ async function aktualisiereGebietsindex(zustand: Zustand): Promise<void> {
   } catch (fehler) {
     zeigeIndexFehler(fehlertext(fehler));
   }
+}
+
+/** Ringe nur dort, wo der Wachstumsindex heute oder in den letzten TAGE_RUECKBLICK Tagen günstig war. */
+async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kartenebene[], pilz: Pilzart): Promise<void> {
+  const proGebiet = await Promise.all(
+    ebenen.map(async ({ gebiet, daten }): Promise<MarkierterHotspot[]> => {
+      try {
+        const reihe = await wetterFuer(gebiet.mitte[1], gebiet.mitte[0]);
+        const indizes: number[] = [];
+        for (let position = Math.max(0, reihe.heute - TAGE_RUECKBLICK); position <= reihe.heute; position += 1) {
+          indizes.push(tagesindex(reihe.tage, position, pilz).index);
+        }
+        const indexHeute = indizes[indizes.length - 1];
+        if (indexHeute === undefined) {
+          throw new Error("Invariante verletzt: keine Indexwerte für den Rückblick");
+        }
+        const art = hotspotart(indexHeute, Math.max(...indizes));
+        if (art === null) {
+          return [];
+        }
+        return findeHotspots({ daten: daten.data, kanal: KANAL[pilz], gebiet }).map((hotspot) => ({ ...hotspot, art }));
+      } catch {
+        // Ohne Wetter kein Index und keine Empfehlung; den Fehler zeigt aktualisiereGebietsindex schon an.
+        return [];
+      }
+    }),
+  );
+  zeigeHotspots(karte, proGebiet.flat());
 }
 
 async function zeigeStelle(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zustand: Zustand, ereignis: maplibregl.MapMouseEvent): Promise<void> {
@@ -122,6 +161,8 @@ async function start(): Promise<void> {
   );
   await stilGeladen;
   fuegeEbenenHinzu(karte, ebenen, KANAL[zustand.pilz]);
+  fuegeHotspotEbeneHinzu(karte);
+  void aktualisiereHotspots(karte, ebenen, zustand.pilz);
 
   // Erst nach dem Einfügen der Ebenen: bodenAnPunkt fragt die Boden-Ebene ab.
   karte.on("click", (ereignis) => {
@@ -135,6 +176,7 @@ async function start(): Promise<void> {
     zustand.pilz = ziel.value;
     zeigePilz(karte, ebenen, KANAL[zustand.pilz]);
     void aktualisiereGebietsindex(zustand);
+    void aktualisiereHotspots(karte, ebenen, zustand.pilz);
     if (zustand.letzterTipp !== null) {
       void zeigeStelle(karte, ebenen, zustand, zustand.letzterTipp);
     }
