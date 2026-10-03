@@ -13,7 +13,10 @@ const START_ZOOM = 13;
 const HEATMAP_DECKKRAFT = 0.68;
 const BODEN_LINIENBREITE = 0.6;
 const HOTSPOT_QUELLE = "hotspots";
-const HOTSPOT_RADIUS = 20; // Bildschirmpixel: bleibt bei jedem Zoom gut antippbar und sichtbar
+const HOTSPOT_RADIUS_METER = 120; // feste Größe auf dem Boden: der Ring wächst und schrumpft mit der Karte mit
+const WEB_MERCATOR_METER_PRO_PIXEL_BEI_ZOOM_0 = 156543.03; // Äquator, 256-px-Kacheln
+const HOTSPOT_BREITE_GRAD = 53; // Brandenburg: Meter pro Pixel schrumpfen mit cos(Breite)
+const HOTSPOT_MAX_ZOOM = 24;
 const HOTSPOT_RAND_BREITE = 7;
 const HOTSPOT_RING_BREITE = 3;
 
@@ -129,6 +132,22 @@ export function bodenAnPunkt(karte: maplibregl.Map, punkt: maplibregl.Point, geb
   return typeof boden === "string" ? boden : null;
 }
 
+/** Kreisradius in Bildschirmpixeln für eine feste Bodengröße; wächst pro Zoomstufe um den Faktor 2.
+ *  Exponentielle Interpolation mit Basis 2 ist dafür exakt. */
+function festerRadius(meter: number): maplibregl.ExpressionSpecification {
+  const pixelBeiZoomNull =
+    meter / (WEB_MERCATOR_METER_PRO_PIXEL_BEI_ZOOM_0 * Math.cos((HOTSPOT_BREITE_GRAD * Math.PI) / 180));
+  return [
+    "interpolate",
+    ["exponential", 2],
+    ["zoom"],
+    0,
+    pixelBeiZoomNull,
+    HOTSPOT_MAX_ZOOM,
+    pixelBeiZoomNull * 2 ** HOTSPOT_MAX_ZOOM,
+  ];
+}
+
 /** Ring-Ebene für Brennpunkte; liegt über der Heatmap, die Daten kommen mit zeigeHotspots. */
 export function fuegeHotspotEbeneHinzu(karte: maplibregl.Map): void {
   karte.addSource(HOTSPOT_QUELLE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
@@ -138,7 +157,7 @@ export function fuegeHotspotEbeneHinzu(karte: maplibregl.Map): void {
     type: "circle",
     source: HOTSPOT_QUELLE,
     paint: {
-      "circle-radius": HOTSPOT_RADIUS,
+      "circle-radius": festerRadius(HOTSPOT_RADIUS_METER),
       "circle-opacity": 0,
       "circle-stroke-width": HOTSPOT_RAND_BREITE,
       "circle-stroke-color": "#1f3a2a",
@@ -150,7 +169,7 @@ export function fuegeHotspotEbeneHinzu(karte: maplibregl.Map): void {
     type: "circle",
     source: HOTSPOT_QUELLE,
     paint: {
-      "circle-radius": HOTSPOT_RADIUS,
+      "circle-radius": festerRadius(HOTSPOT_RADIUS_METER),
       "circle-opacity": 0,
       "circle-stroke-width": HOTSPOT_RING_BREITE,
       // grün: heute günstig; lila: nur in den letzten Tagen günstig

@@ -134,6 +134,12 @@ p, h1, ol, dl, dd { margin: 0; }
 .farbfeld[data-klasse="Ordentlich"] { background: #e88028; }
 .farbfeld[data-klasse="Mäßig"] { background: #f4ba48; }
 .farbfeld[data-klasse="Möglich"] { background: #fae496; }
+.ring-legende { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; font-size: 13px; color: var(--leise); }
+.ring-legende li { display: flex; align-items: center; gap: 8px; }
+/* Gleiche Farben wie die Ringe auf der Karte (src/karte.ts), mit dunklem Rand für Kontrast. */
+.ringfeld { flex: none; width: 14px; height: 14px; border-radius: 50%; border: 3px solid; box-shadow: 0 0 0 2px #1f3a2a; }
+.ringfeld-neu { border-color: #1fbf5b; }
+.ringfeld-alt { border-color: #9b4dca; }
 .legende-text { font-size: 13.5px; color: var(--leise); max-width: 65ch; }
 .legende-text.klein { font-size: 12px; }
 .schalter { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
