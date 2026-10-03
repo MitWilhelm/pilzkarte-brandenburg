@@ -1,0 +1,32 @@
+[project]
+name = "pilzkarte-brandenburg"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "rasterio>=1.4",
+    "geopandas>=1.0",
+    "pyogrio>=0.10",
+    "pyproj>=3.7",
+    "pydantic>=2.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "mypy>=1.13", "ruff>=0.8", "pandas-stubs"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "ANN"]
+
+[tool.mypy]
+strict = true
+packages = ["pipeline", "tests"]
+
+[[tool.mypy.overrides]]
+# Warum: rasterio, geopandas und shapely liefern keine vollständigen Typ-Informationen.
+module = ["rasterio.*", "geopandas.*", "shapely.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

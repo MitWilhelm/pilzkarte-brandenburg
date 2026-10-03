@@ -3,6 +3,8 @@
 *.tiff
 *.gml
 rohdaten/
+# Zugeschnittene Testgebiete sind klein (< 1 MB) und gehören ins Repo
+!daten/*.tif
 
 # Secrets
 .env
