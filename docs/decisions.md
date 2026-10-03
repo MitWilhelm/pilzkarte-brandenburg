@@ -28,3 +28,28 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
 - **Entscheidung:** `pipeline/` in Python, `web/` in TypeScript.
 - **Verworfen:** Alles in JavaScript — Geodaten-Werkzeuge dort deutlich
   schwächer.
+
+## 2026-10-03 — Habitat-Regeln Version 1 und Umgang mit nfgr4
+
+- **Kontext:** Bodenwerte kommen per GetFeatureInfo vom LFB (`nfgr1..nfgr4`, Anteile `az1..az3`).
+  `nfgr4` hat kein Anteilsfeld; `az1..az3` ergeben ohne ihn immer 10/10.
+- **Entscheidung:** Bewertet werden nur `nfgr1..nfgr3`. Habitat = Baumart-Punkte × Boden-Punkte
+  (gut 1,0 / mittel 0,6 / gering 0,3 / ungeeignet 0), Nassstandorte (N, O, Ü) = 0,
+  Feuchte 3 (nicht in der Legende, vermutlich trocken) = 0,6.
+- **Befund:** Zu wenig Trennschärfe – 60–80 % des Waldes erreichen Stufe 90–100, weil Kiefer
+  und die häufigsten Böden (Z2, M2) beide als „gut“ gelten. Version 2 braucht weitere Merkmale.
+- **Verworfen:** `nfgr4` als vierten Anteil zu zählen – widerspricht der Anteilssumme.
+
+## 2026-10-03 — Habitat Version 2: Mischfaktor und relative Stufen
+
+- **Kontext:** Version 1 stufte 60–80 % des Waldes in 90–100 ein (siehe oben).
+- **Entscheidung:**
+  - Mischfaktor: Anteil *anderer* Wirtsbaumarten im 70 × 70 m-Fenster; ab 25 % voll gemischt.
+    Gesamtwert = Baum × Boden × (0,6 + 0,4 × Mischfaktor) – ein Reinbestand behält 60 %.
+  - Anzeige-Stufe 50–100 nach **mittlerem Rang** im Gebiet; gleiche Werte bekommen den
+    Mittelrang ihres Blocks, damit große gleichartige Reinbestände nicht geschlossen oben landen.
+  - Fenstersumme über ein Integralbild in numpy statt scipy (keine neue Abhängigkeit).
+- **Grenze:** 59–66 % der Waldpixel sind reiner Kiefernbestand auf gleichem Boden und damit
+  wertgleich; innerhalb davon trennt erst ein weiteres Merkmal (z. B. Bestandshöhe/-alter).
+  Einzelne Laubbaum-Pixel erzeugen sichtbare quadratische Höfe (eckiges Fenster).
+- **Verworfen:** Rang mit oberem Blockrang – setzte große gleiche Blöcke zu optimistisch in 90–100.
