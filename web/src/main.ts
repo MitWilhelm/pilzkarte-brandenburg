@@ -10,11 +10,11 @@ import {
   zeigePilz,
   type Kartenebene,
 } from "./karte.ts";
-import { findeHotspots, hotspotart, type MarkierterHotspot } from "./hotspots.ts";
+import { findeHotspots, hotspotart, MIN_STUFE, type MarkierterHotspot } from "./hotspots.ts";
 import { baumartName, pixelAnStelle, stufeninfo, type Gebiet, type Pilzkanal } from "./geo.ts";
 import { ladeDatenbild, ladeGebiete } from "./clients/daten.ts";
 import { ladeWetter, type Wetterreihe } from "./clients/openmeteo.ts";
-import { indexverlauf, tagesindex, type Pilzart } from "./wachstum.ts";
+import { ausloeserFuerStufe, indexverlauf, tagesindex, type Pilzart } from "./wachstum.ts";
 import {
   element,
   fuelleGebiete,
@@ -69,7 +69,7 @@ async function aktualisiereGebietsindex(zustand: Zustand): Promise<void> {
   try {
     const reihe = await wetterFuer(gebiet.mitte[1], gebiet.mitte[0]);
     if (zustand.gebiet === gebiet && zustand.pilz === pilz) {
-      zeigeIndex(gebiet.anzeigename, indexverlauf(reihe.tage, reihe.heute, pilz));
+      zeigeIndex(gebiet.anzeigename, indexverlauf(reihe.tage, reihe.heute, { pilz, ausloeserMm: ausloeserFuerStufe(null) }));
     }
   } catch (fehler) {
     zeigeIndexFehler(fehlertext(fehler));
@@ -82,9 +82,11 @@ async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kart
     ebenen.map(async ({ gebiet, daten }): Promise<MarkierterHotspot[]> => {
       try {
         const reihe = await wetterFuer(gebiet.mitte[1], gebiet.mitte[0]);
+        // Brennpunkte haben Stufe ab 90, also gilt der Auslöser für gut passende Standorte.
+        const bedingungen = { pilz, ausloeserMm: ausloeserFuerStufe(MIN_STUFE) };
         const indizes: number[] = [];
         for (let position = Math.max(0, reihe.heute - TAGE_RUECKBLICK); position <= reihe.heute; position += 1) {
-          indizes.push(tagesindex(reihe.tage, position, pilz).index);
+          indizes.push(tagesindex(reihe.tage, position, bedingungen).index);
         }
         const indexHeute = indizes[indizes.length - 1];
         if (indexHeute === undefined) {
@@ -133,7 +135,7 @@ async function zeigeStelle(karte: maplibregl.Map, ebenen: readonly Kartenebene[]
   });
   try {
     const reihe = await wetterFuer(lat, lng);
-    zeigePunktwetter(reihe.tage, reihe.heute, tagesindex(reihe.tage, reihe.heute, zustand.pilz));
+    zeigePunktwetter(reihe.tage, reihe.heute, tagesindex(reihe.tage, reihe.heute, { pilz: zustand.pilz, ausloeserMm: ausloeserFuerStufe(stufe) }));
   } catch (fehler) {
     zeigePunktwetterFehler(fehlertext(fehler));
   }

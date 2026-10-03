@@ -20,6 +20,11 @@ export interface Indexfaktoren {
   readonly frost: number;
 }
 
+export interface Indexbedingungen {
+  readonly pilz: Pilzart;
+  readonly ausloeserMm: number;
+}
+
 export interface Tagesindex {
   readonly datum: string;
   readonly index: number;
@@ -43,6 +48,9 @@ interface Saison {
 
 const AUSLOESER_TAGE = 3;
 const AUSLOESER_MM = 12;
+// Auf gut passenden Standorten (Habitat-Stufe ab 80) genügt weniger Regen als Auslöser (Angabe des Nutzers: 6-8 mm).
+const AUSLOESER_MM_GUTER_STANDORT = 6;
+const STUFE_GUTER_STANDORT = 80;
 const LATENZ: Readonly<Record<Pilzart, Latenz>> = {
   steinpilz: { zuFruehBis: 4, ernteAb: 7, ernteBis: 14, abklingenBis: 21 },
   pfifferling: { zuFruehBis: 5, ernteAb: 9, ernteBis: 18, abklingenBis: 26 },
@@ -74,9 +82,15 @@ function linear(wert: number, von: number, bis: number): number {
   return Math.min(1, Math.max(0, (wert - von) / (bis - von)));
 }
 
+/** Regenmenge, ab der ein Regentag als Auslöser zählt: niedriger auf gut passenden Standorten.
+ *  `stufe` ist die Habitat-Stufe der Stelle oder null, wenn sie unbekannt ist (dann gilt der strenge Wert). */
+export function ausloeserFuerStufe(stufe: number | null): number {
+  return stufe !== null && stufe >= STUFE_GUTER_STANDORT ? AUSLOESER_MM_GUTER_STANDORT : AUSLOESER_MM;
+}
+
 /** Tage seit dem letzten Regen-Auslöser bis zum Tag `position`.
- *  Auslöser ist ein Regentag, an dem die Summe der letzten AUSLOESER_TAGE Tage AUSLOESER_MM erreicht. */
-export function tageSeitAusloeser(tage: readonly Tageswetter[], position: number): number | null {
+ *  Auslöser ist ein Regentag, an dem die Summe der letzten AUSLOESER_TAGE Tage `ausloeserMm` erreicht. */
+export function tageSeitAusloeser(tage: readonly Tageswetter[], position: number, ausloeserMm: number): number | null {
   for (let ende = position; ende >= 0; ende -= 1) {
     // Ohne Regen am Tag selbst wäre es nur das Nachklingen eines früheren Auslösers.
     if (tageswetter(tage, ende).regenMm <= 0) {
@@ -86,7 +100,7 @@ export function tageSeitAusloeser(tage: readonly Tageswetter[], position: number
     for (let tag = Math.max(0, ende - AUSLOESER_TAGE + 1); tag <= ende; tag += 1) {
       summe += tageswetter(tage, tag).regenMm;
     }
-    if (summe >= AUSLOESER_MM) {
+    if (summe >= ausloeserMm) {
       return position - ende;
     }
   }
@@ -162,9 +176,10 @@ function tageswetter(tage: readonly Tageswetter[], position: number): Tageswette
 }
 
 /** Index für den Tag an `position`; die Tage davor liefern Regen-Auslöser und Frost. */
-export function tagesindex(tage: readonly Tageswetter[], position: number, pilz: Pilzart): Tagesindex {
+export function tagesindex(tage: readonly Tageswetter[], position: number, bedingungen: Indexbedingungen): Tagesindex {
   const tag = tageswetter(tage, position);
-  const seit = tageSeitAusloeser(tage, position);
+  const { pilz, ausloeserMm } = bedingungen;
+  const seit = tageSeitAusloeser(tage, position, ausloeserMm);
   const faktoren: Indexfaktoren = {
     regen: regenfaktor(pilz, seit),
     bodentemperatur: bodentemperaturfaktor(tag.bodentempC),
@@ -178,10 +193,10 @@ export function tagesindex(tage: readonly Tageswetter[], position: number, pilz:
 }
 
 /** Indizes ab dem Tag `heute` bis zum letzten Tag der Reihe (Prognose). */
-export function indexverlauf(tage: readonly Tageswetter[], heute: number, pilz: Pilzart): Tagesindex[] {
+export function indexverlauf(tage: readonly Tageswetter[], heute: number, bedingungen: Indexbedingungen): Tagesindex[] {
   const verlauf: Tagesindex[] = [];
   for (let position = heute; position < tage.length; position += 1) {
-    verlauf.push(tagesindex(tage, position, pilz));
+    verlauf.push(tagesindex(tage, position, bedingungen));
   }
   return verlauf;
 }

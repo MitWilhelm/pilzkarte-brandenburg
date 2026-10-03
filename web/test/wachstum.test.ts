@@ -2,6 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  ausloeserFuerStufe,
   bodenfeuchtefaktor,
   bodentemperaturfaktor,
   frostfaktor,
@@ -22,16 +23,16 @@ function reihe(regen: readonly number[]): Tageswetter[] {
 
 test("ein kräftiger Regen wird als Auslöser erkannt und die Tage danach werden gezählt", () => {
   const tage = reihe([0, 15, 0, 0, 0, 0, 0, 0]);
-  assert.equal(tageSeitAusloeser(tage, 7), 6);
+  assert.equal(tageSeitAusloeser(tage, 7, 12), 6);
 });
 
 test("mehrere kleine Regen innerhalb von drei Tagen zählen zusammen als Auslöser", () => {
   const tage = reihe([5, 4, 4, 0, 0]);
-  assert.equal(tageSeitAusloeser(tage, 4), 2);
+  assert.equal(tageSeitAusloeser(tage, 4, 12), 2);
 });
 
 test("ohne genug Regen gibt es keinen Auslöser", () => {
-  assert.equal(tageSeitAusloeser(reihe([2, 3, 1, 0, 4, 2]), 5), null);
+  assert.equal(tageSeitAusloeser(reihe([2, 3, 1, 0, 4, 2]), 5, 12), null);
 });
 
 test("der Regenfaktor ist eine Woche nach dem Auslöser beim Steinpilz am höchsten", () => {
@@ -67,13 +68,13 @@ test("zehn Tage nach kräftigem Regen bei mildem feuchtem Boden ergibt im Oktobe
   const tage = Array.from({ length: 12 }, (_, nummer) =>
     tag(`2026-10-${String(nummer + 1).padStart(2, "0")}`, nummer === 1 ? 20 : 0),
   );
-  const ergebnis = tagesindex(tage, 11, "steinpilz");
+  const ergebnis = tagesindex(tage, 11, { pilz: "steinpilz", ausloeserMm: 12 });
   assert.equal(ergebnis.tageSeitAusloeser, 10);
   assert.equal(ergebnis.index, 100);
 });
 
 test("ein Tag außerhalb der Reihe meldet eine verletzte Invariante", () => {
-  assert.throws(() => tagesindex(reihe([0]), 3, "pfifferling"), /Invariante verletzt/);
+  assert.throws(() => tagesindex(reihe([0]), 3, { pilz: "pfifferling", ausloeserMm: 12 }), /Invariante verletzt/);
 });
 
 test("die Wortskala ordnet den Index in fünf Stufen ein", async () => {
@@ -81,4 +82,18 @@ test("die Wortskala ordnet den Index in fünf Stufen ein", async () => {
   assert.equal(indexWort(85), "Sehr günstig");
   assert.equal(indexWort(20), "Mäßig");
   assert.equal(indexWort(0), "Ungünstig");
+});
+
+test("7 mm Regen lösen nur auf Standorten ab Stufe 80 aus, sonst nicht", () => {
+  const tage = reihe([0, 7, 0, 0]);
+  const faelle: readonly { stufe: number | null; erwartet: number | null }[] = [
+    { stufe: 80, erwartet: 2 },
+    { stufe: 95, erwartet: 2 },
+    { stufe: 79, erwartet: null },
+    { stufe: 0, erwartet: null },
+    { stufe: null, erwartet: null },
+  ];
+  for (const fall of faelle) {
+    assert.equal(tageSeitAusloeser(tage, 3, ausloeserFuerStufe(fall.stufe)), fall.erwartet, `Stufe ${String(fall.stufe)}`);
+  }
 });

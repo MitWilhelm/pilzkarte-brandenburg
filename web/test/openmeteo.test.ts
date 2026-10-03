@@ -25,7 +25,7 @@ test("Bodentemperatur und Bodenfeuchte sind plausible Tagesmittel", () => {
 
 test("aus der echten Antwort entsteht ein Verlauf von heute plus sieben Tagen mit Index 0 bis 100", () => {
   const reihe = wetterAusAntwort(echteAntwort);
-  const verlauf = indexverlauf(reihe.tage, reihe.heute, "steinpilz");
+  const verlauf = indexverlauf(reihe.tage, reihe.heute, { pilz: "steinpilz", ausloeserMm: 12 });
   assert.equal(verlauf.length, 8);
   for (const tag of verlauf) {
     assert.ok(tag.index >= 0 && tag.index <= 100);
