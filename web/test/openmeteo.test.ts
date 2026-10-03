@@ -9,6 +9,26 @@ const echteAntwort: unknown = JSON.parse(
   readFileSync(new URL("./fixtures/openmeteo_joachimsthal.json", import.meta.url), "utf8"),
 );
 
+interface Rohantwort {
+  hourly: Record<string, (number | null)[]>;
+}
+
+// Frische Kopie je Test, damit sich die Tests nicht gegenseitig verändern (Regel 9: keine geteilten Fixtures).
+function frischeAntwort(): Rohantwort {
+  const text = readFileSync(new URL("./fixtures/openmeteo_joachimsthal.json", import.meta.url), "utf8");
+  const inhalt: unknown = JSON.parse(text);
+  if (typeof inhalt !== "object" || inhalt === null || !("hourly" in inhalt) || typeof inhalt.hourly !== "object" || inhalt.hourly === null) {
+    throw new Error("Invariante verletzt: Testdatei ohne hourly");
+  }
+  const stundlich: Record<string, (number | null)[]> = {};
+  for (const [name, werte] of Object.entries(inhalt.hourly)) {
+    if (Array.isArray(werte)) {
+      stundlich[name] = werte.map((wert): number | null => (typeof wert === "number" ? wert : null));
+    }
+  }
+  return { ...inhalt, hourly: stundlich };
+}
+
 test("die echte Antwort ergibt 28 Tage mit heute an Position 20", () => {
   const reihe = wetterAusAntwort(echteAntwort);
   assert.equal(reihe.tage.length, 28);
@@ -40,4 +60,26 @@ test("die Abfrage-URL fordert 20 Tage Vergangenheit in Ortszeit an", () => {
   const url = new URL(wetterUrl(52.979, 13.745));
   assert.equal(url.searchParams.get("past_days"), "20");
   assert.equal(url.searchParams.get("timezone"), "Europe/Berlin");
+});
+
+test("fehlende Bodenwerte am Prognose-Ende (null) kürzen die Reihe statt Fehler zu werfen", () => {
+  const antwort = frischeAntwort();
+  for (const feldname of ["soil_temperature_6cm", "soil_moisture_3_to_9cm"]) {
+    const werte = antwort.hourly[feldname];
+    assert.ok(werte !== undefined);
+    for (let stunde = werte.length - 21; stunde < werte.length; stunde += 1) {
+      werte[stunde] = null;
+    }
+  }
+  const reihe = wetterAusAntwort(antwort);
+  assert.equal(reihe.tage.length, 27);
+  assert.equal(reihe.heute, 20);
+});
+
+test("fehlende Bodenwerte für heute melden eine verletzte Invariante", () => {
+  const antwort = frischeAntwort();
+  const werte = antwort.hourly["soil_temperature_6cm"];
+  assert.ok(werte !== undefined);
+  werte[20 * 24 + 5] = null;
+  assert.throws(() => wetterAusAntwort(antwort), /Invariante verletzt: Bodenwerte für .* fehlen/);
 });

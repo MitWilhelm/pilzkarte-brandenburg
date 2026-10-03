@@ -20,6 +20,14 @@ function zahlenliste(wert: unknown, name: string): number[] {
   return wert.filter((eintrag): eintrag is number => typeof eintrag === "number");
 }
 
+// Open-Meteo liefert Bodenwerte nur etwa 7 Tage voraus; der Rest der Stundenliste ist null.
+function stundenliste(wert: unknown, name: string): (number | null)[] {
+  if (!Array.isArray(wert) || !wert.every((eintrag) => typeof eintrag === "number" || eintrag === null)) {
+    throw new Error(`Invariante verletzt: Open-Meteo-Feld ${name} ist keine Liste aus Zahlen oder null`);
+  }
+  return wert.map((eintrag): number | null => (typeof eintrag === "number" ? eintrag : null));
+}
+
 function textliste(wert: unknown, name: string): string[] {
   if (!Array.isArray(wert) || !wert.every((eintrag) => typeof eintrag === "string")) {
     throw new Error(`Invariante verletzt: Open-Meteo-Feld ${name} ist keine Textliste`);
@@ -34,12 +42,20 @@ function feld(objekt: unknown, name: string): unknown {
   return Object.entries(objekt).find(([schluessel]) => schluessel === name)?.[1];
 }
 
-function tagesmittel(stundenwerte: readonly number[], tag: number): number {
+/** Tagesmittel oder null, wenn mindestens ein Stundenwert des Tages fehlt (Ende der Bodenprognose). */
+function tagesmittel(stundenwerte: readonly (number | null)[], tag: number): number | null {
   const ausschnitt = stundenwerte.slice(tag * STUNDEN_PRO_TAG, (tag + 1) * STUNDEN_PRO_TAG);
   if (ausschnitt.length !== STUNDEN_PRO_TAG) {
     throw new Error(`Invariante verletzt: Tag ${String(tag)} hat ${String(ausschnitt.length)} Stundenwerte`);
   }
-  return ausschnitt.reduce((summe, wert) => summe + wert, 0) / STUNDEN_PRO_TAG;
+  let summe = 0;
+  for (const stundenwert of ausschnitt) {
+    if (stundenwert === null) {
+      return null;
+    }
+    summe += stundenwert;
+  }
+  return summe / STUNDEN_PRO_TAG;
 }
 
 function wert(liste: readonly number[], position: number): number {
@@ -57,20 +73,25 @@ export function wetterAusAntwort(antwort: unknown): Wetterreihe {
   const daten = textliste(feld(taeglich, "time"), "daily.time");
   const regen = zahlenliste(feld(taeglich, "precipitation_sum"), "precipitation_sum");
   const minimum = zahlenliste(feld(taeglich, "temperature_2m_min"), "temperature_2m_min");
-  const bodentemp = zahlenliste(feld(stuendlich, "soil_temperature_6cm"), "soil_temperature_6cm");
-  const feuchte = zahlenliste(feld(stuendlich, "soil_moisture_3_to_9cm"), "soil_moisture_3_to_9cm");
+  const bodentemp = stundenliste(feld(stuendlich, "soil_temperature_6cm"), "soil_temperature_6cm");
+  const feuchte = stundenliste(feld(stuendlich, "soil_moisture_3_to_9cm"), "soil_moisture_3_to_9cm");
   if (bodentemp.length !== daten.length * STUNDEN_PRO_TAG || feuchte.length !== bodentemp.length) {
     throw new Error(
       `Invariante verletzt: ${String(daten.length)} Tage, aber ${String(bodentemp.length)} Stundenwerte`,
     );
   }
-  const tage = daten.map((datum, tag) => ({
-    datum,
-    regenMm: wert(regen, tag),
-    lufttempMinC: wert(minimum, tag),
-    bodentempC: tagesmittel(bodentemp, tag),
-    bodenfeuchte: tagesmittel(feuchte, tag),
-  }));
+  const tage: Tageswetter[] = [];
+  for (const [tag, datum] of daten.entries()) {
+    const bodentempC = tagesmittel(bodentemp, tag);
+    const bodenfeuchte = tagesmittel(feuchte, tag);
+    if (bodentempC === null || bodenfeuchte === null) {
+      if (tag <= TAGE_ZURUECK) {
+        throw new Error(`Invariante verletzt: Bodenwerte für ${datum} fehlen, obwohl der Tag nicht in der Zukunft liegt`);
+      }
+      break; // Prognose-Ende: spätere Tage haben keine Bodenwerte mehr
+    }
+    tage.push({ datum, regenMm: wert(regen, tag), lufttempMinC: wert(minimum, tag), bodentempC, bodenfeuchte });
+  }
   if (tage.length <= TAGE_ZURUECK) {
     throw new Error(`Invariante verletzt: nur ${String(tage.length)} Tage, erwartet mehr als ${String(TAGE_ZURUECK)}`);
   }
