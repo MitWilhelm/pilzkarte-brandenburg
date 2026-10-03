@@ -1,0 +1,22 @@
+# Rohdaten liegen im Release daten-v1, nie im Git
+*.tif
+*.tiff
+*.gml
+rohdaten/
+
+# Secrets
+.env
+
+# Python
+__pycache__/
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# System
+.DS_Store
