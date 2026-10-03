@@ -23,8 +23,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      # Mini-Test: 3 Punkte, alle Antwortformate. Für den vollen Lauf werden die Optionen entfernt.
-      - run: python -m pipeline.io_stok_abfrage --anzahl 3 --alle-formate
+      # Voller Lauf: alle Punkte aus daten/stok_punkte.csv, nur JSON (ca. 25 Minuten bei 1 Abfrage/s).
+      - run: python -m pipeline.io_stok_abfrage
       - name: Ergebnis zurückschreiben
         run: |
           git config user.name "github-actions[bot]"
