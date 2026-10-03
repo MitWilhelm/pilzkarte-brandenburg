@@ -20,4 +20,9 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // node:test wartet selbst auf die Promises von test(); ein await davor wäre nur Rauschen.
+    files: ["test/**/*.ts"],
+    rules: { "@typescript-eslint/no-floating-promises": "off" },
+  },
 );

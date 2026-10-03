@@ -6,7 +6,7 @@
     "build": "node build.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "node --test test/"
+    "test": "node --test \"test/**/*.test.ts\""
   },
   "dependencies": {
     "maplibre-gl": "5.11.0"
