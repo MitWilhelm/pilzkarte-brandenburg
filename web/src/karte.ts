@@ -132,7 +132,7 @@ export function bodenAnPunkt(karte: maplibregl.Map, punkt: maplibregl.Point, geb
 /** Ring-Ebene für Brennpunkte; liegt über der Heatmap, die Daten kommen mit zeigeHotspots. */
 export function fuegeHotspotEbeneHinzu(karte: maplibregl.Map): void {
   karte.addSource(HOTSPOT_QUELLE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-  // Zwei Ringe: dunkler Rand für Kontrast auf Rot und Gelb, heller Ring darüber.
+  // Zwei Ringe: dunkler Rand für Kontrast auf Rot und Gelb, farbiger Ring darüber.
   karte.addLayer({
     id: "hotspot-rand",
     type: "circle",
@@ -153,8 +153,8 @@ export function fuegeHotspotEbeneHinzu(karte: maplibregl.Map): void {
       "circle-radius": HOTSPOT_RADIUS,
       "circle-opacity": 0,
       "circle-stroke-width": HOTSPOT_RING_BREITE,
-      // weiß: heute günstig; gelb: nur in den letzten Tagen günstig
-      "circle-stroke-color": ["match", ["get", "art"], "letzte-tage", "#ffd34d", "#ffffff"],
+      // grün: heute günstig; lila: nur in den letzten Tagen günstig
+      "circle-stroke-color": ["match", ["get", "art"], "letzte-tage", "#9b4dca", "#1fbf5b"],
     },
   });
 }
