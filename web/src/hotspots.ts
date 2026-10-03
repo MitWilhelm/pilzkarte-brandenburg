@@ -21,7 +21,7 @@ export interface Hotspotsuche {
 }
 
 export const MIN_INDEX = 60; // Wachstumsindex "Günstig"
-export const MIN_STUFE = 90; // "Sehr gut" (Stufe in %, relativ zum Gebiet)
+export const MIN_STUFE = 85; // Stufe in %, relativ zum Gebiet; "Gut" ab 80, "Sehr gut" ab 90
 const KANAELE_PRO_PIXEL = 4;
 const ZELLE_PIXEL = 10; // Daten-Pixel sind 10 m groß: eine Zelle ist 100 m x 100 m
 const MIN_ANTEIL_HOCH = 0.5; // so viel Anteil einer Zelle muss MIN_STUFE erreichen

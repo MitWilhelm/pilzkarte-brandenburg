@@ -50,7 +50,7 @@ const AUSLOESER_TAGE = 3;
 const AUSLOESER_MM = 12;
 // Auf gut passenden Standorten (Habitat-Stufe ab 80) genügt weniger Regen als Auslöser (Angabe des Nutzers: 6-8 mm).
 const AUSLOESER_MM_GUTER_STANDORT = 6;
-const STUFE_GUTER_STANDORT = 80;
+export const STUFE_GUTER_STANDORT = 80;
 const LATENZ: Readonly<Record<Pilzart, Latenz>> = {
   steinpilz: { zuFruehBis: 4, ernteAb: 7, ernteBis: 14, abklingenBis: 21 },
   pfifferling: { zuFruehBis: 5, ernteAb: 9, ernteBis: 18, abklingenBis: 26 },
