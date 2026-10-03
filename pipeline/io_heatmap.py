@@ -1,7 +1,7 @@
 """Berechnet die Habitat-Heatmaps je Testgebiet und Pilzart und schreibt daten/<gebiet>_<pilz>_habitat.tif.
 
-Liest die zugeschnittenen Baumarten (EPSG:3035) und Standortflächen (EPSG:25833) samt
-LFB-Antworten; die Flächen werden auf das 10-m-Raster der Baumarten gebrannt.
+Liest Baumarten (EPSG:3035), Standortflächen (EPSG:25833) und LFB-Antworten; die Flächen werden
+auf das 10-m-Raster gebrannt, mit dem Mischfaktor verrechnet und relativ zum Gebiet gestuft.
 """
 
 import json
@@ -14,7 +14,17 @@ import rasterio
 from rasterio.features import rasterize
 
 from pipeline.gebiete import CODE_KEIN_WERT, TESTGEBIETE
-from pipeline.habitat import PILZARTEN, Pilzart, Standortanteil, anzeige_stufe, baumart_punkte, boden_punkte
+from pipeline.habitat import (
+    PILZARTEN,
+    Pilzart,
+    Standortanteil,
+    baumart_punkte,
+    boden_punkte,
+    gesamtwert,
+    relative_stufen,
+    wirt_codes,
+)
+from pipeline.nachbarschaft import mischfaktor
 
 __all__ = ["main"]
 
@@ -57,15 +67,19 @@ def _boden_raster(gebiet_name: str, pilz: Pilzart, anteile: dict[str, list[Stand
     return np.asarray(gebrannt, dtype=np.float32)
 
 
-def _heatmap(baumarten: npt.NDArray[np.uint16], boden: npt.NDArray[np.float32], pilz: Pilzart) -> npt.NDArray[np.uint8]:
-    ergebnis = np.zeros(baumarten.shape, dtype=np.uint8)
+def _baum_raster(baumarten: npt.NDArray[np.uint16], pilz: Pilzart) -> npt.NDArray[np.float32]:
+    ergebnis = np.zeros(baumarten.shape, dtype=np.float32)
     for code in np.unique(baumarten).tolist():
-        if code == CODE_KEIN_WERT:
-            continue
-        maske = (baumarten == code) & (boden != OHNE_BODEN)
-        for bodenwert in np.unique(boden[maske]).tolist():
-            ergebnis[maske & (boden == bodenwert)] = anzeige_stufe(baumart_punkte(pilz, code) * bodenwert)
+        if code != CODE_KEIN_WERT:
+            ergebnis[baumarten == code] = baumart_punkte(pilz, code)
     return ergebnis
+
+
+def _heatmap(baumarten: npt.NDArray[np.uint16], boden: npt.NDArray[np.float32], pilz: Pilzart) -> npt.NDArray[np.uint8]:
+    # Pixel ohne Standortfläche (Rand des Ausschnitts, Nicht-Holzboden) gelten als kein Habitat.
+    boden_oder_null = np.where(boden == OHNE_BODEN, 0.0, boden).astype(np.float32)
+    misch = mischfaktor(baumarten, wirt_codes(pilz))
+    return relative_stufen(gesamtwert(_baum_raster(baumarten, pilz), boden_oder_null, misch))
 
 
 def main() -> None:

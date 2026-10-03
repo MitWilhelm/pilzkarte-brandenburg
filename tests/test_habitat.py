@@ -1,15 +1,18 @@
 """Tests für die Habitat-Regeln in pipeline/habitat.py."""
 
+import numpy as np
 import pytest
 
 from pipeline.habitat import (
     KEIN_HABITAT,
     Standort,
     Standortanteil,
-    anzeige_stufe,
     baumart_punkte,
     boden_punkte,
+    gesamtwert,
     lies_standort,
+    relative_stufen,
+    wirt_codes,
 )
 
 
@@ -62,8 +65,31 @@ def test_anteile_die_nicht_zehn_zehntel_ergeben_melden_eine_verletzte_invariante
         boden_punkte("steinpilz", [Standortanteil(code="Z2", anteil=7)])
 
 
-@pytest.mark.parametrize(
-    ("wert", "stufe"), [(1.0, 100), (0.6, 80), (0.2, 60), (0.19, KEIN_HABITAT), (0.0, KEIN_HABITAT)]
-)
-def test_habitat_wert_wird_auf_anzeigestufen_von_50_bis_100_abgebildet(wert: float, stufe: int) -> None:
-    assert anzeige_stufe(wert) == stufe
+def test_relative_stufen_ordnen_nach_mittlerem_rang_und_lassen_kleine_werte_weg() -> None:
+    werte = np.array([0.1, 0.3, 0.5, 0.7, 0.9], dtype=np.float32)
+    assert relative_stufen(werte).tolist() == [KEIN_HABITAT, 56, 69, 81, 94]
+
+
+def test_gleiche_werte_bekommen_den_mittleren_rang_ihres_blocks() -> None:
+    werte = np.array([0.5, 0.5, 0.8, 0.8], dtype=np.float32)
+    assert relative_stufen(werte).tolist() == [63, 63, 88, 88]
+
+
+def test_gebiet_ohne_habitat_ergibt_nur_nullen() -> None:
+    assert relative_stufen(np.zeros(3, dtype=np.float32)).tolist() == [0, 0, 0]
+
+
+def test_reiner_bestand_behaelt_sechzig_prozent_und_gemischter_den_vollen_wert() -> None:
+    eins = np.ones(2, dtype=np.float32)
+    misch = np.array([0.0, 1.0], dtype=np.float32)
+    assert gesamtwert(eins, eins, misch).tolist() == pytest.approx([0.6, 1.0])
+
+
+def test_werte_ausserhalb_von_null_bis_eins_melden_eine_verletzte_invariante() -> None:
+    zu_gross = np.array([1.5], dtype=np.float32)
+    with pytest.raises(ValueError, match="Invariante verletzt: Boden-Werte"):
+        gesamtwert(np.ones(1, dtype=np.float32), zu_gross, np.ones(1, dtype=np.float32))
+
+
+def test_wirtsbaeume_des_pfifferlings_schliessen_erle_und_kronenverlust_aus() -> None:
+    assert wirt_codes("pfifferling") == frozenset({0, 1, 2, 3, 4, 5, 6, 7})

@@ -1,12 +1,15 @@
-"""Habitat-Bewertung für Steinpilz und Pfifferling aus Baumart und Standort (reine Funktionen).
+"""Habitat-Bewertung für Steinpilz und Pfifferling aus Baumart, Standort und Mischung (reine Funktionen).
 
 Die Punktwerte sind Fachwissen-Annahmen (siehe docs/decisions.md), nicht mit Funden kalibriert.
-Wert = Baumart-Punkte x Boden-Punkte, 0 bis 1; Anzeige-Stufe = 50 bis 100 ab MINDESTWERT.
+Wert = Baum x Boden x Mischungsgewicht (0 bis 1); Anzeige-Stufe 50 bis 100 nach Rang im Gebiet.
 """
 
 import re
 from dataclasses import dataclass
 from typing import Literal
+
+import numpy as np
+import numpy.typing as npt
 
 __all__ = [
     "KEIN_HABITAT",
@@ -14,10 +17,12 @@ __all__ = [
     "Pilzart",
     "Standort",
     "Standortanteil",
-    "anzeige_stufe",
     "baumart_punkte",
     "boden_punkte",
+    "gesamtwert",
     "lies_standort",
+    "relative_stufen",
+    "wirt_codes",
 ]
 
 Pilzart = Literal["steinpilz", "pfifferling"]
@@ -28,10 +33,11 @@ MITTEL = 0.6
 GERING = 0.3
 UNGEEIGNET = 0.0
 MINDESTWERT = 0.2
+MISCH_BASIS = 0.6  # reiner Bestand behält 60 % seines Werts, voll gemischter 100 %
 KEIN_HABITAT = 0
 STUFE_UNTEN = 50
 STUFE_SPANNE = 50
-ANTEILE_GESAMT = 10  # LFB gibt Anteile in Zehnteln an (az1..az4)
+ANTEILE_GESAMT = 10  # LFB gibt Anteile in Zehnteln an (az1..az3)
 
 # Baumart-Codes laut DLR: 0 Kiefer, 1 Fichte, 2 Douglasie, 3 Lärche, 4 Tanne, 5 Buche,
 # 6 Eiche, 7 Birke, 8 Erle, 9 Sonstige, 666 Kronenverlust.
@@ -122,10 +128,35 @@ def boden_punkte(pilz: Pilzart, anteile: list[Standortanteil]) -> float:
     return gewichtet / ANTEILE_GESAMT
 
 
-def anzeige_stufe(wert: float) -> int:
-    """0 bis 1 -> 50 bis 100; unter MINDESTWERT gilt die Stelle als kein Habitat (0)."""
-    if not 0.0 <= wert <= 1.0:
-        raise ValueError(f"Invariante verletzt: Habitat-Wert {wert} liegt nicht zwischen 0 und 1")
-    if wert < MINDESTWERT:
-        return KEIN_HABITAT
-    return round(STUFE_UNTEN + STUFE_SPANNE * wert)
+def wirt_codes(pilz: Pilzart) -> frozenset[int]:
+    """Baumarten, die für die Pilzart mindestens als mittel geeigneter Mykorrhiza-Partner gelten."""
+    return frozenset(code for code, punkte in _BAUMART[pilz].items() if punkte >= MITTEL)
+
+
+def gesamtwert(
+    baum: npt.NDArray[np.float32], boden: npt.NDArray[np.float32], misch: npt.NDArray[np.float32]
+) -> npt.NDArray[np.float32]:
+    """Baum x Boden x Mischungsgewicht; ein reiner Bestand behält MISCH_BASIS seines Werts."""
+    for name, werte in (("Baum", baum), ("Boden", boden), ("Mischung", misch)):
+        if werte.size > 0 and (werte.min() < 0.0 or werte.max() > 1.0):
+            raise ValueError(f"Invariante verletzt: {name}-Werte von {werte.min()} bis {werte.max()}")
+    return (baum * boden * (MISCH_BASIS + (1.0 - MISCH_BASIS) * misch)).astype(np.float32)
+
+
+def relative_stufen(werte: npt.NDArray[np.float32]) -> npt.NDArray[np.uint8]:
+    """Stufe 50 bis 100 nach mittlerem Rang im Gebiet; Pixel unter MINDESTWERT sind kein Habitat (0).
+
+    Gleiche Werte erhalten den mittleren Rang ihres Blocks: Ein großer Block gleichartigen
+    Reinbestands landet so in der Mitte statt geschlossen in der obersten Stufe.
+    """
+    ist_habitat = werte >= MINDESTWERT
+    stufen = np.zeros(werte.shape, dtype=np.uint8)
+    if not ist_habitat.any():
+        return stufen
+    sortiert = np.sort(werte[ist_habitat])
+    unter = np.searchsorted(sortiert, werte[ist_habitat], side="left")
+    bis_einschliesslich = np.searchsorted(sortiert, werte[ist_habitat], side="right")
+    rang = (unter + bis_einschliesslich) / (2 * sortiert.size)
+    # floor(x + 0,5) rundet kaufmännisch; np.round würde 62,5 auf 62 abrunden (Banker's Rounding).
+    stufen[ist_habitat] = np.floor(STUFE_UNTEN + STUFE_SPANNE * rang + 0.5).astype(np.uint8)
+    return stufen
