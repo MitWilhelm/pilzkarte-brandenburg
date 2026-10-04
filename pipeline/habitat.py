@@ -21,9 +21,11 @@ __all__ = [
     "beschreibe_standort",
     "boden_punkte",
     "gesamtwert",
+    "hangfaktor",
     "lies_standort",
     "mit_wegrand",
     "relative_stufen",
+    "strukturfaktor",
     "wirt_codes",
 ]
 
@@ -189,3 +191,51 @@ def mit_wegrand(wert: npt.NDArray[np.float32], is_nahe_weg: npt.NDArray[np.bool_
     if wert.shape != is_nahe_weg.shape:
         raise ValueError(f"Invariante verletzt: Formen {wert.shape} und {is_nahe_weg.shape} passen nicht")
     return np.minimum(wert * np.where(is_nahe_weg, 1.0 + WEGRAND_AUFSCHLAG, 1.0), 1.0).astype(np.float32)
+
+
+# Bestandesstruktur aus LGB-Höhendaten (pipeline/io_hoehe.py). Kronenhöhe ersetzt das Alter: Kiefer erreicht
+# auf mittleren Standorten in Brandenburg grob 8 m mit 20, 15 m mit 40, 20 m mit 60, 23 m mit 80 Jahren
+# (Ertragstafel-Größenordnung, nicht standortgenau). Steinpilz-Ertrag nach Alter: 0–15 Jahre keine Funde, Gipfel
+# 51–70 Jahre, danach geringer (Martínez-Peña et al. 2012, Mycorrhiza); Pfifferling eher in älteren Beständen.
+_HOEHE_STUETZEN: dict[Pilzart, tuple[tuple[float, ...], tuple[float, ...]]] = {
+    "steinpilz": ((0, 4, 6, 12, 16, 19, 22, 25, 30), (0.1, 0.1, 0.45, 0.6, 0.85, 1.0, 1.0, 0.7, 0.5)),
+    "pfifferling": ((0, 4, 8, 15, 20, 40), (0.1, 0.1, 0.4, 0.7, 1.0, 1.0)),
+}
+# Kronenschluss (Anteil mit Kronen über 3 m) als Näherung der Bestandesdichte: Optimum bei mittlerer bis hoher
+# Dichte, sehr dicht wieder schlechter (Grundflächen-Optimum in 6 Studien; Werte hier sind Annahmen).
+_SCHLUSS_STUETZEN: dict[Pilzart, tuple[tuple[float, ...], tuple[float, ...]]] = {
+    "steinpilz": ((0.0, 0.3, 0.6, 0.85, 1.0), (0.3, 0.6, 1.0, 1.0, 0.8)),
+    "pfifferling": ((0.0, 0.3, 0.5, 0.8, 1.0), (0.3, 0.7, 1.0, 1.0, 0.75)),
+}
+# Hanglage: Nordhänge günstiger, steile Südhänge ungünstiger (de-Miguel et al. 2014, Bonet et al. 2010).
+HANG_WIRKUNG = 0.15  # höchstens ±15 %
+HANG_VOLL_GRAD = 15.0  # ab dieser Neigung volle Wirkung
+STRUKTUR_KEIN_WERT = -9999.0
+
+
+def strukturfaktor(
+    pilz: Pilzart, hoehe_m: npt.NDArray[np.float32], kronenschluss: npt.NDArray[np.float32]
+) -> npt.NDArray[np.float32]:
+    """0,1 bis 1 je Pixel aus Kronenhöhe und Kronenschluss; ohne Höhendaten (STRUKTUR_KEIN_WERT) neutral 1."""
+    if hoehe_m.shape != kronenschluss.shape:
+        raise ValueError(f"Invariante verletzt: Formen {hoehe_m.shape} und {kronenschluss.shape} passen nicht")
+    hoehen_x, hoehen_y = _HOEHE_STUETZEN[pilz]
+    schluss_x, schluss_y = _SCHLUSS_STUETZEN[pilz]
+    faktor = np.interp(hoehe_m, hoehen_x, hoehen_y) * np.interp(kronenschluss, schluss_x, schluss_y)
+    ohne_daten = (hoehe_m == STRUKTUR_KEIN_WERT) | (kronenschluss == STRUKTUR_KEIN_WERT)
+    return np.where(ohne_daten, 1.0, faktor).astype(np.float32)
+
+
+def hangfaktor(gelaende_m: npt.NDArray[np.float32], pixel_meter: float) -> npt.NDArray[np.float32]:
+    """1 ± HANG_WIRKUNG je nach Ausrichtung (Nordhang +, Südhang −) und Neigung; Zeile 0 liegt im Norden."""
+    if pixel_meter <= 0:
+        raise ValueError(f"Invariante verletzt: Pixelgröße {pixel_meter} m")
+    ohne_daten = gelaende_m == STRUKTUR_KEIN_WERT
+    gelaende = np.where(ohne_daten, np.nan, gelaende_m).astype(np.float64)
+    nach_sueden, nach_osten = np.gradient(gelaende, pixel_meter)
+    steigung = np.hypot(nach_sueden, nach_osten)
+    neigung_grad = np.degrees(np.arctan(steigung))
+    # Ein Hang „schaut“ nach Norden, wenn das Gelände nach Süden ansteigt (Gefälle Richtung Norden).
+    nordlage = np.divide(nach_sueden, steigung, out=np.zeros_like(steigung), where=steigung > 0)
+    faktor = 1.0 + HANG_WIRKUNG * nordlage * np.minimum(neigung_grad / HANG_VOLL_GRAD, 1.0)
+    return np.where(np.isnan(faktor), 1.0, faktor).astype(np.float32)

@@ -5,15 +5,18 @@ import pytest
 
 from pipeline.habitat import (
     KEIN_HABITAT,
+    STRUKTUR_KEIN_WERT,
     Standort,
     Standortanteil,
     baumart_punkte,
     beschreibe_standort,
     boden_punkte,
     gesamtwert,
+    hangfaktor,
     lies_standort,
     mit_wegrand,
     relative_stufen,
+    strukturfaktor,
     wirt_codes,
 )
 
@@ -113,3 +116,26 @@ def test_wegrand_hebt_den_wert_an_deckelt_bei_eins_und_laesst_null_bei_null() ->
     nahe = np.array([[True, True, True, False]])
     ergebnis = mit_wegrand(wert, nahe)
     assert ergebnis[0].tolist() == pytest.approx([0.575, 1.0, 0.0, 0.5])
+
+
+def test_junger_bestand_ist_fuer_den_steinpilz_kaum_geeignet_mittelalter_am_besten() -> None:
+    hoehe = np.array([[2.0, 10.0, 20.0, 30.0]], dtype=np.float32)
+    schluss = np.full(hoehe.shape, 0.7, dtype=np.float32)
+    faktor = strukturfaktor("steinpilz", hoehe, schluss)[0]
+    assert faktor[0] == pytest.approx(0.1)
+    assert faktor[0] < faktor[1] < faktor[2]
+    assert faktor[2] == pytest.approx(1.0)
+    assert faktor[3] < faktor[2]
+
+
+def test_ohne_hoehendaten_bleibt_der_strukturfaktor_neutral() -> None:
+    leer = np.full((1, 2), STRUKTUR_KEIN_WERT, dtype=np.float32)
+    assert strukturfaktor("pfifferling", leer, leer).tolist() == [[1.0, 1.0]]
+
+
+def test_nordhang_wird_aufgewertet_suedhang_abgewertet_ebene_bleibt_neutral() -> None:
+    # Gelände steigt nach Süden (Zeilen nach unten) um 10 m je 10-m-Pixel: steiler Nordhang.
+    nordhang = np.array([[0.0, 0.0], [10.0, 10.0], [20.0, 20.0]], dtype=np.float32)
+    assert hangfaktor(nordhang, 10.0)[1, 0] == pytest.approx(1.15)
+    assert hangfaktor(-nordhang, 10.0)[1, 0] == pytest.approx(0.85)
+    assert hangfaktor(np.zeros((3, 3), dtype=np.float32), 10.0)[1, 1] == pytest.approx(1.0)

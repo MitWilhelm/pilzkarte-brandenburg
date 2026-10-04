@@ -170,12 +170,15 @@ p, h1, ol, dl, dd { margin: 0; }
 .ringfeld-alt { border-color: #9b4dca; }
 /* Wege wie auf der Karte (src/karte.ts): fahrbarer Weg mit dunklem Rand, Pfad gestrichelt. */
 .wegfeld { flex: none; width: 26px; height: 8px; border-radius: 4px; background: #ffffff; box-shadow: 0 0 0 2px #6e5b3e; margin: 0 2px; }
+.strassefeld { flex: none; width: 26px; height: 9px; border-radius: 5px; background: #ffd75e; box-shadow: 0 0 0 2px #7d7d7d; margin: 0 2px; }
 .pfadfeld { flex: none; width: 26px; height: 0; border-top: 3px dashed #7a5a26; margin: 0 2px; }
 :root[data-theme="dark"] .wegfeld { background: #efe6cf; box-shadow: 0 0 0 2px #0c120e; }
 :root[data-theme="dark"] .pfadfeld { border-top-color: #e2c88f; }
+:root[data-theme="dark"] .strassefeld { background: #d6b04a; box-shadow: 0 0 0 2px #000000; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .wegfeld { background: #efe6cf; box-shadow: 0 0 0 2px #0c120e; }
   :root:not([data-theme="light"]) .pfadfeld { border-top-color: #e2c88f; }
+  :root:not([data-theme="light"]) .strassefeld { background: #d6b04a; box-shadow: 0 0 0 2px #000000; }
 }
 .legende-text { font-size: 13.5px; color: var(--leise); max-width: 65ch; }
 .legende-text.klein { font-size: 12px; }

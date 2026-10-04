@@ -30,6 +30,8 @@ interface Farbschema {
   readonly weg: string;
   readonly wegRand: string;
   readonly pfad: string;
+  readonly strasse: string;
+  readonly strasseRand: string;
 }
 const HELL: Farbschema = {
   rasterHellMin: 0,
@@ -39,6 +41,8 @@ const HELL: Farbschema = {
   weg: "#ffffff",
   wegRand: "#6e5b3e",
   pfad: "#7a5a26",
+  strasse: "#ffd75e",
+  strasseRand: "#7d7d7d",
 };
 const DUNKEL: Farbschema = {
   rasterHellMin: 0.92,
@@ -48,12 +52,17 @@ const DUNKEL: Farbschema = {
   weg: "#efe6cf",
   wegRand: "#0c120e",
   pfad: "#e2c88f",
+  strasse: "#d6b04a",
+  strasseRand: "#000000",
 };
 const DUNKEL_ABFRAGE = "(prefers-color-scheme: dark)";
 // Linienbreiten [Zoom, Pixel]: bei 12 noch dünn, ab 16 kräftig wie in Wanderkarten.
 const WEG_BREITE: readonly [number, number, number, number] = [12, 1.5, 16, 6];
 const WEG_RAND_BREITE: readonly [number, number, number, number] = [12, 3, 16, 10];
 const PFAD_BREITE: readonly [number, number, number, number] = [12, 1, 16, 3.5];
+// Straßen für Autos breiter und gelb, damit sie sich klar von Forstwegen (weiß) abheben.
+const STRASSE_BREITE: readonly [number, number, number, number] = [12, 2.5, 16, 9];
+const STRASSE_RAND_BREITE: readonly [number, number, number, number] = [12, 4, 16, 12];
 const PFAD_STRICHE: readonly [number, number] = [2, 1.5];
 
 export interface Kartenebene {
@@ -102,6 +111,8 @@ export function folgeFarbschema(karte: maplibregl.Map, ebenen: readonly Karteneb
       karte.setPaintProperty(`wege-rand-${gebiet.name}`, "line-color", schema.wegRand);
       karte.setPaintProperty(`wege-${gebiet.name}`, "line-color", schema.weg);
       karte.setPaintProperty(`pfade-${gebiet.name}`, "line-color", schema.pfad);
+      karte.setPaintProperty(`strassen-rand-${gebiet.name}`, "line-color", schema.strasseRand);
+      karte.setPaintProperty(`strassen-${gebiet.name}`, "line-color", schema.strasse);
     }
   };
   window.matchMedia(DUNKEL_ABFRAGE).addEventListener("change", anwenden);
@@ -205,6 +216,22 @@ function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
     filter: ["==", ["get", "art"], "weg"],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": schema.weg, "line-width": breite(WEG_BREITE) },
+  });
+  karte.addLayer({
+    id: `strassen-rand-${gebiet.name}`,
+    type: "line",
+    source: quelle,
+    filter: ["==", ["get", "art"], "strasse"],
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": schema.strasseRand, "line-width": breite(STRASSE_RAND_BREITE) },
+  });
+  karte.addLayer({
+    id: `strassen-${gebiet.name}`,
+    type: "line",
+    source: quelle,
+    filter: ["==", ["get", "art"], "strasse"],
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": schema.strasse, "line-width": breite(STRASSE_BREITE) },
   });
 }
 

@@ -5,6 +5,7 @@ auf das 10-m-Raster gebrannt, mit dem Mischfaktor verrechnet und relativ zum Geb
 """
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import geopandas as gpd
@@ -21,8 +22,10 @@ from pipeline.habitat import (
     baumart_punkte,
     boden_punkte,
     gesamtwert,
+    hangfaktor,
     mit_wegrand,
     relative_stufen,
+    strukturfaktor,
     wirt_codes,
 )
 from pipeline.nachbarschaft import in_der_naehe, mischfaktor
@@ -36,6 +39,11 @@ STUFEN_GRENZEN = (60, 70, 80, 90)
 WEGE = Path("web/public/daten")  # OSM-Wege aus pipeline/io_waldwege.py (EPSG:4326)
 EPSG_WGS84 = 4326
 WEGRAND_RADIUS_PIXEL = 2  # 5 x 5 Pixel: bis etwa 20–25 m neben dem Weg
+# Nur Forstwege und Pfade: Die Belege (dünnere Streu, mehr Licht) betreffen Waldwege; an Autostraßen kommen
+# Stickstoff, Salz und Staub hinzu, dafür gibt es keinen Beleg für mehr Fruchtkörper.
+WEGRAND_ARTEN = ("weg", "pfad")
+STRUKTUR_BAENDER = 3  # Kronenhöhe, Kronenschluss, Gelände (pipeline/io_hoehe.py)
+PIXEL_METER = 10.0
 
 
 def lies_anteile() -> dict[str, list[Standortanteil]]:
@@ -71,14 +79,35 @@ def _boden_raster(gebiet_name: str, pilz: Pilzart, anteile: dict[str, list[Stand
     return np.asarray(gebrannt, dtype=np.float32)
 
 
+@dataclass(frozen=True)
+class Umfeld:
+    """Ortsmerkmale außer Baum und Boden: Wegnähe, Kronenhöhe, Kronenschluss und Gelände (je 10-m-Pixel)."""
+
+    is_nahe_weg: npt.NDArray[np.bool_]
+    kronenhoehe: npt.NDArray[np.float32]
+    kronenschluss: npt.NDArray[np.float32]
+    gelaende: npt.NDArray[np.float32]
+
+
+def _lies_struktur(gebiet_name: str, form: tuple[int, int]) -> tuple[npt.NDArray[np.float32], ...]:
+    pfad = DATEN / f"{gebiet_name}_struktur.tif"
+    with rasterio.open(pfad) as quelle:
+        if (quelle.height, quelle.width) != form or quelle.count != STRUKTUR_BAENDER:
+            raise ValueError(f"Invariante verletzt: {pfad} hat {quelle.count} Bänder und Form {quelle.shape}")
+        return tuple(quelle.read(band).astype(np.float32) for band in range(1, STRUKTUR_BAENDER + 1))
+
+
 def _wege_maske(gebiet_name: str) -> npt.NDArray[np.bool_]:
     with rasterio.open(DATEN / f"{gebiet_name}_baumarten.tif") as quelle:
         form, transform, crs = (quelle.height, quelle.width), quelle.transform, quelle.crs
     wege = gpd.read_file(WEGE / f"{gebiet_name}_wege.geojson")
     if wege.crs is None or wege.crs.to_epsg() != EPSG_WGS84:
         raise ValueError(f"Invariante verletzt: Wege {gebiet_name} haben CRS {wege.crs}, erwartet EPSG {EPSG_WGS84}")
+    if "art" not in wege.columns:
+        raise ValueError(f"Invariante verletzt: Wege {gebiet_name} ohne Spalte 'art': {list(wege.columns)}")
+    waldwege = wege.loc[wege["art"].isin(WEGRAND_ARTEN)]
     gebrannt = rasterize(
-        ((geometrie, 1) for geometrie in wege.to_crs(crs).geometry),
+        ((geometrie, 1) for geometrie in waldwege.to_crs(crs).geometry),
         out_shape=form,
         transform=transform,
         fill=0,
@@ -97,14 +126,17 @@ def _baum_raster(baumarten: npt.NDArray[np.uint16], pilz: Pilzart) -> npt.NDArra
 
 
 def _heatmap(
-    baumarten: npt.NDArray[np.uint16], boden: npt.NDArray[np.float32], umfeld: tuple[Pilzart, npt.NDArray[np.bool_]]
+    baumarten: npt.NDArray[np.uint16], boden: npt.NDArray[np.float32], art_und_umfeld: tuple[Pilzart, Umfeld]
 ) -> npt.NDArray[np.uint8]:
-    pilz, is_nahe_weg = umfeld
+    pilz, umfeld = art_und_umfeld
     # Pixel ohne Standortfläche (Rand des Ausschnitts, Nicht-Holzboden) gelten als kein Habitat.
     boden_oder_null = np.where(boden == OHNE_BODEN, 0.0, boden).astype(np.float32)
     misch = mischfaktor(baumarten, wirt_codes(pilz))
     wert = gesamtwert(_baum_raster(baumarten, pilz), boden_oder_null, misch)
-    return relative_stufen(mit_wegrand(wert, is_nahe_weg))
+    struktur = strukturfaktor(pilz, umfeld.kronenhoehe, umfeld.kronenschluss)
+    gelaende = hangfaktor(umfeld.gelaende, PIXEL_METER)
+    mit_ort = np.minimum(wert * struktur * gelaende, 1.0).astype(np.float32)
+    return relative_stufen(mit_wegrand(mit_ort, umfeld.is_nahe_weg))
 
 
 def main() -> None:
@@ -114,9 +146,10 @@ def main() -> None:
             baumarten = quelle.read(1)
             profil = quelle.profile.copy()
         profil.update(dtype="uint8", nodata=0)
-        is_nahe_weg = _wege_maske(gebiet.name)
+        kronenhoehe, kronenschluss, gelaende = _lies_struktur(gebiet.name, baumarten.shape)
+        umfeld = Umfeld(_wege_maske(gebiet.name), kronenhoehe, kronenschluss, gelaende)
         for pilz in PILZARTEN:
-            stufen = _heatmap(baumarten, _boden_raster(gebiet.name, pilz, anteile), (pilz, is_nahe_weg))
+            stufen = _heatmap(baumarten, _boden_raster(gebiet.name, pilz, anteile), (pilz, umfeld))
             with rasterio.open(DATEN / f"{gebiet.name}_{pilz}_habitat.tif", "w", **profil) as ziel:
                 ziel.write(stufen, 1)
             grenzen = np.digitize(stufen[stufen > 0], STUFEN_GRENZEN)
