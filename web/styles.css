@@ -168,6 +168,10 @@ p, h1, ol, dl, dd { margin: 0; }
 .umrissfeld { flex: none; width: 14px; height: 14px; border-radius: 2px; border: 3px solid; box-shadow: 0 0 0 2px #0b0f14; }
 .umrissfeld-neu { border-color: #00e5ff; }
 .umrissfeld-alt { border-color: #ff2bd6; }
+/* Knopf "Nur Brennpunkte": gedrückt in der Umriss-Farbe, damit der Zustand ohne Text erkennbar ist. */
+.maplibregl-ctrl-group .knopf-brennpunkte { display: grid; place-items: center; color: var(--text); }
+.maplibregl-ctrl-group .knopf-brennpunkte[aria-pressed="true"] { background: #00e5ff; color: #0b0f14; }
+.brennpunktfeld { flex: none; width: 14px; height: 14px; border-radius: 3px; background: #00e5ff; box-shadow: 0 0 0 2px #0b0f14; }
 /* Wege wie auf der Karte (src/karte.ts): fahrbarer Weg mit dunklem Rand, Pfad gestrichelt. */
 .wegfeld { flex: none; width: 26px; height: 8px; border-radius: 4px; background: #ffffff; box-shadow: 0 0 0 2px #6e5b3e; margin: 0 2px; }
 .strassefeld { flex: none; width: 26px; height: 9px; border-radius: 5px; background: #ffd75e; box-shadow: 0 0 0 2px #7d7d7d; margin: 0 2px; }

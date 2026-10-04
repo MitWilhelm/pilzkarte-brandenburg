@@ -13,6 +13,8 @@ export interface Hotspot {
   readonly breite: number;
   readonly flaecheHektar: number;
   readonly umriss: readonly Strecke[]; // Außenkanten der Zellen (Länge, Breite), ohne innere Linien
+  readonly gebietName: string;
+  readonly zellen: readonly number[]; // Zellennummer = Zeile * Zellen je Zeile + Spalte (100-m-Zellen)
 }
 
 export interface MarkierterHotspot extends Hotspot {
@@ -28,6 +30,7 @@ export interface Hotspotsuche {
 export const MIN_INDEX = 60; // Wachstumsindex "Günstig"
 export const MIN_STUFE = 85; // Stufe in %, relativ zum Gebiet; "Gut" ab 80, "Sehr gut" ab 90
 const KANAELE_PRO_PIXEL = 4;
+const DECKKRAFT_KANAL = 3; // A in RGBA
 const ZELLE_PIXEL = 10; // Daten-Pixel sind 10 m groß: eine Zelle ist 100 m x 100 m
 const MIN_ANTEIL_HOCH = 0.5; // so viel Anteil einer Zelle muss MIN_STUFE erreichen
 const MIN_ZELLEN = 3; // kleinere Flecken sind keine Empfehlung wert (~3 ha)
@@ -170,7 +173,30 @@ export function findeHotspots(suche: Hotspotsuche): Hotspot[] {
     const ankerY = (Math.floor(anker / zellenBreit) + 0.5) * ZELLE_PIXEL - 0.5;
     const [laenge, breite] = koordinateAnPixel(gebiet, ankerX, ankerY);
     const umriss = umrissDerZellen(gebiet, new Set(zellen), zellenBreit);
-    hotspots.push({ laenge, breite, flaecheHektar: zellen.length * HEKTAR_PRO_ZELLE, umriss });
+    hotspots.push({ laenge, breite, flaecheHektar: zellen.length * HEKTAR_PRO_ZELLE, umriss, gebietName: gebiet.name, zellen });
   }
   return hotspots.sort((a, b) => b.flaecheHektar - a.flaecheHektar);
+}
+
+/** Macht gefärbte Pixel außerhalb der Brennpunkte dieses Gebiets durchsichtig (Ansicht "Nur Brennpunkte"). */
+export function nurInBrennpunkten(
+  farben: Uint8ClampedArray<ArrayBuffer>,
+  gebiet: Gebiet,
+  brennpunkte: readonly Hotspot[],
+): Uint8ClampedArray<ArrayBuffer> {
+  if (farben.length !== gebiet.breitePixel * gebiet.hoehePixel * KANAELE_PRO_PIXEL) {
+    throw new Error(`Invariante verletzt: ${String(farben.length)} Bytes passen nicht zum Gebiet ${gebiet.name}`);
+  }
+  const zellenBreit = Math.ceil(gebiet.breitePixel / ZELLE_PIXEL);
+  const sichtbar = new Set(brennpunkte.filter((punkt) => punkt.gebietName === gebiet.name).flatMap((punkt) => punkt.zellen));
+  const ergebnis = new Uint8ClampedArray(farben);
+  for (let zeile = 0; zeile < gebiet.hoehePixel; zeile += 1) {
+    for (let spalte = 0; spalte < gebiet.breitePixel; spalte += 1) {
+      const zelle = Math.floor(zeile / ZELLE_PIXEL) * zellenBreit + Math.floor(spalte / ZELLE_PIXEL);
+      if (!sichtbar.has(zelle)) {
+        ergebnis[(zeile * gebiet.breitePixel + spalte) * KANAELE_PRO_PIXEL + DECKKRAFT_KANAL] = 0;
+      }
+    }
+  }
+  return ergebnis;
 }

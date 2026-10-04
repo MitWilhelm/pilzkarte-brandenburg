@@ -7,8 +7,10 @@ import {
   folgeFarbschema,
   fuegeHotspotEbeneHinzu,
   zeigeBodengrenzen,
+  dimmeHintergrund,
+  fuegeKnopfHinzu,
+  zeigeHeatmap,
   zeigeHotspots,
-  zeigePilz,
   type Kartenebene,
 } from "./karte.ts";
 import { findeHotspots, hotspotart, type Hotspot, type Hotspotart, type MarkierterHotspot } from "./hotspots.ts";
@@ -43,6 +45,8 @@ interface Zustand {
   gebiet: Gebiet;
   markierung: maplibregl.Marker | null;
   letzterTipp: maplibregl.MapMouseEvent | null; // für Neubewertung beim Wechsel der Pilzart
+  isNurBrennpunkte: boolean;
+  brennpunkte: readonly MarkierterHotspot[]; // zuletzt markierte Flächen der gewählten Pilzart
 }
 
 const wetterSpeicher = new Map<string, Promise<Wetterreihe>>();
@@ -92,7 +96,13 @@ async function ringart(hotspot: Hotspot, pilz: Pilzart): Promise<Hotspotart | nu
 }
 
 /** Umrisse mit dem Wetter je Fläche (statt Gebietsmitte); nahe Stellen teilen sich einen Abruf (WETTER_RASTER_GRAD). */
-async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kartenebene[], pilz: Pilzart): Promise<void> {
+function zeigeAnsicht(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zustand: Zustand): void {
+  zeigeHeatmap(karte, ebenen, { kanal: KANAL[zustand.pilz], brennpunkte: zustand.isNurBrennpunkte ? zustand.brennpunkte : null });
+  dimmeHintergrund(karte, zustand.isNurBrennpunkte);
+}
+
+async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zustand: Zustand): Promise<void> {
+  const pilz = zustand.pilz;
   const kandidaten = ebenen.flatMap(({ gebiet, daten }) => findeHotspots({ daten: daten.data, kanal: KANAL[pilz], gebiet }));
   const markiert = await Promise.all(
     kandidaten.map(async (hotspot): Promise<MarkierterHotspot | null> => {
@@ -105,7 +115,14 @@ async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kart
       }
     }),
   );
-  zeigeHotspots(karte, markiert.filter((eintrag): eintrag is MarkierterHotspot => eintrag !== null));
+  if (zustand.pilz !== pilz) {
+    return; // inzwischen andere Pilzart gewählt; deren Suche zeichnet selbst
+  }
+  zustand.brennpunkte = markiert.filter((eintrag): eintrag is MarkierterHotspot => eintrag !== null);
+  zeigeHotspots(karte, zustand.brennpunkte);
+  if (zustand.isNurBrennpunkte) {
+    zeigeAnsicht(karte, ebenen, zustand);
+  }
 }
 
 async function zeigeStelle(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zustand: Zustand, ereignis: maplibregl.MapMouseEvent): Promise<void> {
@@ -151,7 +168,14 @@ async function start(): Promise<void> {
     throw new Error("Invariante verletzt: keine Gebiete");
   }
   fuelleGebiete(gebiete);
-  const zustand: Zustand = { pilz: "steinpilz", gebiet: erstes, markierung: null, letzterTipp: null };
+  const zustand: Zustand = {
+    pilz: "steinpilz",
+    gebiet: erstes,
+    markierung: null,
+    letzterTipp: null,
+    isNurBrennpunkte: false,
+    brennpunkte: [],
+  };
   zeigeSchutzhinweis(SCHUTZHINWEISE[erstes.name] ?? null);
   void aktualisiereGebietsindex(zustand);
 
@@ -166,8 +190,15 @@ async function start(): Promise<void> {
   await stilGeladen;
   fuegeEbenenHinzu(karte, ebenen, KANAL[zustand.pilz]);
   fuegeHotspotEbeneHinzu(karte);
-  folgeFarbschema(karte, ebenen);
-  void aktualisiereHotspots(karte, ebenen, zustand.pilz);
+  folgeFarbschema(karte, ebenen, () => zustand.isNurBrennpunkte);
+  void aktualisiereHotspots(karte, ebenen, zustand);
+  const knopf = element("nur-brennpunkte", HTMLButtonElement);
+  fuegeKnopfHinzu(karte, knopf);
+  knopf.addEventListener("click", () => {
+    zustand.isNurBrennpunkte = !zustand.isNurBrennpunkte;
+    knopf.setAttribute("aria-pressed", String(zustand.isNurBrennpunkte));
+    zeigeAnsicht(karte, ebenen, zustand);
+  });
 
   // Erst nach dem Einfügen der Ebenen: bodenAnPunkt fragt die Boden-Ebene ab.
   karte.on("click", (ereignis) => {
@@ -179,9 +210,10 @@ async function start(): Promise<void> {
       return;
     }
     zustand.pilz = ziel.value;
-    zeigePilz(karte, ebenen, KANAL[zustand.pilz]);
+    zustand.brennpunkte = [];
+    zeigeAnsicht(karte, ebenen, zustand);
     void aktualisiereGebietsindex(zustand);
-    void aktualisiereHotspots(karte, ebenen, zustand.pilz);
+    void aktualisiereHotspots(karte, ebenen, zustand);
     if (zustand.letzterTipp !== null) {
       void zeigeStelle(karte, ebenen, zustand, zustand.letzterTipp);
     }

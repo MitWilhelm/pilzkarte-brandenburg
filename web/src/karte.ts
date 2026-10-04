@@ -2,7 +2,7 @@
 // OSM-Kacheln: Nutzungsrichtlinie verlangt Namensnennung und geringe Last (private Nutzung).
 import maplibregl from "maplibre-gl";
 import { faerbeOverlay, type Gebiet, type Pilzkanal } from "./geo.ts";
-import type { MarkierterHotspot } from "./hotspots.ts";
+import { nurInBrennpunkten, type Hotspot, type MarkierterHotspot } from "./hotspots.ts";
 
 const OSM_KACHELN = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_HINWEIS = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap-Mitwirkende</a>';
@@ -13,6 +13,9 @@ const START_ZOOM = 13;
 const HEATMAP_DECKKRAFT = 0.6; // etwas durchsichtiger, damit Wege darunter lesbar bleiben
 const BODEN_LINIENBREITE = 0.6;
 const HOTSPOT_QUELLE = "hotspots";
+// Ansicht "Nur Brennpunkte": Hintergrund grau und dunkler, damit die Umrisse herausstechen.
+const GEDIMMT_HELLIGKEIT = 0.6;
+const GEDIMMT_SAETTIGUNG = -1;
 const UMRISS_RAND_BREITE: readonly [number, number, number, number] = [12, 7, 16, 12];
 const UMRISS_BREITE: readonly [number, number, number, number] = [12, 4, 16, 7];
 
@@ -66,7 +69,13 @@ export interface Kartenebene {
   readonly daten: ImageData;
 }
 
-function bildUrl(daten: ImageData, kanal: Pilzkanal): string {
+export interface Heatmapansicht {
+  readonly kanal: Pilzkanal;
+  readonly brennpunkte: readonly Hotspot[] | null; // null: ganze Heatmap; sonst nur innerhalb dieser Flächen
+}
+
+function bildUrl(ebene: Kartenebene, ansicht: Heatmapansicht): string {
+  const { daten, gebiet } = ebene;
   const leinwand = document.createElement("canvas");
   leinwand.width = daten.width;
   leinwand.height = daten.height;
@@ -74,7 +83,9 @@ function bildUrl(daten: ImageData, kanal: Pilzkanal): string {
   if (zeichnung === null) {
     throw new Error("Invariante verletzt: kein 2D-Zeichenkontext verfügbar");
   }
-  zeichnung.putImageData(new ImageData(faerbeOverlay(daten.data, kanal), daten.width, daten.height), 0, 0);
+  const farben = faerbeOverlay(daten.data, ansicht.kanal);
+  const sichtbar = ansicht.brennpunkte === null ? farben : nurInBrennpunkten(farben, gebiet, ansicht.brennpunkte);
+  zeichnung.putImageData(new ImageData(sichtbar, daten.width, daten.height), 0, 0);
   return leinwand.toDataURL("image/png");
 }
 
@@ -82,13 +93,23 @@ function farbschema(): Farbschema {
   return window.matchMedia(DUNKEL_ABFRAGE).matches ? DUNKEL : HELL;
 }
 
-function rasterFarben(schema: Farbschema): NonNullable<maplibregl.RasterLayerSpecification["paint"]> {
+function rasterFarben(schema: Farbschema, isGedimmt: boolean): NonNullable<maplibregl.RasterLayerSpecification["paint"]> {
+  const helligkeit = isGedimmt ? GEDIMMT_HELLIGKEIT : 1;
   return {
-    "raster-brightness-min": schema.rasterHellMin,
-    "raster-brightness-max": schema.rasterHellMax,
+    "raster-brightness-min": schema.rasterHellMin * helligkeit,
+    "raster-brightness-max": schema.rasterHellMax * helligkeit,
     "raster-hue-rotate": schema.rasterFarbton,
-    "raster-saturation": schema.rasterSaettigung,
+    "raster-saturation": isGedimmt ? GEDIMMT_SAETTIGUNG : schema.rasterSaettigung,
   };
+}
+
+/** Hintergrundkarte grau und dunkler (Ansicht "Nur Brennpunkte") oder normal; beachtet Hell/Dunkel. */
+export function dimmeHintergrund(karte: maplibregl.Map, isGedimmt: boolean): void {
+  const farben = rasterFarben(farbschema(), isGedimmt);
+  karte.setPaintProperty("osm", "raster-brightness-min", farben["raster-brightness-min"]);
+  karte.setPaintProperty("osm", "raster-brightness-max", farben["raster-brightness-max"]);
+  karte.setPaintProperty("osm", "raster-hue-rotate", farben["raster-hue-rotate"]);
+  karte.setPaintProperty("osm", "raster-saturation", farben["raster-saturation"]);
 }
 
 function breite(stufen: readonly [number, number, number, number]): maplibregl.ExpressionSpecification {
@@ -96,13 +117,10 @@ function breite(stufen: readonly [number, number, number, number]): maplibregl.E
 }
 
 /** Folgt dem Hell/Dunkel-Modus des Geräts: Hintergrundkarte und Wegfarben. */
-export function folgeFarbschema(karte: maplibregl.Map, ebenen: readonly Kartenebene[]): void {
+export function folgeFarbschema(karte: maplibregl.Map, ebenen: readonly Kartenebene[], isGedimmt: () => boolean): void {
   const anwenden = (): void => {
     const schema = farbschema();
-    karte.setPaintProperty("osm", "raster-brightness-min", schema.rasterHellMin);
-    karte.setPaintProperty("osm", "raster-brightness-max", schema.rasterHellMax);
-    karte.setPaintProperty("osm", "raster-hue-rotate", schema.rasterFarbton);
-    karte.setPaintProperty("osm", "raster-saturation", schema.rasterSaettigung);
+    dimmeHintergrund(karte, isGedimmt());
     for (const { gebiet } of ebenen) {
       karte.setPaintProperty(`wege-rand-${gebiet.name}`, "line-color", schema.wegRand);
       karte.setPaintProperty(`wege-${gebiet.name}`, "line-color", schema.weg);
@@ -126,7 +144,7 @@ export function erzeugeKarte(container: HTMLElement, mitte: readonly [number, nu
       sources: {
         osm: { type: "raster", tiles: [OSM_KACHELN], tileSize: KACHEL_PIXEL, attribution: OSM_HINWEIS, maxzoom: MAX_ZOOM },
       },
-      layers: [{ id: "osm", type: "raster", source: "osm", paint: rasterFarben(farbschema()) }],
+      layers: [{ id: "osm", type: "raster", source: "osm", paint: rasterFarben(farbschema(), false) }],
     },
   });
   karte.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
@@ -147,10 +165,11 @@ export function erzeugeKarte(container: HTMLElement, mitte: readonly [number, nu
 }
 
 export function fuegeEbenenHinzu(karte: maplibregl.Map, ebenen: readonly Kartenebene[], kanal: Pilzkanal): void {
-  for (const { gebiet, daten } of ebenen) {
+  for (const ebene of ebenen) {
+    const { gebiet } = ebene;
     karte.addSource(`heatmap-${gebiet.name}`, {
       type: "image",
-      url: bildUrl(daten, kanal),
+      url: bildUrl(ebene, { kanal, brennpunkte: null }),
       coordinates: [
         [gebiet.ecken[0][0], gebiet.ecken[0][1]],
         [gebiet.ecken[1][0], gebiet.ecken[1][1]],
@@ -231,14 +250,33 @@ function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
   });
 }
 
-export function zeigePilz(karte: maplibregl.Map, ebenen: readonly Kartenebene[], kanal: Pilzkanal): void {
-  for (const { gebiet, daten } of ebenen) {
-    const quelle = karte.getSource(`heatmap-${gebiet.name}`);
+export function zeigeHeatmap(karte: maplibregl.Map, ebenen: readonly Kartenebene[], ansicht: Heatmapansicht): void {
+  for (const ebene of ebenen) {
+    const quelle = karte.getSource(`heatmap-${ebene.gebiet.name}`);
     if (!(quelle instanceof maplibregl.ImageSource)) {
-      throw new Error(`Invariante verletzt: Heatmap-Quelle für ${gebiet.name} fehlt`);
+      throw new Error(`Invariante verletzt: Heatmap-Quelle für ${ebene.gebiet.name} fehlt`);
     }
-    quelle.updateImage({ url: bildUrl(daten, kanal) });
+    quelle.updateImage({ url: bildUrl(ebene, ansicht) });
   }
+}
+
+/** Setzt den Knopf aus index.html als eigenen Kartenschalter unter Zoom und GPS. */
+export function fuegeKnopfHinzu(karte: maplibregl.Map, knopf: HTMLButtonElement): void {
+  const gruppe = document.createElement("div");
+  gruppe.className = "maplibregl-ctrl maplibregl-ctrl-group";
+  karte.addControl(
+    {
+      onAdd: () => {
+        knopf.hidden = false;
+        gruppe.append(knopf);
+        return gruppe;
+      },
+      onRemove: () => {
+        gruppe.remove();
+      },
+    },
+    "top-right",
+  );
 }
 
 export function zeigeBodengrenzen(karte: maplibregl.Map, ebenen: readonly Kartenebene[], isSichtbar: boolean): void {

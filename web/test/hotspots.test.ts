@@ -1,7 +1,7 @@
 // Tests für die Brennpunkt-Suche in src/hotspots.ts (synthetische Daten-Bilder, kein Netzwerk).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findeHotspots, hotspotart, koordinateAnPixel, MIN_STUFE } from "../src/hotspots.ts";
+import { findeHotspots, hotspotart, koordinateAnPixel, MIN_STUFE, nurInBrennpunkten } from "../src/hotspots.ts";
 import { pixelAnStelle, type Gebiet } from "../src/geo.ts";
 
 const BREITE = 60;
@@ -114,4 +114,18 @@ test("bei einer L-förmigen Fläche liegt der Ankerpunkt auf der Fläche, nicht 
   const pixel = pixelAnStelle(gebiet, erster.laenge, erster.breite);
   assert.ok(pixel !== null);
   assert.ok(pixel.zeile < 10 || pixel.spalte < 10, `Anker bei ${String(pixel.spalte)}/${String(pixel.zeile)} liegt außerhalb der Fläche`);
+});
+
+test("in der Ansicht Nur Brennpunkte bleiben nur Pixel in den Flächen des eigenen Gebiets sichtbar", () => {
+  const gebiet = kleinesGebiet();
+  const brennpunkte = findeHotspots({ daten: bildMitBlock(95, { von: 10, bis: 40 }), kanal: 1, gebiet });
+  const fremdes = brennpunkte.map((punkt) => ({ ...punkt, gebietName: "anderes" }));
+  const farben = new Uint8ClampedArray(BREITE * HOEHE * 4).fill(255);
+  const deckkraft = (bild: Uint8ClampedArray, spalte: number, zeile: number): number | undefined => bild[(zeile * BREITE + spalte) * 4 + 3];
+  const eigene = nurInBrennpunkten(farben, gebiet, brennpunkte);
+  assert.equal(deckkraft(eigene, 25, 25), 255);
+  assert.equal(deckkraft(eigene, 5, 5), 0);
+  assert.equal(deckkraft(eigene, 45, 25), 0);
+  assert.equal(deckkraft(nurInBrennpunkten(farben, gebiet, fremdes), 25, 25), 0);
+  assert.equal(deckkraft(farben, 5, 5), 255, "das Eingangsbild bleibt unverändert");
 });
