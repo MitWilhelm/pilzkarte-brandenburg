@@ -1,6 +1,6 @@
 # Lädt LGB-Höhendaten (bDOM, DGM) für die Testgebiete und berechnet daten/<gebiet>_struktur.tif (10 m).
 # Läuft auf GitHub, weil der LGB-Server aus Claudes Umgebung nur sehr langsam liefert (~12 KB/s).
-# Etwa 2 x 64 Kacheln à ~40 MB; jede Kachel wird nach der Verarbeitung gelöscht.
+# DGM für 2 x 64 Kacheln (~1,5 MB), bDOM nur für die Referenzkachel; der Server liefert nur ~30–80 KB/s.
 name: Hoehendaten
 
 on:
@@ -17,7 +17,7 @@ permissions:
 jobs:
   struktur:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
