@@ -4,6 +4,7 @@
 name: Hoehendaten
 
 on:
+  workflow_dispatch:
   push:
     branches: [claude/cool-hamilton-x8pj44]
     paths:
@@ -22,7 +23,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install "rasterio>=1.4" "numpy>=1.26"
+      # pyproj wird über pipeline.gebiete importiert (erster Lauf scheiterte daran).
+      - run: pip install "rasterio>=1.4" "numpy>=1.26" "pyproj>=3.6"
       - run: python -m pipeline.io_hoehe
       - name: Ergebnis zurückschreiben
         run: |
