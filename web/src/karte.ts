@@ -10,7 +10,7 @@ const QUELLEN_HINWEIS = "© DLR · © LFB Brandenburg"; // ausführlich in der L
 const KACHEL_PIXEL = 256;
 const MAX_ZOOM = 19;
 const START_ZOOM = 13;
-const HEATMAP_DECKKRAFT = 0.68;
+const HEATMAP_DECKKRAFT = 0.6; // etwas durchsichtiger, damit Wege darunter lesbar bleiben
 const BODEN_LINIENBREITE = 0.6;
 const HOTSPOT_QUELLE = "hotspots";
 const HOTSPOT_RADIUS_METER = 120; // feste Größe auf dem Boden: der Ring wächst und schrumpft mit der Karte mit
@@ -19,6 +19,42 @@ const HOTSPOT_BREITE_GRAD = 53; // Brandenburg: Meter pro Pixel schrumpfen mit c
 const HOTSPOT_MAX_ZOOM = 24;
 const HOTSPOT_RAND_BREITE = 7;
 const HOTSPOT_RING_BREITE = 3;
+
+// Dunkelmodus: OSM-Kacheln gibt es nur hell; Helligkeit umkehren und Farbton drehen ergibt eine dunkle Karte
+// mit ungefähr gleichen Farben (Wasser bleibt bläulich, Wald grünlich).
+interface Farbschema {
+  readonly rasterHellMin: number;
+  readonly rasterHellMax: number;
+  readonly rasterFarbton: number;
+  readonly rasterSaettigung: number;
+  readonly weg: string;
+  readonly wegRand: string;
+  readonly pfad: string;
+}
+const HELL: Farbschema = {
+  rasterHellMin: 0,
+  rasterHellMax: 1,
+  rasterFarbton: 0,
+  rasterSaettigung: 0,
+  weg: "#ffffff",
+  wegRand: "#6e5b3e",
+  pfad: "#7a5a26",
+};
+const DUNKEL: Farbschema = {
+  rasterHellMin: 0.92,
+  rasterHellMax: 0.08,
+  rasterFarbton: 180,
+  rasterSaettigung: -0.35,
+  weg: "#efe6cf",
+  wegRand: "#0c120e",
+  pfad: "#e2c88f",
+};
+const DUNKEL_ABFRAGE = "(prefers-color-scheme: dark)";
+// Linienbreiten [Zoom, Pixel]: bei 12 noch dünn, ab 16 kräftig wie in Wanderkarten.
+const WEG_BREITE: readonly [number, number, number, number] = [12, 1.5, 16, 6];
+const WEG_RAND_BREITE: readonly [number, number, number, number] = [12, 3, 16, 10];
+const PFAD_BREITE: readonly [number, number, number, number] = [12, 1, 16, 3.5];
+const PFAD_STRICHE: readonly [number, number] = [2, 1.5];
 
 export interface Kartenebene {
   readonly gebiet: Gebiet;
@@ -37,6 +73,40 @@ function bildUrl(daten: ImageData, kanal: Pilzkanal): string {
   return leinwand.toDataURL("image/png");
 }
 
+function farbschema(): Farbschema {
+  return window.matchMedia(DUNKEL_ABFRAGE).matches ? DUNKEL : HELL;
+}
+
+function rasterFarben(schema: Farbschema): NonNullable<maplibregl.RasterLayerSpecification["paint"]> {
+  return {
+    "raster-brightness-min": schema.rasterHellMin,
+    "raster-brightness-max": schema.rasterHellMax,
+    "raster-hue-rotate": schema.rasterFarbton,
+    "raster-saturation": schema.rasterSaettigung,
+  };
+}
+
+function breite(stufen: readonly [number, number, number, number]): maplibregl.ExpressionSpecification {
+  return ["interpolate", ["linear"], ["zoom"], stufen[0], stufen[1], stufen[2], stufen[3]];
+}
+
+/** Folgt dem Hell/Dunkel-Modus des Geräts: Hintergrundkarte und Wegfarben. */
+export function folgeFarbschema(karte: maplibregl.Map, ebenen: readonly Kartenebene[]): void {
+  const anwenden = (): void => {
+    const schema = farbschema();
+    karte.setPaintProperty("osm", "raster-brightness-min", schema.rasterHellMin);
+    karte.setPaintProperty("osm", "raster-brightness-max", schema.rasterHellMax);
+    karte.setPaintProperty("osm", "raster-hue-rotate", schema.rasterFarbton);
+    karte.setPaintProperty("osm", "raster-saturation", schema.rasterSaettigung);
+    for (const { gebiet } of ebenen) {
+      karte.setPaintProperty(`wege-rand-${gebiet.name}`, "line-color", schema.wegRand);
+      karte.setPaintProperty(`wege-${gebiet.name}`, "line-color", schema.weg);
+      karte.setPaintProperty(`pfade-${gebiet.name}`, "line-color", schema.pfad);
+    }
+  };
+  window.matchMedia(DUNKEL_ABFRAGE).addEventListener("change", anwenden);
+}
+
 export function erzeugeKarte(container: HTMLElement, mitte: readonly [number, number]): maplibregl.Map {
   const karte = new maplibregl.Map({
     container,
@@ -49,7 +119,7 @@ export function erzeugeKarte(container: HTMLElement, mitte: readonly [number, nu
       sources: {
         osm: { type: "raster", tiles: [OSM_KACHELN], tileSize: KACHEL_PIXEL, attribution: OSM_HINWEIS, maxzoom: MAX_ZOOM },
       },
-      layers: [{ id: "osm", type: "raster", source: "osm" }],
+      layers: [{ id: "osm", type: "raster", source: "osm", paint: rasterFarben(farbschema()) }],
     },
   });
   karte.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
@@ -103,7 +173,39 @@ export function fuegeEbenenHinzu(karte: maplibregl.Map, ebenen: readonly Kartene
       layout: { visibility: "none" },
       paint: { "line-color": "#4b3a6b", "line-width": BODEN_LINIENBREITE },
     });
+    fuegeWegeHinzu(karte, gebiet);
   }
+}
+
+// Wege aus OpenStreetMap (pipeline/io_waldwege.py): über der Heatmap, damit man den Weg zur Stelle sieht.
+function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
+  const schema = farbschema();
+  const quelle = `wege-quelle-${gebiet.name}`;
+  karte.addSource(quelle, { type: "geojson", data: `daten/${gebiet.name}_wege.geojson` });
+  karte.addLayer({
+    id: `pfade-${gebiet.name}`,
+    type: "line",
+    source: quelle,
+    filter: ["==", ["get", "art"], "pfad"],
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": schema.pfad, "line-width": breite(PFAD_BREITE), "line-dasharray": [...PFAD_STRICHE] },
+  });
+  karte.addLayer({
+    id: `wege-rand-${gebiet.name}`,
+    type: "line",
+    source: quelle,
+    filter: ["==", ["get", "art"], "weg"],
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": schema.wegRand, "line-width": breite(WEG_RAND_BREITE) },
+  });
+  karte.addLayer({
+    id: `wege-${gebiet.name}`,
+    type: "line",
+    source: quelle,
+    filter: ["==", ["get", "art"], "weg"],
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": schema.weg, "line-width": breite(WEG_BREITE) },
+  });
 }
 
 export function zeigePilz(karte: maplibregl.Map, ebenen: readonly Kartenebene[], kanal: Pilzkanal): void {

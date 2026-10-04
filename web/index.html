@@ -3,16 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#24402e">
+<meta name="theme-color" content="#e8eee0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141b17" media="(prefers-color-scheme: dark)">
 <title>Pilzkarte Brandenburg</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,400..800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="maplibre-gl.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header class="leiste">
+<header class="leiste glas">
   <h1 class="marke">Pilzkarte <span class="marke-zusatz">Brandenburg</span></h1>
   <fieldset class="umschalter" id="pilzwahl">
     <legend class="nur-vorleser">Pilzart</legend>
@@ -27,7 +28,7 @@
 
 <main id="karte" class="karte" aria-label="Karte mit Habitat-Heatmap"></main>
 
-<section class="tafel" aria-live="polite">
+<section class="tafel glas" aria-live="polite">
   <div class="tafel-griff" aria-hidden="true"></div>
 
   <article class="block" id="block-index">
@@ -63,7 +64,9 @@
   </article>
 
   <p class="hinweis" id="hinweis">Tippen Sie auf eine farbige Stelle im Wald, um Details zu sehen.</p>
-  <ul class="ring-legende" aria-label="Bedeutung der Ringe auf der Karte">
+  <ul class="ring-legende" aria-label="Zeichen auf der Karte">
+    <li><span class="wegfeld" role="img" aria-label="Forstweg"></span>Forstweg, fahrbar</li>
+    <li><span class="pfadfeld" role="img" aria-label="Pfad"></span>Pfad, Rückegasse, Waldspur</li>
     <li><span class="ringfeld ringfeld-neu" role="img" aria-label="grüner Ring"></span>Grüner Ring: gute Fläche (ab Stufe 85), Wachstumsindex heute günstig</li>
     <li><span class="ringfeld ringfeld-alt" role="img" aria-label="lila Ring"></span>Lila Ring: gute Fläche, nur in den letzten 7 Tagen günstig (ältere, große Pilze)</li>
   </ul>

@@ -35,7 +35,7 @@ Zur Laufzeit (geplant):
 | Daten | Quelle | Lizenz |
 |---|---|---|
 | Wetter, Bodentemperatur, Bodenfeuchte | [Open-Meteo](https://open-meteo.com) | CC-BY-4.0, nur nicht-kommerziell kostenlos |
-| Hintergrundkarte | [OpenStreetMap](https://www.openstreetmap.org) | ODbL |
+| Hintergrundkarte, Wege und Pfade (`web/public/daten/*_wege.geojson`, per Overpass) | [OpenStreetMap](https://www.openstreetmap.org) | ODbL |
 
 Quellenvermerke: „© DLR, CC-BY-4.0“ · „Landesbetrieb Forst Brandenburg,
 dl-de/by-2-0“ · „Wetterdaten: Open-Meteo.com“ · „© OpenStreetMap-Mitwirkende“ · „© GeoBasis-DE / BKG (2026)“

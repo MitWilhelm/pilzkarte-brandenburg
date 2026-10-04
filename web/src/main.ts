@@ -4,6 +4,7 @@ import {
   bodenAnPunkt,
   erzeugeKarte,
   fuegeEbenenHinzu,
+  folgeFarbschema,
   fuegeHotspotEbeneHinzu,
   zeigeBodengrenzen,
   zeigeHotspots,
@@ -162,6 +163,7 @@ async function start(): Promise<void> {
   await stilGeladen;
   fuegeEbenenHinzu(karte, ebenen, KANAL[zustand.pilz]);
   fuegeHotspotEbeneHinzu(karte);
+  folgeFarbschema(karte, ebenen);
   void aktualisiereHotspots(karte, ebenen, zustand.pilz);
 
   // Erst nach dem Einfügen der Ebenen: bodenAnPunkt fragt die Boden-Ebene ab.
