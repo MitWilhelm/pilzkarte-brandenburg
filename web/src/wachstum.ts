@@ -16,7 +16,7 @@ export interface Tageswetter {
 
 export interface Indexfaktoren {
   readonly regen: number;
-  readonly bodentemperatur: number;
+  readonly temperatur: number;
   readonly bodenfeuchte: number;
   readonly saison: number;
   readonly frost: number;
@@ -58,16 +58,17 @@ const GEWICHT_ABKLINGEN = 0.6;
 const REGEN_VOLL_MM = 20; // so viel wirksamer Regen ergibt den vollen Regenfaktor (Salerni 2023: ab ~20 mm)
 const REGEN_GRUND = 0.2; // ohne Regen und ohne günstigen Boden
 const REGEN_GRUND_GUTER_BODEN = 0.5; // ohne Regen, aber feuchter Boden bei 10–17 °C: mittlerer Index
-const LUFT_GUT_MIN_C = 10;
-const LUFT_GUT_MAX_C = 17;
+// Lufttemperatur (5-Tage-Mittel): Funde bei Bielefeld meist 7–19 °C, Optimum 13,2 °C (Brejon Lamartinière &
+// Hoffman 2025, Preprint); kühle Fruchtmonate günstig (Tahvanainen et al. 2016). Plateau um das Optimum, stufenlos.
+const LUFT_OPTIMAL_MIN_C = 11;
+const LUFT_OPTIMAL_MAX_C = 15.5;
+const LUFT_GRENZE_UNTEN_C = 5;
+const LUFT_GRENZE_OBEN_C = 21;
+const LUFT_MINDESTFAKTOR = 0.2; // keine harte Null: Funde gab es auch außerhalb von 7–19 °C
 const MITTEL_TAGE = 5; // Fenster wie in der Bielefeld-Studie (5 Tage vor dem Fund)
 const HITZE_AB_C = 17.5; // Bielefeld: über 17,5 °C und unter 1 mm/Tag keine Funde
 const TROCKEN_UNTER_MM_PRO_TAG = 1;
 const HITZE_TROCKEN_FAKTOR = 0.2;
-const BODENTEMP_IDEAL_MIN = 10;
-const BODENTEMP_IDEAL_MAX = 18;
-const BODENTEMP_NULL_UNTEN = 4;
-const BODENTEMP_NULL_OBEN = 25;
 const FEUCHTE_TROCKEN = 0.06; // Sandböden in Brandenburg trocknen stark aus
 const FEUCHTE_GUT = 0.14;
 const FEUCHTE_MINIMUM = 0.25;
@@ -121,7 +122,7 @@ function mittelDerLetztenTage(tage: readonly Tageswetter[], position: number, we
 }
 
 /** Stufenloser Regenfaktor: Grundwert plus Anteil des wirksamen Regens.
- *  `bodenanteil` (0–1): wie günstig der Boden ohne Regen ist; 1 = feucht bei 10–17 °C, hebt den Grundwert auf „mittel“. */
+ *  `bodenanteil` (0–1): wie günstig es ohne Regen ist; 1 = feuchter Boden bei 11–15,5 °C, hebt den Grundwert auf „mittel“. */
 export function regenfaktor(wirksamerRegenMm: number, bodenanteil: number): number {
   const grund = REGEN_GRUND + (REGEN_GRUND_GUTER_BODEN - REGEN_GRUND) * bodenanteil;
   return grund + (1 - grund) * linear(wirksamerRegenMm, 0, REGEN_VOLL_MM);
@@ -132,12 +133,13 @@ export function hitzefaktor(luftMittelC: number, regenMmProTag: number): number 
   return luftMittelC > HITZE_AB_C && regenMmProTag < TROCKEN_UNTER_MM_PRO_TAG ? HITZE_TROCKEN_FAKTOR : 1;
 }
 
-export function bodentemperaturfaktor(gradC: number): number {
-  if (gradC < BODENTEMP_IDEAL_MIN) {
-    return linear(gradC, BODENTEMP_NULL_UNTEN, BODENTEMP_IDEAL_MIN);
+/** 1 im Bereich um das Optimum, darunter und darüber linear bis LUFT_MINDESTFAKTOR. */
+export function temperaturfaktor(luftMittelC: number): number {
+  if (luftMittelC < LUFT_OPTIMAL_MIN_C) {
+    return LUFT_MINDESTFAKTOR + (1 - LUFT_MINDESTFAKTOR) * linear(luftMittelC, LUFT_GRENZE_UNTEN_C, LUFT_OPTIMAL_MIN_C);
   }
-  if (gradC > BODENTEMP_IDEAL_MAX) {
-    return 1 - linear(gradC, BODENTEMP_IDEAL_MAX, BODENTEMP_NULL_OBEN);
+  if (luftMittelC > LUFT_OPTIMAL_MAX_C) {
+    return 1 - (1 - LUFT_MINDESTFAKTOR) * linear(luftMittelC, LUFT_OPTIMAL_MAX_C, LUFT_GRENZE_OBEN_C);
   }
   return 1;
 }
@@ -185,13 +187,13 @@ export function tagesindex(tage: readonly Tageswetter[], position: number, pilz:
   const tag = tageswetter(tage, position);
   const luftMittel = mittelDerLetztenTage(tage, position, (eintrag) => eintrag.lufttempMittelC);
   const regenProTag = mittelDerLetztenTage(tage, position, (eintrag) => eintrag.regenMm);
-  const isLuftGut = luftMittel >= LUFT_GUT_MIN_C && luftMittel <= LUFT_GUT_MAX_C;
-  // Feuchte stufenlos, damit 0,139 statt 0,140 m³/m³ den Index nicht springen lässt.
-  const bodenanteil = isLuftGut ? linear(tag.bodenfeuchte, FEUCHTE_TROCKEN, FEUCHTE_GUT) : 0;
+  const temperatur = temperaturfaktor(luftMittel);
+  // Feuchte und Temperatur stufenlos, damit kleine Änderungen den Index nicht springen lassen.
+  const bodenanteil = linear(tag.bodenfeuchte, FEUCHTE_TROCKEN, FEUCHTE_GUT) * temperatur;
   const wirksam = wirksamerRegen(tage, position, pilz);
   const faktoren: Indexfaktoren = {
     regen: regenfaktor(wirksam, bodenanteil),
-    bodentemperatur: bodentemperaturfaktor(tag.bodentempC),
+    temperatur,
     bodenfeuchte: bodenfeuchtefaktor(tag.bodenfeuchte),
     saison: saisonfaktor(pilz, tag.datum),
     frost: frostfaktor(tage, position),
@@ -199,7 +201,7 @@ export function tagesindex(tage: readonly Tageswetter[], position: number, pilz:
   };
   const produkt =
     faktoren.regen *
-    faktoren.bodentemperatur *
+    faktoren.temperatur *
     faktoren.bodenfeuchte *
     faktoren.saison *
     faktoren.frost *

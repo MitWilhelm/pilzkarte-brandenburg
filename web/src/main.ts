@@ -11,7 +11,7 @@ import {
   zeigePilz,
   type Kartenebene,
 } from "./karte.ts";
-import { findeHotspots, hotspotart, type MarkierterHotspot } from "./hotspots.ts";
+import { findeHotspots, hotspotart, type Hotspot, type Hotspotart, type MarkierterHotspot } from "./hotspots.ts";
 import { baumartName, pixelAnStelle, stufeninfo, type Gebiet, type Pilzkanal } from "./geo.ts";
 import { ladeDatenbild, ladeGebiete } from "./clients/daten.ts";
 import { ladeWetter, type Wetterreihe } from "./clients/openmeteo.ts";
@@ -77,32 +77,35 @@ async function aktualisiereGebietsindex(zustand: Zustand): Promise<void> {
   }
 }
 
-/** Ringe nur dort, wo der Wachstumsindex heute oder in den letzten TAGE_RUECKBLICK Tagen günstig war. */
+/** Art des Rings für eine Stelle aus ihrem eigenen Wetter (heute bzw. letzte TAGE_RUECKBLICK Tage) oder null. */
+async function ringart(hotspot: Hotspot, pilz: Pilzart): Promise<Hotspotart | null> {
+  const reihe = await wetterFuer(hotspot.breite, hotspot.laenge);
+  const indizes: number[] = [];
+  for (let position = Math.max(0, reihe.heute - TAGE_RUECKBLICK); position <= reihe.heute; position += 1) {
+    indizes.push(tagesindex(reihe.tage, position, pilz).index);
+  }
+  const indexHeute = indizes[indizes.length - 1];
+  if (indexHeute === undefined) {
+    throw new Error("Invariante verletzt: keine Indexwerte für den Rückblick");
+  }
+  return hotspotart(indexHeute, Math.max(...indizes));
+}
+
+/** Ringe mit dem Wetter je Stelle (statt Gebietsmitte); nahe Stellen teilen sich einen Abruf (WETTER_RASTER_GRAD). */
 async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kartenebene[], pilz: Pilzart): Promise<void> {
-  const proGebiet = await Promise.all(
-    ebenen.map(async ({ gebiet, daten }): Promise<MarkierterHotspot[]> => {
+  const kandidaten = ebenen.flatMap(({ gebiet, daten }) => findeHotspots({ daten: daten.data, kanal: KANAL[pilz], gebiet }));
+  const markiert = await Promise.all(
+    kandidaten.map(async (hotspot): Promise<MarkierterHotspot | null> => {
       try {
-        const reihe = await wetterFuer(gebiet.mitte[1], gebiet.mitte[0]);
-        const indizes: number[] = [];
-        for (let position = Math.max(0, reihe.heute - TAGE_RUECKBLICK); position <= reihe.heute; position += 1) {
-          indizes.push(tagesindex(reihe.tage, position, pilz).index);
-        }
-        const indexHeute = indizes[indizes.length - 1];
-        if (indexHeute === undefined) {
-          throw new Error("Invariante verletzt: keine Indexwerte für den Rückblick");
-        }
-        const art = hotspotart(indexHeute, Math.max(...indizes));
-        if (art === null) {
-          return [];
-        }
-        return findeHotspots({ daten: daten.data, kanal: KANAL[pilz], gebiet }).map((hotspot) => ({ ...hotspot, art }));
+        const art = await ringart(hotspot, pilz);
+        return art === null ? null : { ...hotspot, art };
       } catch {
-        // Ohne Wetter kein Index und keine Empfehlung; den Fehler zeigt aktualisiereGebietsindex schon an.
-        return [];
+        // Ohne Wetter kein Index und kein Ring an dieser Stelle; den Fehler zeigt aktualisiereGebietsindex schon an.
+        return null;
       }
     }),
   );
-  zeigeHotspots(karte, proGebiet.flat());
+  zeigeHotspots(karte, markiert.filter((eintrag): eintrag is MarkierterHotspot => eintrag !== null));
 }
 
 async function zeigeStelle(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zustand: Zustand, ereignis: maplibregl.MapMouseEvent): Promise<void> {

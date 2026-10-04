@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from pipeline.nachbarschaft import fenster_summe, mischfaktor
+from pipeline.nachbarschaft import fenster_summe, in_der_naehe, mischfaktor
 
 KIEFER = 0
 BIRKE = 7
@@ -44,3 +44,9 @@ def test_wasser_im_umkreis_zaehlt_nicht_in_die_bezugsgroesse() -> None:
     baumarten[3, 3] = KIEFER
     baumarten[3, 4] = BIRKE
     assert mischfaktor(baumarten, frozenset({KIEFER, BIRKE}))[3, 3] == 1.0
+
+
+def test_in_der_naehe_markiert_pixel_bis_zum_radius_um_einen_weg() -> None:
+    maske = np.zeros((1, 7), dtype=bool)
+    maske[0, 3] = True
+    assert in_der_naehe(maske, 2).tolist() == [[False, True, True, True, True, True, False]]

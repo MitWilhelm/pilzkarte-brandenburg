@@ -3,11 +3,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   bodenfeuchtefaktor,
-  bodentemperaturfaktor,
   frostfaktor,
   hitzefaktor,
   regenfaktor,
   saisonfaktor,
+  temperaturfaktor,
   tagesindex,
   wirksamerRegen,
   type Tageswetter,
@@ -47,11 +47,19 @@ test("warm und trocken bremst stark, warm mit Regen oder kühl und trocken nicht
   assert.equal(hitzefaktor(15, 0), 1);
 });
 
-test("Bodentemperatur zwischen 10 und 18 Grad ist ideal, Kälte und Hitze senken den Faktor", () => {
-  assert.equal(bodentemperaturfaktor(14), 1);
-  assert.equal(bodentemperaturfaktor(4), 0);
-  assert.equal(bodentemperaturfaktor(7), 0.5);
-  assert.ok(bodentemperaturfaktor(22) < 1);
+test("Lufttemperatur um 13 Grad ist ideal, Kälte und Hitze senken den Faktor stufenlos bis 0,2", () => {
+  const faelle: readonly { grad: number; erwartet: number }[] = [
+    { grad: 13, erwartet: 1 },
+    { grad: 11, erwartet: 1 },
+    { grad: 15.5, erwartet: 1 },
+    { grad: 8, erwartet: 0.6 },
+    { grad: 5, erwartet: 0.2 },
+    { grad: 0, erwartet: 0.2 },
+    { grad: 21, erwartet: 0.2 },
+  ];
+  for (const fall of faelle) {
+    assert.ok(Math.abs(temperaturfaktor(fall.grad) - fall.erwartet) < 1e-9, JSON.stringify(fall));
+  }
 });
 
 test("trockener Sand senkt den Feuchtefaktor, schließt aber nichts ganz aus", () => {

@@ -33,7 +33,7 @@ export function bremsgrund(tag: Tagesindex): string {
   const kandidaten: readonly (readonly [number, string])[] = [
     [faktoren.hitze, "Warm und trocken: Pilze bleiben meist aus."],
     [faktoren.regen, `Wenig wirksamer Regen in den letzten drei Wochen (${tag.wirksamerRegenMm.toFixed(0)} mm).`],
-    [faktoren.bodentemperatur, "Boden ist zu kalt oder zu warm."],
+    [faktoren.temperatur, "Zu kalt oder zu warm (Mittel der letzten 5 Tage)."],
     [faktoren.bodenfeuchte, "Boden ist trocken."],
     [faktoren.saison, "Außerhalb der Hauptsaison."],
     [faktoren.frost, "Nachtfrost in den letzten Tagen."],

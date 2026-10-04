@@ -12,6 +12,7 @@ from pipeline.habitat import (
     boden_punkte,
     gesamtwert,
     lies_standort,
+    mit_wegrand,
     relative_stufen,
     wirt_codes,
 )
@@ -99,3 +100,16 @@ def test_wirtsbaeume_des_pfifferlings_schliessen_erle_und_kronenverlust_aus() ->
 def test_standortbeschreibung_nennt_anteile_naehrkraft_und_feuchte_in_worten() -> None:
     anteile = [Standortanteil(code="Z2", anteil=6), Standortanteil(code="NK1", anteil=4)]
     assert beschreibe_standort(anteile) == "60 % ziemlich arm, mäßig frisch (Z2) · 40 % kräftig, nass (NK1)"
+
+
+def test_steinpilz_bewertet_arme_und_ziemlich_arme_sandboeden_gleich_gut() -> None:
+    assert boden_punkte("steinpilz", [Standortanteil(code="A2", anteil=10)]) == 1.0
+    assert boden_punkte("steinpilz", [Standortanteil(code="Z2", anteil=10)]) == 1.0
+    assert boden_punkte("steinpilz", [Standortanteil(code="K2", anteil=10)]) < 1.0
+
+
+def test_wegrand_hebt_den_wert_an_deckelt_bei_eins_und_laesst_null_bei_null() -> None:
+    wert = np.array([[0.5, 0.95, 0.0, 0.5]], dtype=np.float32)
+    nahe = np.array([[True, True, True, False]])
+    ergebnis = mit_wegrand(wert, nahe)
+    assert ergebnis[0].tolist() == pytest.approx([0.575, 1.0, 0.0, 0.5])

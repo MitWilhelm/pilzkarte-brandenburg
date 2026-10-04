@@ -9,7 +9,7 @@ import numpy.typing as npt
 
 from pipeline.gebiete import CODE_KEIN_WERT
 
-__all__ = ["RADIUS_PIXEL", "ZIEL_ANTEIL", "fenster_summe", "mischfaktor"]
+__all__ = ["RADIUS_PIXEL", "ZIEL_ANTEIL", "fenster_summe", "in_der_naehe", "mischfaktor"]
 
 RADIUS_PIXEL = 3  # 7 x 7 Pixel = 70 m x 70 m, also etwa 30 m Umkreis
 ZIEL_ANTEIL = 0.25  # ab 25 % anderer Wirtsbäume gilt ein Bestand als voll gemischt
@@ -47,3 +47,8 @@ def mischfaktor(baumarten: npt.NDArray[np.uint16], wirt_codes: frozenset[int]) -
         andere_wirte, bezug, out=np.zeros(baumarten.shape, dtype=np.float64), where=bezug > 0, casting="unsafe"
     )
     return np.minimum(anteil / ZIEL_ANTEIL, 1.0).astype(np.float32)
+
+
+def in_der_naehe(maske: npt.NDArray[np.bool_], radius: int) -> npt.NDArray[np.bool_]:
+    """Wahr für Pixel, in deren Quadrat (2*radius+1)² mindestens ein wahres Pixel liegt."""
+    return fenster_summe(maske, radius) > 0

@@ -22,6 +22,7 @@ __all__ = [
     "boden_punkte",
     "gesamtwert",
     "lies_standort",
+    "mit_wegrand",
     "relative_stufen",
     "wirt_codes",
 ]
@@ -35,6 +36,9 @@ GERING = 0.3
 UNGEEIGNET = 0.0
 MINDESTWERT = 0.2
 MISCH_BASIS = 0.6  # reiner Bestand behält 60 % seines Werts, voll gemischter 100 %
+# Wegränder: dünnere Streuschicht, mehr Licht; dort fanden sich mehr Mykorrhiza-Pilze (van Strien et al. 2018).
+# Kleiner Aufschlag, weil die Studie Straßenränder in den Niederlanden betrifft, nicht Waldwege in Brandenburg.
+WEGRAND_AUFSCHLAG = 0.15
 KEIN_HABITAT = 0
 STUFE_UNTEN = 50
 STUFE_SPANNE = 50
@@ -71,7 +75,8 @@ _BAUMART: dict[Pilzart, dict[int, float]] = {
     },
 }
 _NAEHRKRAFT: dict[Pilzart, dict[str, float]] = {
-    "steinpilz": {"A": MITTEL, "Z": GUT, "M": GUT, "K": MITTEL, "R": GERING},
+    # Arm (A) wie ziemlich arm: Steinpilz-Ertrag stieg mit Sand, Säure und C/N (Martínez-Peña et al. 2012, FEM).
+    "steinpilz": {"A": GUT, "Z": GUT, "M": GUT, "K": MITTEL, "R": GERING},
     "pfifferling": {"A": GUT, "Z": GUT, "M": MITTEL, "K": GERING, "R": UNGEEIGNET},
 }
 # Feuchte 3 fehlt in der LFB-Legende; vermutlich "trocken" -> nur mittel bewertet.
@@ -177,3 +182,10 @@ def relative_stufen(werte: npt.NDArray[np.float32]) -> npt.NDArray[np.uint8]:
     # floor(x + 0,5) rundet kaufmännisch; np.round würde 62,5 auf 62 abrunden (Banker's Rounding).
     stufen[ist_habitat] = np.floor(STUFE_UNTEN + STUFE_SPANNE * rang + 0.5).astype(np.uint8)
     return stufen
+
+
+def mit_wegrand(wert: npt.NDArray[np.float32], is_nahe_weg: npt.NDArray[np.bool_]) -> npt.NDArray[np.float32]:
+    """Aufschlag WEGRAND_AUFSCHLAG für Pixel nahe einem Weg, gedeckelt bei 1; Pixel ohne Habitat bleiben 0."""
+    if wert.shape != is_nahe_weg.shape:
+        raise ValueError(f"Invariante verletzt: Formen {wert.shape} und {is_nahe_weg.shape} passen nicht")
+    return np.minimum(wert * np.where(is_nahe_weg, 1.0 + WEGRAND_AUFSCHLAG, 1.0), 1.0).astype(np.float32)

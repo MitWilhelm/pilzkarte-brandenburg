@@ -103,3 +103,31 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   10.10. Prognose 55–67. Ohne jeden Regen läge der Index bei feuchtem Boden höchstens bei 50,
   also unter der Ring-Schwelle 60.
 - **Verworfen:** feste mm-Schwelle mit Bodenbedingung – erzeugt Sprünge und übersehene Funde.
+
+## 2026-10-04 — Modell nach Volltext-Studien: Wegränder, Temperaturkurve, Wetter je Ring
+
+- **Kontext:** Recherche-Bericht und 13 vom Nutzer bereitgestellte Volltexte (u. a. Martínez-Peña 2012 FEM und
+  Mycorrhiza, Parladé 2017, Tahvanainen 2016, Karavani 2018, Ágreda 2015, Bonet 2010, de-Miguel 2014,
+  van Strien 2018, Brejon Lamartinière & Hoffman 2025 Preprint).
+- **Entscheidungen:**
+  - Habitat: Steinpilz auf armen Böden (A) jetzt „gut“ wie Z und M – Ertrag stieg mit Sand, Säure, C/N
+    (Martínez-Peña 2012 FEM). Kahlschlag (DLR „Kronenverlust“) bleibt 0 (Parladé 2017: Myzel bricht ein).
+  - Habitat: Aufschlag 15 % bis ~20–25 m neben OSM-Wegen und -Pfaden (dünnere Streu, mehr Licht;
+    van Strien 2018 fand mehr Mykorrhiza-Pilze an Wegrändern). Bewusst klein, da indirekt belegt.
+  - Index: Die Bodentemperatur-Schwellen (10–18 °C in 6 cm, ohne Beleg) sind ersetzt durch einen Faktor der
+    Lufttemperatur im 5-Tage-Mittel: 1 bei 11–15,5 °C, stufenlos bis 0,2 bei 5 bzw. 21 °C (Optimum 13,2 °C und
+    Funde meist 7–19 °C laut Bielefeld-Preprint; kühle Fruchtmonate günstig laut Tahvanainen 2016).
+  - Ringe: Index je Ring aus dem Wetter an dieser Stelle (Raster ~2 km), nicht mehr aus der Gebietsmitte.
+  - Unverändert, aber als Annahme gekennzeichnet: „voll ab 20 mm wirksamem Regen“ (R20-Klimaindex bei
+    Salerni 2023, keine biologische Schwelle). Regen bleibt Hauptsignal (Karavani 2018: Regen-Modell besser
+    als Bodenfeuchte-Modell); Regen in der Fruchtsaison zählt (Parladé 2017).
+- **Vergleich alt/neu (sehr kleine Stichprobe, nur als Hinweis):**
+  - Habitat: 4 Steinpilz-Fundorte mit genauen Koordinaten (2 Nutzer, 2 GBIF/iNaturalist) gegen 78 andere
+    Pilzfunde derselben Gebiete (Target-Group-Background nach Phillips et al. 2009). Mittleres Perzentil der
+    Fundorte im Gebiet 41 → 55; AUC 0,73 → 0,74. Der Pfifferling-Fundort (1 Punkt) lag alt wie neu bei Stufe 100.
+  - Index: 8 Funddaten (6 GBIF 2024/2025, 2 Nutzer 2026 mit geschätztem Datum) mit historischem Wetter
+    (Open-Meteo Historical Forecast, über GitHub Actions). Mittleres Perzentil des Funddatums unter allen
+    Saisontagen 74 → 79; 6 von 8 Funden an Tagen über dem 70. Perzentil.
+- **Nicht umgesetzt (fehlende Daten):** Bestandesalter/Grundfläche (Optimumkurve in 6 Studien belegt; braucht
+  Kronenhöhe aus LGB-nDOM), Exposition (braucht Geländemodell), Stickstoff-Abschlag (UBA-Daten nur auf Anfrage),
+  Buchenmast-Abschlag (Mastjahr-Daten).
