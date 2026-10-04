@@ -66,12 +66,18 @@ def abfrage_url(punkt: Abfragepunkt, info_format: str) -> str:
     return f"{DIENST_URL}?{urllib.parse.urlencode(parameter)}"
 
 
-def _lies_punkte(anzahl: int | None) -> list[Abfragepunkt]:
-    with QUELLDATEI.open(encoding="utf-8") as datei:
+def _lies_punkte(quelle: Path, bereich: tuple[int, int | None]) -> list[Abfragepunkt]:
+    with quelle.open(encoding="utf-8") as datei:
         punkte = [Abfragepunkt(id=z["id"], x=float(z["x"]), y=float(z["y"])) for z in csv.DictReader(datei)]
-    if anzahl is None:
-        return punkte
-    return punkte[:anzahl]
+    von, bis = bereich
+    return punkte[von:bis]
+
+
+def _bereits_abgefragt(ziel: Path) -> set[str]:
+    if not ziel.exists():
+        return set()
+    with ziel.open(encoding="utf-8") as datei:
+        return {json.loads(zeile)["id"] for zeile in datei if zeile.strip()}
 
 
 def _frage_ab(url: str) -> dict[str, str | int]:
@@ -90,15 +96,27 @@ def main() -> None:
     argumente = argparse.ArgumentParser()
     argumente.add_argument("--anzahl", type=int, default=None, help="nur die ersten N Punkte (Test)")
     argumente.add_argument("--alle-formate", action="store_true", help="jedes Antwortformat abfragen (Diagnose)")
+    argumente.add_argument("--quelle", type=Path, default=QUELLDATEI, help="CSV mit id,x,y")
+    argumente.add_argument("--ziel", type=Path, default=ZIELDATEI, help="JSONL mit den Antworten")
+    argumente.add_argument("--von", type=int, default=0, help="erster Punkt (Index, einschließlich)")
+    argumente.add_argument("--bis", type=int, default=None, help="letzter Punkt (Index, ausschließlich)")
+    argumente.add_argument("--fortsetzen", action="store_true", help="bereits im Ziel stehende Punkte überspringen")
     eingabe = argumente.parse_args()
     formate = FORMATE_DIAGNOSE if eingabe.alle_formate else (FORMAT_STANDARD,)
-    with ZIELDATEI.open("w", encoding="utf-8") as ziel:
-        for punkt in _lies_punkte(eingabe.anzahl):
+    bis = eingabe.bis if eingabe.anzahl is None else eingabe.von + eingabe.anzahl
+    erledigt = _bereits_abgefragt(eingabe.ziel) if eingabe.fortsetzen else set()
+    modus = "a" if eingabe.fortsetzen else "w"
+    eingabe.ziel.parent.mkdir(parents=True, exist_ok=True)
+    with eingabe.ziel.open(modus, encoding="utf-8") as ziel:
+        for punkt in _lies_punkte(eingabe.quelle, (eingabe.von, bis)):
+            if punkt.id in erledigt:
+                continue
             for info_format in formate:
                 ergebnis = _frage_ab(abfrage_url(punkt, info_format))
                 eintrag = {**asdict(punkt), "format": info_format, **ergebnis}
                 eintrag["text"] = str(eintrag["text"])[:MAX_ANTWORT_ZEICHEN]
                 ziel.write(json.dumps(eintrag, ensure_ascii=False) + "\n")
+                ziel.flush()  # bei Abbruch (Zeitlimit des Laufs) bleiben die bisherigen Antworten erhalten
                 print(f"{punkt.id} {info_format}: Status {ergebnis['status']}, {len(str(ergebnis['text']))} Zeichen")
                 time.sleep(PAUSE_SEKUNDEN)
 

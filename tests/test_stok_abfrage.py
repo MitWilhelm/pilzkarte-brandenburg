@@ -1,8 +1,9 @@
 """Tests für den URL-Bau der Standortskarten-Abfrage (ohne Netzwerk)."""
 
 import urllib.parse
+from pathlib import Path
 
-from pipeline.io_stok_abfrage import Abfragepunkt, abfrage_url
+from pipeline.io_stok_abfrage import Abfragepunkt, _bereits_abgefragt, _lies_punkte, abfrage_url
 
 
 def _parameter(url: str) -> dict[str, str]:
@@ -24,3 +25,15 @@ def test_abfrage_nutzt_den_layer_standortskarte_im_lfb_koordinatensystem() -> No
     assert parameter["QUERY_LAYERS"] == "stok_fskf"
     assert parameter["SRS"] == "EPSG:25833"
     assert parameter["INFO_FORMAT"] == "text/plain"
+
+
+def test_punkte_werden_nach_bereich_gelesen_und_bereits_erledigte_erkannt(tmp_path: Path) -> None:
+    quelle = tmp_path / "punkte.csv"
+    quelle.write_text("id,x,y,lokale_id\na,1.0,2.0,x\nb,3.0,4.0,y\nc,5.0,6.0,z\nd,7.0,8.0,w\n", encoding="utf-8")
+    ziel = tmp_path / "antworten.jsonl"
+    ziel.write_text('{"id": "b"}\n{"id": "c"}\n', encoding="utf-8")
+
+    assert [punkt.id for punkt in _lies_punkte(quelle, (1, 3))] == ["b", "c"]
+    assert [punkt.id for punkt in _lies_punkte(quelle, (2, None))] == ["c", "d"]
+    assert _bereits_abgefragt(ziel) == {"b", "c"}
+    assert _bereits_abgefragt(tmp_path / "gibt-es-nicht.jsonl") == set()

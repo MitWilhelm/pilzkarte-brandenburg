@@ -1,0 +1,75 @@
+# Fragt die Bodenwerte für alle Standortflächen im Landkreis Barnim beim Landesbetrieb Forst ab.
+# 21.763 Punkte bei 1 Abfrage/s: zwei Teile nacheinander (Zeitlimit eines Laufs: 6 Stunden), vorab ein kurzer Test.
+# Ergebnis: daten/barnim_stok_antworten_1.jsonl und _2.jsonl, zurückgeschrieben in denselben Branch.
+name: Barnim-Boden
+
+on:
+  push:
+    branches: [claude/cool-hamilton-x8pj44]
+    paths:
+      - .github/workflows/barnim-boden.yml
+
+permissions:
+  contents: write
+
+env:
+  QUELLE: daten/barnim_stok_punkte.csv
+  TEILGROESSE: 11000
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pipeline.io_stok_abfrage --quelle "$QUELLE" --ziel /tmp/test.jsonl --anzahl 3
+      - name: Antworten prüfen
+        run: |
+          test "$(wc -l < /tmp/test.jsonl)" -eq 3
+          ! grep -q '"status": 0' /tmp/test.jsonl
+          grep -c '"status": 200' /tmp/test.jsonl
+
+  teil1:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pipeline.io_stok_abfrage --quelle "$QUELLE" --ziel daten/barnim_stok_antworten_1.jsonl --von 0 --bis "$TEILGROESSE" --fortsetzen
+      - name: Ergebnis zurückschreiben
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add daten/barnim_stok_antworten_1.jsonl
+          git commit -m "Barnim-Boden: Teil 1 (Punkte 0 bis ${TEILGROESSE})" || exit 0
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
+
+  teil2:
+    needs: teil1
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pipeline.io_stok_abfrage --quelle "$QUELLE" --ziel daten/barnim_stok_antworten_2.jsonl --von "$TEILGROESSE" --fortsetzen
+      - name: Ergebnis zurückschreiben
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add daten/barnim_stok_antworten_2.jsonl
+          git commit -m "Barnim-Boden: Teil 2 (ab Punkt ${TEILGROESSE})" || exit 0
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
