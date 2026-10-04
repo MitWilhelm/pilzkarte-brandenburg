@@ -62,14 +62,25 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
 - **Quellen:**
   - Salerni, Paoli, Perini (2023), Italian Journal of Mycology: Steinpilz in Weißtannen-Beständen,
     sehr starke Regen (≥ 20 mm) mit positivem Effekt, besonders am 12. Tag danach.
-  - Preprint bioRxiv (Dez. 2025), 10 Jahre Monitoring im Buchenwald bei Bielefeld: Fruktifikation
-    steigt linear mit dem Niederschlag der vorangehenden 26 Tage, Optimum ~13 °C (20-Tage-Mittel);
-    keine feste mm-Schwelle für ein Einzelereignis.
+  - Brejon Lamartinière & Hoffman, Preprint bioRxiv (Dez. 2025, nicht begutachtet), 10 Jahre
+    Monitoring (1.905 Fruchtkörper) im Buchenwald bei Bielefeld, Fenster: Mittel der 5 Tage vor
+    jedem Fund. Ergebnisse: die meisten Funde bei 0–7 mm Tagesmittel (Dichte-Maximum unter 3 mm
+    und um 15 °C); kein klarer Zusammenhang zwischen Regen und Fundwahrscheinlichkeit; unter
+    17,5 °C oft Fruchtkörper auch ganz ohne Regen; keine Funde nur bei über 17,5 °C und unter
+    1 mm/Tag. Modell: Anzahl steigt linear mit dem Regen (5-Tage-Mittel), Temperatur-Optimum
+    13,2 °C. Bodenfeuchte kann dem Regen bis zu einem Monat nachlaufen (zitiert: Karavani 2018).
+    Korrektur: Eine frühere Zusammenfassung von mir nannte hier „26 Tage“ und „20-Tage-Mittel“,
+    beides stammte aus einem fehlerhaften Suchergebnis und steht so nicht in der Studie.
   - Praxis-Faustregeln (Presse/Pilzsachverständige): 40–50 l/m² durchfeuchten den Boden,
     Fruchtkörper ~14 Tage später.
 - **Entscheidung:** Auslöser auf Standorten ab Stufe 80: 10 mm in 3 Tagen; sonst weiter 12 mm.
   Kein Beleg für 6 mm; die Quellen sprechen eher für mehr Regen als Auslöser.
 - **Folge:** Mit dem Wetter vom 13.09.–04.10. (höchstens 6,6 mm in 3 Tagen) gibt es keinen
   Auslöser mehr; der Index fällt bei Joachimsthal auf ~20, obwohl der Nutzer dort Steinpilze fand.
+- **Grenze der Entscheidung:** Die Bielefeld-Daten sprechen gegen einen harten Regen-Auslöser
+  überhaupt: Fruchtkörper erscheinen auch ohne Regen, wenn Temperatur und Bodenfeuchte passen;
+  Regen erhöht vor allem die Menge. Ein harter Auslöser erzeugt daher eher übersehene Funde als
+  weniger Fehlalarme. Gegen Fehlalarme hilft laut Studie eher die Temperatur (über 17,5 °C und
+  trocken: keine Funde).
 - **Verworfen:** 20 mm (Salerni) – Studie in Weißtanne/Italien, in Brandenburgs Kiefernsand selten
-  erreicht; als Alternative für später: Regensumme über ~26 Tage statt Einzelereignis.
+  erreicht. Offen für einen eigenen Schritt: Regenfaktor stufenlos statt harter Schwelle.
