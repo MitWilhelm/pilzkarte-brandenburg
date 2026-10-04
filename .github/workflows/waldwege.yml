@@ -1,0 +1,32 @@
+# Holt Wege und Pfade aus OpenStreetMap (Overpass) für die Gebiete der Webseite.
+# Läuft auf GitHub, weil Overpass aus Claudes Arbeitsumgebung nicht erreichbar ist; schreibt das Ergebnis zurück.
+name: Waldwege
+
+on:
+  push:
+    branches: [claude/cool-hamilton-x8pj44]
+    paths:
+      - pipeline/io_waldwege.py
+      - .github/workflows/waldwege.yml
+
+permissions:
+  contents: write
+
+jobs:
+  wege:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pipeline.io_waldwege
+      - name: Ergebnis zurückschreiben
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add web/public/daten/*_wege.geojson
+          git commit -m "Waldwege: OSM-Wege und -Pfade fuer die Gebiete" || exit 0
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
