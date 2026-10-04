@@ -1,7 +1,7 @@
 """Holt Wege und Pfade aus OpenStreetMap (Overpass) für die Gebiete und schreibt GeoJSON für die Webseite.
 
 Aufruf: python -m pipeline.io_waldwege  (läuft auf GitHub Actions; Overpass ist aus Claudes Umgebung gesperrt).
-Ziel: web/public/daten/<gebiet>_wege.geojson mit Eigenschaft "art" = "strasse" (für Autos), "weg" (Forstweg) oder "pfad".
+Ziel: web/public/daten/<gebiet>_wege.geojson mit "art" = "strasse" (für Autos), "weg" (Forstweg) oder "pfad".
 Overpass-Nutzungsregeln: höchstens etwa 10.000 Abfragen/Tag und 1 Abfrage gleichzeitig; wir stellen eine je Gebiet,
 mit 5 s Pause, ohne Retry (Fehler brechen den Lauf mit Ursache ab). Daten: © OpenStreetMap-Mitwirkende, ODbL.
 """
