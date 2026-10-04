@@ -3,11 +3,13 @@
 Aufruf: python -m pipeline.io_waldwege  (läuft auf GitHub Actions; Overpass ist aus Claudes Umgebung gesperrt).
 Ziel: web/public/daten/<gebiet>_wege.geojson mit "art" = "strasse" (für Autos), "weg" (Forstweg) oder "pfad".
 Overpass-Nutzungsregeln: höchstens etwa 10.000 Abfragen/Tag und 1 Abfrage gleichzeitig; wir stellen eine je Gebiet,
-mit 5 s Pause, ohne Retry (Fehler brechen den Lauf mit Ursache ab). Daten: © OpenStreetMap-Mitwirkende, ODbL.
+mit 5 s Pause. Retry: bis zu 3 Versuche mit 60 s Pause bei Überlast (HTTP 429/504) oder Netzwerkfehler;
+danach bricht der Lauf mit Ursache ab. Daten: © OpenStreetMap-Mitwirkende, ODbL.
 """
 
 import json
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -20,6 +22,9 @@ GEBIETE = Path("web/public/daten/gebiete.json")
 ZIELORDNER = Path("web/public/daten")
 PAUSE_SEKUNDEN = 5.0
 ZEITLIMIT_SEKUNDEN = 120
+VERSUCHE = 3
+WARTEN_NACH_FEHLER_SEKUNDEN = 60.0
+UEBERLAST_CODES = {429, 504}
 NACHKOMMASTELLEN = 5  # ~1 m, hält die Datei klein
 KENNUNG = "pilzkarte-brandenburg (private Nutzung, github.com/MitWilhelm/pilzkarte-brandenburg)"
 WEGE_TYPEN = (
@@ -47,6 +52,22 @@ def art_von(highway: str, tracktype: str | None) -> str:
 
 def _abfrage(sued: float, west: float, nord: float, ost: float) -> str:
     return f'[out:json][timeout:90];way["highway"~"^({WEGE_TYPEN})$"]({sued},{west},{nord},{ost});out tags geom;'
+
+
+def _hole_mit_wiederholung(abfrage: str) -> dict[str, object]:
+    for versuch in range(1, VERSUCHE + 1):
+        try:
+            return _hole(abfrage)
+        except urllib.error.HTTPError as fehler:
+            if fehler.code not in UEBERLAST_CODES or versuch == VERSUCHE:
+                raise
+            print(f"Overpass HTTP {fehler.code}, Versuch {versuch}/{VERSUCHE}")
+        except urllib.error.URLError as fehler:
+            if versuch == VERSUCHE:
+                raise
+            print(f"Overpass nicht erreichbar ({fehler.reason}), Versuch {versuch}/{VERSUCHE}")
+        time.sleep(WARTEN_NACH_FEHLER_SEKUNDEN)
+    raise ValueError(f"Invariante verletzt: VERSUCHE muss mindestens 1 sein, ist {VERSUCHE}")
 
 
 def _hole(abfrage: str) -> dict[str, object]:
@@ -78,7 +99,7 @@ def main() -> None:
             time.sleep(PAUSE_SEKUNDEN)
         west, nord = gebiet["ecken"][0]
         ost, sued = gebiet["ecken"][2]
-        wege = _wege_aus(_hole(_abfrage(sued, west, nord, ost)))
+        wege = _wege_aus(_hole_mit_wiederholung(_abfrage(sued, west, nord, ost)))
         if len(wege) == 0:
             raise ValueError(f"Invariante verletzt: keine Wege für {gebiet['name']} gefunden")
         sammlung = {

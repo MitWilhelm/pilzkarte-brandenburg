@@ -3,6 +3,7 @@
 name: Waldwege
 
 on:
+  workflow_dispatch:
   push:
     branches: [claude/cool-hamilton-x8pj44]
     paths:
@@ -11,6 +12,11 @@ on:
 
 permissions:
   contents: write
+
+# Overpass erlaubt nur eine Abfrage gleichzeitig; drei parallele Läufe scheiterten am 04.10. an Überlast.
+concurrency:
+  group: waldwege
+  cancel-in-progress: true
 
 jobs:
   wege:
