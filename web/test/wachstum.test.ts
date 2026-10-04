@@ -84,8 +84,8 @@ test("die Wortskala ordnet den Index in fünf Stufen ein", async () => {
   assert.equal(indexWort(0), "Ungünstig");
 });
 
-test("7 mm Regen lösen nur auf Standorten ab Stufe 80 aus, sonst nicht", () => {
-  const tage = reihe([0, 7, 0, 0]);
+test("10 mm Regen lösen nur auf Standorten ab Stufe 80 aus, sonst nicht", () => {
+  const tage = reihe([0, 10, 0, 0]);
   const faelle: readonly { stufe: number | null; erwartet: number | null }[] = [
     { stufe: 80, erwartet: 2 },
     { stufe: 95, erwartet: 2 },
@@ -96,4 +96,8 @@ test("7 mm Regen lösen nur auf Standorten ab Stufe 80 aus, sonst nicht", () => 
   for (const fall of faelle) {
     assert.equal(tageSeitAusloeser(tage, 3, ausloeserFuerStufe(fall.stufe)), fall.erwartet, `Stufe ${String(fall.stufe)}`);
   }
+});
+
+test("9 mm Regen lösen auch auf guten Standorten nicht aus", () => {
+  assert.equal(tageSeitAusloeser(reihe([0, 9, 0, 0]), 3, ausloeserFuerStufe(95)), null);
 });

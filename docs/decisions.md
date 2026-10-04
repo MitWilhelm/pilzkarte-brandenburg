@@ -53,3 +53,23 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   wertgleich; innerhalb davon trennt erst ein weiteres Merkmal (z. B. Bestandshöhe/-alter).
   Einzelne Laubbaum-Pixel erzeugen sichtbare quadratische Höfe (eckiges Fenster).
 - **Verworfen:** Rang mit oberem Blockrang – setzte große gleiche Blöcke zu optimistisch in 90–100.
+
+## 2026-10-04 — Regen-Auslöser: 10 mm auf guten Standorten (statt 6 mm)
+
+- **Kontext:** Ursprünglich 12 mm in 3 Tagen (eigene Annahme ohne Quelle). Am 03.10. auf Angabe
+  des Nutzers 6 mm für Standorte ab Habitat-Stufe 80, damit ein Fund nach nur 6,3 mm Regen erklärbar
+  wird. Der Nutzer möchte weniger Fehlalarme; Recherche am 04.10.
+- **Quellen:**
+  - Salerni, Paoli, Perini (2023), Italian Journal of Mycology: Steinpilz in Weißtannen-Beständen,
+    sehr starke Regen (≥ 20 mm) mit positivem Effekt, besonders am 12. Tag danach.
+  - Preprint bioRxiv (Dez. 2025), 10 Jahre Monitoring im Buchenwald bei Bielefeld: Fruktifikation
+    steigt linear mit dem Niederschlag der vorangehenden 26 Tage, Optimum ~13 °C (20-Tage-Mittel);
+    keine feste mm-Schwelle für ein Einzelereignis.
+  - Praxis-Faustregeln (Presse/Pilzsachverständige): 40–50 l/m² durchfeuchten den Boden,
+    Fruchtkörper ~14 Tage später.
+- **Entscheidung:** Auslöser auf Standorten ab Stufe 80: 10 mm in 3 Tagen; sonst weiter 12 mm.
+  Kein Beleg für 6 mm; die Quellen sprechen eher für mehr Regen als Auslöser.
+- **Folge:** Mit dem Wetter vom 13.09.–04.10. (höchstens 6,6 mm in 3 Tagen) gibt es keinen
+  Auslöser mehr; der Index fällt bei Joachimsthal auf ~20, obwohl der Nutzer dort Steinpilze fand.
+- **Verworfen:** 20 mm (Salerni) – Studie in Weißtanne/Italien, in Brandenburgs Kiefernsand selten
+  erreicht; als Alternative für später: Regensumme über ~26 Tage statt Einzelereignis.

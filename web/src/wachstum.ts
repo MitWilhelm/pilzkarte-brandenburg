@@ -48,8 +48,9 @@ interface Saison {
 
 const AUSLOESER_TAGE = 3;
 const AUSLOESER_MM = 12;
-// Auf gut passenden Standorten (Habitat-Stufe ab 80) genügt weniger Regen als Auslöser (Angabe des Nutzers: 6-8 mm).
-const AUSLOESER_MM_GUTER_STANDORT = 6;
+// Auf gut passenden Standorten (Habitat-Stufe ab 80) genügt etwas weniger Regen als Auslöser.
+// 10 statt 6 mm gegen Fehlalarme; Studien sehen Wirkung erst ab ~20 mm (docs/decisions.md, 04.10.2026).
+const AUSLOESER_MM_GUTER_STANDORT = 10;
 export const STUFE_GUTER_STANDORT = 80;
 const LATENZ: Readonly<Record<Pilzart, Latenz>> = {
   steinpilz: { zuFruehBis: 4, ernteAb: 7, ernteBis: 14, abklingenBis: 21 },
