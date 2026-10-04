@@ -77,7 +77,7 @@ async function aktualisiereGebietsindex(zustand: Zustand): Promise<void> {
   }
 }
 
-/** Art des Rings für eine Stelle aus ihrem eigenen Wetter (heute bzw. letzte TAGE_RUECKBLICK Tage) oder null. */
+/** Art des Umrisses für eine Fläche aus ihrem eigenen Wetter (heute bzw. letzte TAGE_RUECKBLICK Tage) oder null. */
 async function ringart(hotspot: Hotspot, pilz: Pilzart): Promise<Hotspotart | null> {
   const reihe = await wetterFuer(hotspot.breite, hotspot.laenge);
   const indizes: number[] = [];
@@ -91,7 +91,7 @@ async function ringart(hotspot: Hotspot, pilz: Pilzart): Promise<Hotspotart | nu
   return hotspotart(indexHeute, Math.max(...indizes));
 }
 
-/** Ringe mit dem Wetter je Stelle (statt Gebietsmitte); nahe Stellen teilen sich einen Abruf (WETTER_RASTER_GRAD). */
+/** Umrisse mit dem Wetter je Fläche (statt Gebietsmitte); nahe Stellen teilen sich einen Abruf (WETTER_RASTER_GRAD). */
 async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kartenebene[], pilz: Pilzart): Promise<void> {
   const kandidaten = ebenen.flatMap(({ gebiet, daten }) => findeHotspots({ daten: daten.data, kanal: KANAL[pilz], gebiet }));
   const markiert = await Promise.all(
@@ -100,7 +100,7 @@ async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kart
         const art = await ringart(hotspot, pilz);
         return art === null ? null : { ...hotspot, art };
       } catch {
-        // Ohne Wetter kein Index und kein Ring an dieser Stelle; den Fehler zeigt aktualisiereGebietsindex schon an.
+        // Ohne Wetter kein Index und kein Umriss an dieser Stelle; den Fehler zeigt aktualisiereGebietsindex schon an.
         return null;
       }
     }),

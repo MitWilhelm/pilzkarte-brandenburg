@@ -33,7 +33,7 @@ function bildMitBlock(stufe: number, block: { von: number; bis: number }): Uint8
   return daten;
 }
 
-test("ein 30x30-Pixel-Block mit Stufe 95 ergibt genau einen Brennpunkt mit 9 Hektar in seiner Mitte", () => {
+test("ein 30x30-Pixel-Block mit Stufe 95 ergibt genau einen Brennpunkt mit 9 Hektar und Anker in seiner Mitte", () => {
   const gebiet = kleinesGebiet();
   const treffer = findeHotspots({ daten: bildMitBlock(95, { von: 10, bis: 40 }), kanal: 1, gebiet });
   assert.equal(treffer.length, 1);
@@ -76,4 +76,42 @@ test("Hotspot-Art: heute günstig heißt heute, sonst nur in den letzten Tagen g
   for (const fall of faelle) {
     assert.equal(hotspotart(fall.indexHeute, fall.hoechsterIndexLetzteTage), fall.erwartet);
   }
+});
+
+test("der Umriss eines 3x3-Zellen-Blocks besteht nur aus seinen 12 Außenkanten auf dem Blockrand", () => {
+  const gebiet = kleinesGebiet();
+  const [erster] = findeHotspots({ daten: bildMitBlock(95, { von: 10, bis: 40 }), kanal: 1, gebiet });
+  assert.ok(erster !== undefined);
+  assert.equal(erster.umriss.length, 12);
+  const [links, oben] = koordinateAnPixel(gebiet, 9.5, 9.5);
+  const [rechts, unten] = koordinateAnPixel(gebiet, 39.5, 39.5);
+  const toleranz = 1e-9;
+  for (const strecke of erster.umriss) {
+    for (const [laenge, breite] of strecke) {
+      const isAmRand =
+        Math.abs(laenge - links) < toleranz ||
+        Math.abs(laenge - rechts) < toleranz ||
+        Math.abs(breite - oben) < toleranz ||
+        Math.abs(breite - unten) < toleranz;
+      assert.ok(isAmRand, `Ecke ${String(laenge)}/${String(breite)} liegt nicht auf dem Blockrand`);
+    }
+  }
+});
+
+test("bei einer L-förmigen Fläche liegt der Ankerpunkt auf der Fläche, nicht im leeren Schwerpunkt", () => {
+  const gebiet = kleinesGebiet();
+  const daten = new Uint8ClampedArray(BREITE * HOEHE * 4);
+  // L aus zwei Balken: Zeilen 0-9 über die ganze Breite, Spalten 0-9 über die ganze Höhe.
+  for (let zeile = 0; zeile < HOEHE; zeile += 1) {
+    for (let spalte = 0; spalte < BREITE; spalte += 1) {
+      if (zeile < 10 || spalte < 10) {
+        daten[(zeile * BREITE + spalte) * 4 + 1] = 95;
+      }
+    }
+  }
+  const [erster] = findeHotspots({ daten, kanal: 1, gebiet });
+  assert.ok(erster !== undefined);
+  const pixel = pixelAnStelle(gebiet, erster.laenge, erster.breite);
+  assert.ok(pixel !== null);
+  assert.ok(pixel.zeile < 10 || pixel.spalte < 10, `Anker bei ${String(pixel.spalte)}/${String(pixel.zeile)} liegt außerhalb der Fläche`);
 });

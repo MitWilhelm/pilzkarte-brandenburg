@@ -1,13 +1,18 @@
 // Findet Brennpunkte: zusammenhängende Stellen mit sehr hoher Habitat-Stufe, die auf der Karte
-// mit einem Ring markiert werden. Reine Funktion (kein I/O), arbeitet auf dem Daten-PNG eines Gebiets.
+// mit einem Umriss markiert werden. Reine Funktion (kein I/O), arbeitet auf dem Daten-PNG eines Gebiets.
 import { mercatorY, type Gebiet, type Pilzkanal } from "./geo.ts";
 
 export type Hotspotart = "heute" | "letzte-tage";
 
+export type Strecke = readonly [readonly [number, number], readonly [number, number]];
+
 export interface Hotspot {
+  // Ankerpunkt für Wetterabruf und Zoom: die Zelle der Fläche, die ihrem Schwerpunkt am nächsten liegt.
+  // Der Schwerpunkt selbst kann bei verwinkelten Flächen außerhalb liegen (gefunden an 52.9956, 13.7105).
   readonly laenge: number;
   readonly breite: number;
   readonly flaecheHektar: number;
+  readonly umriss: readonly Strecke[]; // Außenkanten der Zellen (Länge, Breite), ohne innere Linien
 }
 
 export interface MarkierterHotspot extends Hotspot {
@@ -30,6 +35,13 @@ const HEKTAR_PRO_ZELLE = 1;
 const GRAD_ZU_RAD = Math.PI / 180;
 const NACHBARN: readonly (readonly [number, number])[] = [
   [-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1],
+];
+// Je Kante der Zelle: Nachbar in dieser Richtung und Eckpunkte (in Zellen, relativ zur oberen linken Ecke).
+const KANTEN: readonly { readonly dx: number; readonly dy: number; readonly von: readonly [number, number]; readonly bis: readonly [number, number] }[] = [
+  { dx: 0, dy: -1, von: [0, 0], bis: [1, 0] },
+  { dx: 1, dy: 0, von: [1, 0], bis: [1, 1] },
+  { dx: 0, dy: 1, von: [0, 1], bis: [1, 1] },
+  { dx: -1, dy: 0, von: [0, 0], bis: [0, 1] },
 ];
 
 /** "heute": Index heute günstig. "letzte-tage": nur an einem der letzten Tage günstig (ältere, große Pilze möglich). */
@@ -68,6 +80,50 @@ export function koordinateAnPixel(gebiet: Gebiet, spalte: number, zeile: number)
   const mercator = mercatorOben - ((zeile + 0.5) / gebiet.hoehePixel) * (mercatorOben - mercatorUnten);
   const breite = (2 * Math.atan(Math.exp(mercator)) - Math.PI / 2) / GRAD_ZU_RAD;
   return [laenge, breite];
+}
+
+function eckeAnZelle(gebiet: Gebiet, eckeX: number, eckeY: number): readonly [number, number] {
+  // koordinateAnPixel rechnet mit Pixelmitten, daher -0,5; Randzellen sind am Bildrand abgeschnitten.
+  const spalte = Math.min(eckeX * ZELLE_PIXEL, gebiet.breitePixel) - 0.5;
+  const zeile = Math.min(eckeY * ZELLE_PIXEL, gebiet.hoehePixel) - 0.5;
+  return koordinateAnPixel(gebiet, spalte, zeile);
+}
+
+function umrissDerZellen(gebiet: Gebiet, zellen: ReadonlySet<number>, zellenBreit: number): Strecke[] {
+  const strecken: Strecke[] = [];
+  for (const zelle of zellen) {
+    const zelleX = zelle % zellenBreit;
+    const zelleY = Math.floor(zelle / zellenBreit);
+    for (const kante of KANTEN) {
+      const nachbarX = zelleX + kante.dx;
+      const isNachbarInFlaeche = nachbarX >= 0 && nachbarX < zellenBreit && zellen.has((zelleY + kante.dy) * zellenBreit + nachbarX);
+      if (!isNachbarInFlaeche) {
+        strecken.push([
+          eckeAnZelle(gebiet, zelleX + kante.von[0], zelleY + kante.von[1]),
+          eckeAnZelle(gebiet, zelleX + kante.bis[0], zelleY + kante.bis[1]),
+        ]);
+      }
+    }
+  }
+  return strecken;
+}
+
+function naechsteZelleZumSchwerpunkt(zellen: readonly number[], zellenBreit: number): number {
+  const mitteX = zellen.reduce((summe, zelle) => summe + (zelle % zellenBreit), 0) / zellen.length;
+  const mitteY = zellen.reduce((summe, zelle) => summe + Math.floor(zelle / zellenBreit), 0) / zellen.length;
+  let beste = zellen[0];
+  if (beste === undefined) {
+    throw new Error("Invariante verletzt: Fläche ohne Zellen");
+  }
+  let besterAbstand = Number.POSITIVE_INFINITY;
+  for (const zelle of zellen) {
+    const abstand = ((zelle % zellenBreit) - mitteX) ** 2 + (Math.floor(zelle / zellenBreit) - mitteY) ** 2;
+    if (abstand < besterAbstand) {
+      beste = zelle;
+      besterAbstand = abstand;
+    }
+  }
+  return beste;
 }
 
 export function findeHotspots(suche: Hotspotsuche): Hotspot[] {
@@ -109,10 +165,12 @@ export function findeHotspots(suche: Hotspotsuche): Hotspot[] {
     if (zellen.length < MIN_ZELLEN) {
       continue;
     }
-    const mitteX = zellen.reduce((summe, zelle) => summe + (zelle % zellenBreit) + 0.5, 0) / zellen.length;
-    const mitteY = zellen.reduce((summe, zelle) => summe + Math.floor(zelle / zellenBreit) + 0.5, 0) / zellen.length;
-    const [laenge, breite] = koordinateAnPixel(gebiet, mitteX * ZELLE_PIXEL - 0.5, mitteY * ZELLE_PIXEL - 0.5);
-    hotspots.push({ laenge, breite, flaecheHektar: zellen.length * HEKTAR_PRO_ZELLE });
+    const anker = naechsteZelleZumSchwerpunkt(zellen, zellenBreit);
+    const ankerX = ((anker % zellenBreit) + 0.5) * ZELLE_PIXEL - 0.5;
+    const ankerY = (Math.floor(anker / zellenBreit) + 0.5) * ZELLE_PIXEL - 0.5;
+    const [laenge, breite] = koordinateAnPixel(gebiet, ankerX, ankerY);
+    const umriss = umrissDerZellen(gebiet, new Set(zellen), zellenBreit);
+    hotspots.push({ laenge, breite, flaecheHektar: zellen.length * HEKTAR_PRO_ZELLE, umriss });
   }
   return hotspots.sort((a, b) => b.flaecheHektar - a.flaecheHektar);
 }

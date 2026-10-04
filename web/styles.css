@@ -164,10 +164,10 @@ p, h1, ol, dl, dd { margin: 0; }
 .farbfeld[data-klasse="Möglich"] { background: #fae496; }
 .ring-legende { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; font-size: 13px; color: var(--leise); }
 .ring-legende li { display: flex; align-items: center; gap: 8px; }
-/* Gleiche Farben wie die Ringe auf der Karte (src/karte.ts), mit dunklem Rand für Kontrast. */
-.ringfeld { flex: none; width: 14px; height: 14px; border-radius: 50%; border: 3px solid; box-shadow: 0 0 0 2px #1f3a2a; }
-.ringfeld-neu { border-color: #1fbf5b; }
-.ringfeld-alt { border-color: #9b4dca; }
+/* Gleiche Farben wie die Umrisse auf der Karte (src/karte.ts), mit dunklem Rand für Kontrast. */
+.umrissfeld { flex: none; width: 14px; height: 14px; border-radius: 2px; border: 3px solid; box-shadow: 0 0 0 2px #0b0f14; }
+.umrissfeld-neu { border-color: #00e5ff; }
+.umrissfeld-alt { border-color: #ff2bd6; }
 /* Wege wie auf der Karte (src/karte.ts): fahrbarer Weg mit dunklem Rand, Pfad gestrichelt. */
 .wegfeld { flex: none; width: 26px; height: 8px; border-radius: 4px; background: #ffffff; box-shadow: 0 0 0 2px #6e5b3e; margin: 0 2px; }
 .strassefeld { flex: none; width: 26px; height: 9px; border-radius: 5px; background: #ffd75e; box-shadow: 0 0 0 2px #7d7d7d; margin: 0 2px; }

@@ -13,12 +13,8 @@ const START_ZOOM = 13;
 const HEATMAP_DECKKRAFT = 0.6; // etwas durchsichtiger, damit Wege darunter lesbar bleiben
 const BODEN_LINIENBREITE = 0.6;
 const HOTSPOT_QUELLE = "hotspots";
-const HOTSPOT_RADIUS_METER = 120; // feste Größe auf dem Boden: der Ring wächst und schrumpft mit der Karte mit
-const WEB_MERCATOR_METER_PRO_PIXEL_BEI_ZOOM_0 = 156543.03; // Äquator, 256-px-Kacheln
-const HOTSPOT_BREITE_GRAD = 53; // Brandenburg: Meter pro Pixel schrumpfen mit cos(Breite)
-const HOTSPOT_MAX_ZOOM = 24;
-const HOTSPOT_RAND_BREITE = 7;
-const HOTSPOT_RING_BREITE = 3;
+const UMRISS_RAND_BREITE: readonly [number, number, number, number] = [12, 7, 16, 12];
+const UMRISS_BREITE: readonly [number, number, number, number] = [12, 4, 16, 7];
 
 // Dunkelmodus: OSM-Kacheln gibt es nur hell; Helligkeit umkehren und Farbton drehen ergibt eine dunkle Karte
 // mit ungefähr gleichen Farben (Wasser bleibt bläulich, Wald grünlich).
@@ -261,48 +257,26 @@ export function bodenAnPunkt(karte: maplibregl.Map, punkt: maplibregl.Point, geb
   return typeof boden === "string" ? boden : null;
 }
 
-/** Kreisradius in Bildschirmpixeln für eine feste Bodengröße; wächst pro Zoomstufe um den Faktor 2.
- *  Exponentielle Interpolation mit Basis 2 ist dafür exakt. */
-function festerRadius(meter: number): maplibregl.ExpressionSpecification {
-  const pixelBeiZoomNull =
-    meter / (WEB_MERCATOR_METER_PRO_PIXEL_BEI_ZOOM_0 * Math.cos((HOTSPOT_BREITE_GRAD * Math.PI) / 180));
-  return [
-    "interpolate",
-    ["exponential", 2],
-    ["zoom"],
-    0,
-    pixelBeiZoomNull,
-    HOTSPOT_MAX_ZOOM,
-    pixelBeiZoomNull * 2 ** HOTSPOT_MAX_ZOOM,
-  ];
-}
-
-/** Ring-Ebene für Brennpunkte; liegt über der Heatmap, die Daten kommen mit zeigeHotspots. */
+/** Umriss-Ebene für Brennpunkte; liegt über der Heatmap, die Daten kommen mit zeigeHotspots. */
 export function fuegeHotspotEbeneHinzu(karte: maplibregl.Map): void {
   karte.addSource(HOTSPOT_QUELLE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-  // Zwei Ringe: dunkler Rand für Kontrast auf Rot und Gelb, farbiger Ring darüber.
+  // Zwei Linien: dunkler Rand für Kontrast auf Rot und Gelb, farbige Linie darüber.
   karte.addLayer({
     id: "hotspot-rand",
-    type: "circle",
+    type: "line",
     source: HOTSPOT_QUELLE,
-    paint: {
-      "circle-radius": festerRadius(HOTSPOT_RADIUS_METER),
-      "circle-opacity": 0,
-      "circle-stroke-width": HOTSPOT_RAND_BREITE,
-      "circle-stroke-color": "#1f3a2a",
-      "circle-stroke-opacity": 0.85,
-    },
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": "#0b0f14", "line-opacity": 0.9, "line-width": breite(UMRISS_RAND_BREITE) },
   });
   karte.addLayer({
-    id: "hotspot-ring",
-    type: "circle",
+    id: "hotspot-umriss",
+    type: "line",
     source: HOTSPOT_QUELLE,
+    layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "circle-radius": festerRadius(HOTSPOT_RADIUS_METER),
-      "circle-opacity": 0,
-      "circle-stroke-width": HOTSPOT_RING_BREITE,
-      // grün: heute günstig; lila: nur in den letzten Tagen günstig
-      "circle-stroke-color": ["match", ["get", "art"], "letzte-tage", "#9b4dca", "#1fbf5b"],
+      // cyan: heute günstig; magenta: nur in den letzten Tagen günstig (Signalfarben, sonst nirgends auf der Karte)
+      "line-color": ["match", ["get", "art"], "letzte-tage", "#ff2bd6", "#00e5ff"],
+      "line-width": breite(UMRISS_BREITE),
     },
   });
 }
@@ -317,7 +291,7 @@ export function zeigeHotspots(karte: maplibregl.Map, hotspots: readonly Markiert
     features: hotspots.map((hotspot) => ({
       type: "Feature",
       properties: { flaecheHektar: hotspot.flaecheHektar, art: hotspot.art },
-      geometry: { type: "Point", coordinates: [hotspot.laenge, hotspot.breite] },
+      geometry: { type: "MultiLineString", coordinates: hotspot.umriss.map(([von, bis]) => [[...von], [...bis]]) },
     })),
   });
 }
