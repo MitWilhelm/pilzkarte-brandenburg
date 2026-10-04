@@ -1,5 +1,6 @@
 // Wachstumsindex (0–100) für Steinpilz und Pfifferling aus Tageswetter – reine Funktionen, kein I/O.
-// Idee: Pilze fruchten einige Tage nach kräftigem Regen, wenn der Boden mild und feucht ist und Saison ist.
+// Idee: Regen der letzten ~3 Wochen wirkt stufenlos (am stärksten 1–2 Wochen danach); feuchter Boden bei
+// 10–17 °C trägt auch ohne Regen einen mittleren Index; warm und trocken bremst stark (docs/decisions.md).
 // Alle Schwellen sind Fachwissen-Annahmen (docs/decisions.md), nicht mit Funden kalibriert.
 
 export type Pilzart = "steinpilz" | "pfifferling";
@@ -8,6 +9,7 @@ export interface Tageswetter {
   readonly datum: string; // JJJJ-MM-TT, Ortszeit Europe/Berlin
   readonly regenMm: number;
   readonly lufttempMinC: number;
+  readonly lufttempMittelC: number;
   readonly bodentempC: number; // Tagesmittel in 6 cm Tiefe
   readonly bodenfeuchte: number; // m³/m³ in 3–9 cm Tiefe
 }
@@ -18,18 +20,14 @@ export interface Indexfaktoren {
   readonly bodenfeuchte: number;
   readonly saison: number;
   readonly frost: number;
-}
-
-export interface Indexbedingungen {
-  readonly pilz: Pilzart;
-  readonly ausloeserMm: number;
+  readonly hitze: number;
 }
 
 export interface Tagesindex {
   readonly datum: string;
   readonly index: number;
   readonly faktoren: Indexfaktoren;
-  readonly tageSeitAusloeser: number | null;
+  readonly wirksamerRegenMm: number;
 }
 
 interface Latenz {
@@ -46,12 +44,6 @@ interface Saison {
   readonly ende: string;
 }
 
-const AUSLOESER_TAGE = 3;
-const AUSLOESER_MM = 12;
-// Auf gut passenden Standorten (Habitat-Stufe ab 80) genügt etwas weniger Regen als Auslöser.
-// 10 statt 6 mm gegen Fehlalarme; Studien sehen Wirkung erst ab ~20 mm (docs/decisions.md, 04.10.2026).
-const AUSLOESER_MM_GUTER_STANDORT = 10;
-export const STUFE_GUTER_STANDORT = 80;
 const LATENZ: Readonly<Record<Pilzart, Latenz>> = {
   steinpilz: { zuFruehBis: 4, ernteAb: 7, ernteBis: 14, abklingenBis: 21 },
   pfifferling: { zuFruehBis: 5, ernteAb: 9, ernteBis: 18, abklingenBis: 26 },
@@ -60,9 +52,18 @@ const SAISON: Readonly<Record<Pilzart, Saison>> = {
   steinpilz: { beginn: "06-20", hoehepunktBeginn: "08-10", hoehepunktEnde: "10-20", ende: "11-20" },
   pfifferling: { beginn: "06-01", hoehepunktBeginn: "07-01", hoehepunktEnde: "09-20", ende: "10-31" },
 };
-const REGEN_ZU_FRUEH = 0.35;
-const REGEN_OHNE_AUSLOESER = 0.2;
-const REGEN_ABKLINGEN = 0.6;
+// Gewicht eines Regentags nach Abstand in Tagen (Latenz): früh wenig, 1–2 Wochen danach voll, dann abklingend.
+const GEWICHT_ZU_FRUEH = 0.35;
+const GEWICHT_ABKLINGEN = 0.6;
+const REGEN_VOLL_MM = 20; // so viel wirksamer Regen ergibt den vollen Regenfaktor (Salerni 2023: ab ~20 mm)
+const REGEN_GRUND = 0.2; // ohne Regen und ohne günstigen Boden
+const REGEN_GRUND_GUTER_BODEN = 0.5; // ohne Regen, aber feuchter Boden bei 10–17 °C: mittlerer Index
+const LUFT_GUT_MIN_C = 10;
+const LUFT_GUT_MAX_C = 17;
+const MITTEL_TAGE = 5; // Fenster wie in der Bielefeld-Studie (5 Tage vor dem Fund)
+const HITZE_AB_C = 17.5; // Bielefeld: über 17,5 °C und unter 1 mm/Tag keine Funde
+const TROCKEN_UNTER_MM_PRO_TAG = 1;
+const HITZE_TROCKEN_FAKTOR = 0.2;
 const BODENTEMP_IDEAL_MIN = 10;
 const BODENTEMP_IDEAL_MAX = 18;
 const BODENTEMP_NULL_UNTEN = 4;
@@ -83,49 +84,52 @@ function linear(wert: number, von: number, bis: number): number {
   return Math.min(1, Math.max(0, (wert - von) / (bis - von)));
 }
 
-/** Regenmenge, ab der ein Regentag als Auslöser zählt: niedriger auf gut passenden Standorten.
- *  `stufe` ist die Habitat-Stufe der Stelle oder null, wenn sie unbekannt ist (dann gilt der strenge Wert). */
-export function ausloeserFuerStufe(stufe: number | null): number {
-  return stufe !== null && stufe >= STUFE_GUTER_STANDORT ? AUSLOESER_MM_GUTER_STANDORT : AUSLOESER_MM;
-}
-
-/** Tage seit dem letzten Regen-Auslöser bis zum Tag `position`.
- *  Auslöser ist ein Regentag, an dem die Summe der letzten AUSLOESER_TAGE Tage `ausloeserMm` erreicht. */
-export function tageSeitAusloeser(tage: readonly Tageswetter[], position: number, ausloeserMm: number): number | null {
-  for (let ende = position; ende >= 0; ende -= 1) {
-    // Ohne Regen am Tag selbst wäre es nur das Nachklingen eines früheren Auslösers.
-    if (tageswetter(tage, ende).regenMm <= 0) {
-      continue;
-    }
-    let summe = 0;
-    for (let tag = Math.max(0, ende - AUSLOESER_TAGE + 1); tag <= ende; tag += 1) {
-      summe += tageswetter(tage, tag).regenMm;
-    }
-    if (summe >= ausloeserMm) {
-      return position - ende;
-    }
-  }
-  return null;
-}
-
-export function regenfaktor(pilz: Pilzart, tageSeit: number | null): number {
-  if (tageSeit === null) {
-    return REGEN_OHNE_AUSLOESER;
-  }
+function regengewicht(pilz: Pilzart, abstandTage: number): number {
   const latenz = LATENZ[pilz];
-  if (tageSeit <= latenz.zuFruehBis) {
-    return REGEN_ZU_FRUEH;
+  if (abstandTage <= latenz.zuFruehBis) {
+    return GEWICHT_ZU_FRUEH;
   }
-  if (tageSeit < latenz.ernteAb) {
-    return REGEN_ZU_FRUEH + (1 - REGEN_ZU_FRUEH) * linear(tageSeit, latenz.zuFruehBis, latenz.ernteAb);
+  if (abstandTage < latenz.ernteAb) {
+    return GEWICHT_ZU_FRUEH + (1 - GEWICHT_ZU_FRUEH) * linear(abstandTage, latenz.zuFruehBis, latenz.ernteAb);
   }
-  if (tageSeit <= latenz.ernteBis) {
+  if (abstandTage <= latenz.ernteBis) {
     return 1;
   }
-  if (tageSeit <= latenz.abklingenBis) {
-    return REGEN_ABKLINGEN;
+  if (abstandTage <= latenz.abklingenBis) {
+    return GEWICHT_ABKLINGEN;
   }
-  return REGEN_OHNE_AUSLOESER;
+  return 0;
+}
+
+/** Regen der zurückliegenden Tage, gewichtet nach Abstand zum Tag `position` (mm). */
+export function wirksamerRegen(tage: readonly Tageswetter[], position: number, pilz: Pilzart): number {
+  let summe = 0;
+  for (let tag = Math.max(0, position - LATENZ[pilz].abklingenBis); tag <= position; tag += 1) {
+    summe += tageswetter(tage, tag).regenMm * regengewicht(pilz, position - tag);
+  }
+  return summe;
+}
+
+function mittelDerLetztenTage(tage: readonly Tageswetter[], position: number, wertVon: (tag: Tageswetter) => number): number {
+  let summe = 0;
+  let anzahl = 0;
+  for (let tag = Math.max(0, position - MITTEL_TAGE + 1); tag <= position; tag += 1) {
+    summe += wertVon(tageswetter(tage, tag));
+    anzahl += 1;
+  }
+  return summe / anzahl;
+}
+
+/** Stufenloser Regenfaktor: Grundwert plus Anteil des wirksamen Regens.
+ *  `bodenanteil` (0–1): wie günstig der Boden ohne Regen ist; 1 = feucht bei 10–17 °C, hebt den Grundwert auf „mittel“. */
+export function regenfaktor(wirksamerRegenMm: number, bodenanteil: number): number {
+  const grund = REGEN_GRUND + (REGEN_GRUND_GUTER_BODEN - REGEN_GRUND) * bodenanteil;
+  return grund + (1 - grund) * linear(wirksamerRegenMm, 0, REGEN_VOLL_MM);
+}
+
+/** Warm und trocken (5-Tage-Mittel) bremst stark. */
+export function hitzefaktor(luftMittelC: number, regenMmProTag: number): number {
+  return luftMittelC > HITZE_AB_C && regenMmProTag < TROCKEN_UNTER_MM_PRO_TAG ? HITZE_TROCKEN_FAKTOR : 1;
 }
 
 export function bodentemperaturfaktor(gradC: number): number {
@@ -176,28 +180,38 @@ function tageswetter(tage: readonly Tageswetter[], position: number): Tageswette
   return tag;
 }
 
-/** Index für den Tag an `position`; die Tage davor liefern Regen-Auslöser und Frost. */
-export function tagesindex(tage: readonly Tageswetter[], position: number, bedingungen: Indexbedingungen): Tagesindex {
+/** Index für den Tag an `position`; die Tage davor liefern Regen, Mittelwerte und Frost. */
+export function tagesindex(tage: readonly Tageswetter[], position: number, pilz: Pilzart): Tagesindex {
   const tag = tageswetter(tage, position);
-  const { pilz, ausloeserMm } = bedingungen;
-  const seit = tageSeitAusloeser(tage, position, ausloeserMm);
+  const luftMittel = mittelDerLetztenTage(tage, position, (eintrag) => eintrag.lufttempMittelC);
+  const regenProTag = mittelDerLetztenTage(tage, position, (eintrag) => eintrag.regenMm);
+  const isLuftGut = luftMittel >= LUFT_GUT_MIN_C && luftMittel <= LUFT_GUT_MAX_C;
+  // Feuchte stufenlos, damit 0,139 statt 0,140 m³/m³ den Index nicht springen lässt.
+  const bodenanteil = isLuftGut ? linear(tag.bodenfeuchte, FEUCHTE_TROCKEN, FEUCHTE_GUT) : 0;
+  const wirksam = wirksamerRegen(tage, position, pilz);
   const faktoren: Indexfaktoren = {
-    regen: regenfaktor(pilz, seit),
+    regen: regenfaktor(wirksam, bodenanteil),
     bodentemperatur: bodentemperaturfaktor(tag.bodentempC),
     bodenfeuchte: bodenfeuchtefaktor(tag.bodenfeuchte),
     saison: saisonfaktor(pilz, tag.datum),
     frost: frostfaktor(tage, position),
+    hitze: hitzefaktor(luftMittel, regenProTag),
   };
   const produkt =
-    faktoren.regen * faktoren.bodentemperatur * faktoren.bodenfeuchte * faktoren.saison * faktoren.frost;
-  return { datum: tag.datum, index: Math.round(MAX_INDEX * produkt), faktoren, tageSeitAusloeser: seit };
+    faktoren.regen *
+    faktoren.bodentemperatur *
+    faktoren.bodenfeuchte *
+    faktoren.saison *
+    faktoren.frost *
+    faktoren.hitze;
+  return { datum: tag.datum, index: Math.round(MAX_INDEX * produkt), faktoren, wirksamerRegenMm: wirksam };
 }
 
 /** Indizes ab dem Tag `heute` bis zum letzten Tag der Reihe (Prognose). */
-export function indexverlauf(tage: readonly Tageswetter[], heute: number, bedingungen: Indexbedingungen): Tagesindex[] {
+export function indexverlauf(tage: readonly Tageswetter[], heute: number, pilz: Pilzart): Tagesindex[] {
   const verlauf: Tagesindex[] = [];
   for (let position = heute; position < tage.length; position += 1) {
-    verlauf.push(tagesindex(tage, position, bedingungen));
+    verlauf.push(tagesindex(tage, position, pilz));
   }
   return verlauf;
 }

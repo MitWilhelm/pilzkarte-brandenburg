@@ -3,7 +3,7 @@
 // ein Fehler wird mit Ursache weitergereicht und auf der Seite angezeigt. Lizenz der Daten: CC-BY-4.0.
 import type { Tageswetter } from "../wachstum.ts";
 
-export const TAGE_ZURUECK = 20; // Pilze fruchten bis ~3 Wochen nach dem Regen-Auslöser
+export const TAGE_ZURUECK = 20; // Regen wirkt bis ~3 Wochen nach (Latenz im Wachstumsindex)
 const TAGE_VORAUS = 8; // heute + 7 Tage
 const STUNDEN_PRO_TAG = 24;
 const ENDPUNKT = "https://api.open-meteo.com/v1/forecast";
@@ -73,6 +73,7 @@ export function wetterAusAntwort(antwort: unknown): Wetterreihe {
   const daten = textliste(feld(taeglich, "time"), "daily.time");
   const regen = zahlenliste(feld(taeglich, "precipitation_sum"), "precipitation_sum");
   const minimum = zahlenliste(feld(taeglich, "temperature_2m_min"), "temperature_2m_min");
+  const mittel = zahlenliste(feld(taeglich, "temperature_2m_mean"), "temperature_2m_mean");
   const bodentemp = stundenliste(feld(stuendlich, "soil_temperature_6cm"), "soil_temperature_6cm");
   const feuchte = stundenliste(feld(stuendlich, "soil_moisture_3_to_9cm"), "soil_moisture_3_to_9cm");
   if (bodentemp.length !== daten.length * STUNDEN_PRO_TAG || feuchte.length !== bodentemp.length) {
@@ -90,7 +91,7 @@ export function wetterAusAntwort(antwort: unknown): Wetterreihe {
       }
       break; // Prognose-Ende: spätere Tage haben keine Bodenwerte mehr
     }
-    tage.push({ datum, regenMm: wert(regen, tag), lufttempMinC: wert(minimum, tag), bodentempC, bodenfeuchte });
+    tage.push({ datum, regenMm: wert(regen, tag), lufttempMinC: wert(minimum, tag), lufttempMittelC: wert(mittel, tag), bodentempC, bodenfeuchte });
   }
   if (tage.length <= TAGE_ZURUECK) {
     throw new Error(`Invariante verletzt: nur ${String(tage.length)} Tage, erwartet mehr als ${String(TAGE_ZURUECK)}`);
@@ -103,7 +104,7 @@ export function wetterUrl(breite: number, laenge: number): string {
     latitude: breite.toFixed(4),
     longitude: laenge.toFixed(4),
     hourly: "soil_temperature_6cm,soil_moisture_3_to_9cm",
-    daily: "precipitation_sum,temperature_2m_min",
+    daily: "precipitation_sum,temperature_2m_min,temperature_2m_mean",
     past_days: String(TAGE_ZURUECK),
     forecast_days: String(TAGE_VORAUS),
     timezone: "Europe/Berlin",

@@ -2,43 +2,49 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  ausloeserFuerStufe,
   bodenfeuchtefaktor,
   bodentemperaturfaktor,
   frostfaktor,
+  hitzefaktor,
   regenfaktor,
   saisonfaktor,
-  tageSeitAusloeser,
   tagesindex,
+  wirksamerRegen,
   type Tageswetter,
 } from "../src/wachstum.ts";
 
 function tag(datum: string, regenMm: number, lufttempMinC = 8): Tageswetter {
-  return { datum, regenMm, lufttempMinC, bodentempC: 13, bodenfeuchte: 0.18 };
+  return { datum, regenMm, lufttempMinC, lufttempMittelC: 13, bodentempC: 13, bodenfeuchte: 0.18 };
 }
 
 function reihe(regen: readonly number[]): Tageswetter[] {
   return regen.map((mm, nummer) => tag(`2026-09-${String(nummer + 1).padStart(2, "0")}`, mm));
 }
 
-test("ein kräftiger Regen wird als Auslöser erkannt und die Tage danach werden gezählt", () => {
-  const tage = reihe([0, 15, 0, 0, 0, 0, 0, 0]);
-  assert.equal(tageSeitAusloeser(tage, 7, 12), 6);
+test("Regen zählt eine bis zwei Wochen danach voll, kurz danach und nach drei Wochen weniger", () => {
+  assert.equal(wirksamerRegen(reihe([10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), 10, "steinpilz"), 10);
+  assert.equal(wirksamerRegen(reihe([0, 0, 10]), 2, "steinpilz"), 3.5);
+  assert.equal(wirksamerRegen(reihe([10, ...Array.from({ length: 22 }, () => 0)]), 22, "steinpilz"), 0);
 });
 
-test("mehrere kleine Regen innerhalb von drei Tagen zählen zusammen als Auslöser", () => {
-  const tage = reihe([5, 4, 4, 0, 0]);
-  assert.equal(tageSeitAusloeser(tage, 4, 12), 2);
+test("der Regenfaktor steigt stufenlos und ist bei gutem Boden auch ohne Regen mittel", () => {
+  const faelle: readonly { mm: number; bodenanteil: number; erwartet: number }[] = [
+    { mm: 0, bodenanteil: 0, erwartet: 0.2 },
+    { mm: 0, bodenanteil: 1, erwartet: 0.5 },
+    { mm: 0, bodenanteil: 0.5, erwartet: 0.35 },
+    { mm: 10, bodenanteil: 1, erwartet: 0.75 },
+    { mm: 20, bodenanteil: 0, erwartet: 1 },
+    { mm: 40, bodenanteil: 1, erwartet: 1 },
+  ];
+  for (const fall of faelle) {
+    assert.ok(Math.abs(regenfaktor(fall.mm, fall.bodenanteil) - fall.erwartet) < 1e-9, JSON.stringify(fall));
+  }
 });
 
-test("ohne genug Regen gibt es keinen Auslöser", () => {
-  assert.equal(tageSeitAusloeser(reihe([2, 3, 1, 0, 4, 2]), 5, 12), null);
-});
-
-test("der Regenfaktor ist eine Woche nach dem Auslöser beim Steinpilz am höchsten", () => {
-  assert.equal(regenfaktor("steinpilz", 10), 1);
-  assert.ok(regenfaktor("steinpilz", 2) < 0.5);
-  assert.ok(regenfaktor("steinpilz", 30) < 0.5);
+test("warm und trocken bremst stark, warm mit Regen oder kühl und trocken nicht", () => {
+  assert.equal(hitzefaktor(18, 0.5), 0.2);
+  assert.equal(hitzefaktor(18, 2), 1);
+  assert.equal(hitzefaktor(15, 0), 1);
 });
 
 test("Bodentemperatur zwischen 10 und 18 Grad ist ideal, Kälte und Hitze senken den Faktor", () => {
@@ -68,13 +74,18 @@ test("zehn Tage nach kräftigem Regen bei mildem feuchtem Boden ergibt im Oktobe
   const tage = Array.from({ length: 12 }, (_, nummer) =>
     tag(`2026-10-${String(nummer + 1).padStart(2, "0")}`, nummer === 1 ? 20 : 0),
   );
-  const ergebnis = tagesindex(tage, 11, { pilz: "steinpilz", ausloeserMm: 12 });
-  assert.equal(ergebnis.tageSeitAusloeser, 10);
+  const ergebnis = tagesindex(tage, 11, "steinpilz");
+  assert.equal(ergebnis.wirksamerRegenMm, 20);
   assert.equal(ergebnis.index, 100);
 });
 
+test("ohne Regen, aber mit feuchtem Boden und 13 Grad ergibt sich ein mittlerer Index von 50", () => {
+  const tage = Array.from({ length: 12 }, (_, nummer) => tag(`2026-10-${String(nummer + 1).padStart(2, "0")}`, 0));
+  assert.equal(tagesindex(tage, 11, "steinpilz").index, 50);
+});
+
 test("ein Tag außerhalb der Reihe meldet eine verletzte Invariante", () => {
-  assert.throws(() => tagesindex(reihe([0]), 3, { pilz: "pfifferling", ausloeserMm: 12 }), /Invariante verletzt/);
+  assert.throws(() => tagesindex(reihe([0]), 3, "pfifferling"), /Invariante verletzt/);
 });
 
 test("die Wortskala ordnet den Index in fünf Stufen ein", async () => {
@@ -82,22 +93,4 @@ test("die Wortskala ordnet den Index in fünf Stufen ein", async () => {
   assert.equal(indexWort(85), "Sehr günstig");
   assert.equal(indexWort(20), "Mäßig");
   assert.equal(indexWort(0), "Ungünstig");
-});
-
-test("10 mm Regen lösen nur auf Standorten ab Stufe 80 aus, sonst nicht", () => {
-  const tage = reihe([0, 10, 0, 0]);
-  const faelle: readonly { stufe: number | null; erwartet: number | null }[] = [
-    { stufe: 80, erwartet: 2 },
-    { stufe: 95, erwartet: 2 },
-    { stufe: 79, erwartet: null },
-    { stufe: 0, erwartet: null },
-    { stufe: null, erwartet: null },
-  ];
-  for (const fall of faelle) {
-    assert.equal(tageSeitAusloeser(tage, 3, ausloeserFuerStufe(fall.stufe)), fall.erwartet, `Stufe ${String(fall.stufe)}`);
-  }
-});
-
-test("9 mm Regen lösen auch auf guten Standorten nicht aus", () => {
-  assert.equal(tageSeitAusloeser(reihe([0, 9, 0, 0]), 3, ausloeserFuerStufe(95)), null);
 });

@@ -31,12 +31,8 @@ function wochentag(datum: string): string {
 export function bremsgrund(tag: Tagesindex): string {
   const { faktoren } = tag;
   const kandidaten: readonly (readonly [number, string])[] = [
-    [
-      faktoren.regen,
-      tag.tageSeitAusloeser === null
-        ? "Kein kräftiger Regen in den letzten zwei Wochen."
-        : `${String(tag.tageSeitAusloeser)} Tage seit dem letzten kräftigen Regen.`,
-    ],
+    [faktoren.hitze, "Warm und trocken: Pilze bleiben meist aus."],
+    [faktoren.regen, `Wenig wirksamer Regen in den letzten drei Wochen (${tag.wirksamerRegenMm.toFixed(0)} mm).`],
     [faktoren.bodentemperatur, "Boden ist zu kalt oder zu warm."],
     [faktoren.bodenfeuchte, "Boden ist trocken."],
     [faktoren.saison, "Außerhalb der Hauptsaison."],

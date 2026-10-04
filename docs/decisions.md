@@ -84,3 +84,22 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   trocken: keine Funde).
 - **Verworfen:** 20 mm (Salerni) – Studie in Weißtanne/Italien, in Brandenburgs Kiefernsand selten
   erreicht. Offen für einen eigenen Schritt: Regenfaktor stufenlos statt harter Schwelle.
+
+## 2026-10-04 — Regenfaktor stufenlos statt harter Auslöser
+
+- **Kontext:** Die Bielefeld-Studie (siehe Eintrag davor) fand Steinpilze oft auch ohne Regen,
+  solange es nicht warm und trocken war; Regen erhöht vor allem die Menge. Harte Auslöser (6/10/12 mm)
+  übersahen die Funde des Nutzers bei Joachimsthal (Ende September, kaum Regen).
+- **Entscheidung (vom Nutzer so gewünscht):**
+  - Wirksamer Regen = Regen der letzten bis zu 21 (Steinpilz) bzw. 26 Tage (Pfifferling), je Tag
+    gewichtet nach Abstand: 0,35 in den ersten Tagen, 1,0 nach 1–2 Wochen, 0,6 beim Abklingen.
+  - Regenfaktor = Grundwert + (1 − Grundwert) × min(1, wirksamer Regen / 20 mm).
+    Grundwert 0,2; bei feuchtem Boden und 10–17 °C (5-Tage-Mittel der Luft) bis 0,5
+    („mittlerer Index“ ohne Regen). Die Feuchte geht stufenlos ein (6–14 Vol.-%).
+  - Neuer Faktor: über 17,5 °C und unter 1 mm/Tag (beides 5-Tage-Mittel) × 0,2.
+  - Dafür wird zusätzlich das Tagesmittel der Lufttemperatur bei Open-Meteo abgefragt.
+  - Habitat-Stufe beeinflusst den Wachstumsindex nicht mehr (die 6/10-mm-Regel für Stufe ab 80 entfällt).
+- **Ergebnis mit echtem Wetter (Joachimsthal):** 24.09.–04.10. Index 70–76 („Günstig“), danach bis
+  10.10. Prognose 55–67. Ohne jeden Regen läge der Index bei feuchtem Boden höchstens bei 50,
+  also unter der Ring-Schwelle 60.
+- **Verworfen:** feste mm-Schwelle mit Bodenbedingung – erzeugt Sprünge und übersehene Funde.

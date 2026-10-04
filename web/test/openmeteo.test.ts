@@ -29,11 +29,11 @@ function frischeAntwort(): Rohantwort {
   return { ...inhalt, hourly: stundlich };
 }
 
-test("die echte Antwort ergibt 28 Tage mit heute an Position 20", () => {
+test("die echte Antwort ergibt 27 Tage mit Bodenwerten und heute an Position 20", () => {
   const reihe = wetterAusAntwort(echteAntwort);
-  assert.equal(reihe.tage.length, 28);
+  assert.equal(reihe.tage.length, 27); // letzter Tag ohne Bodenprognose
   assert.equal(reihe.heute, 20);
-  assert.equal(reihe.tage[0]?.datum, "2026-09-13");
+  assert.equal(reihe.tage[0]?.datum, "2026-09-14");
 });
 
 test("Bodentemperatur und Bodenfeuchte sind plausible Tagesmittel", () => {
@@ -43,10 +43,10 @@ test("Bodentemperatur und Bodenfeuchte sind plausible Tagesmittel", () => {
   }
 });
 
-test("aus der echten Antwort entsteht ein Verlauf von heute plus sieben Tagen mit Index 0 bis 100", () => {
+test("aus der echten Antwort entsteht ein Verlauf von heute plus sechs Tagen mit Index 0 bis 100", () => {
   const reihe = wetterAusAntwort(echteAntwort);
-  const verlauf = indexverlauf(reihe.tage, reihe.heute, { pilz: "steinpilz", ausloeserMm: 12 });
-  assert.equal(verlauf.length, 8);
+  const verlauf = indexverlauf(reihe.tage, reihe.heute, "steinpilz");
+  assert.equal(verlauf.length, 7);
   for (const tag of verlauf) {
     assert.ok(tag.index >= 0 && tag.index <= 100);
   }
