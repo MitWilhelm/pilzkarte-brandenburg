@@ -9,14 +9,20 @@ from pipeline.io_waldwege import art_von
     ("highway", "tracktype", "erwartet"),
     [
         ("track", "grade1", "weg"),
-        ("track", "grade2", "weg"),
+        ("track", "grade3", "weg"),
+        ("track", None, "weg"),
         ("track", "grade4", "pfad"),
-        ("track", None, "pfad"),
+        ("track", "grade5", "pfad"),
         ("path", None, "pfad"),
         ("footway", None, "pfad"),
-        ("service", None, "weg"),
-        ("unclassified", None, "weg"),
+        ("cycleway", None, "pfad"),
+        ("service", None, "strasse"),
+        ("unclassified", None, "strasse"),
+        ("tertiary", None, "strasse"),
+        ("residential", None, "strasse"),
     ],
 )
-def test_wege_werden_nach_befahrbarkeit_eingeteilt(highway: str, tracktype: str | None, erwartet: str) -> None:
+def test_wege_werden_in_strassen_forstwege_und_pfade_eingeteilt(
+    highway: str, tracktype: str | None, erwartet: str
+) -> None:
     assert art_von(highway, tracktype) == erwartet

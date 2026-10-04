@@ -1,7 +1,7 @@
 """Holt Wege und Pfade aus OpenStreetMap (Overpass) für die Gebiete und schreibt GeoJSON für die Webseite.
 
 Aufruf: python -m pipeline.io_waldwege  (läuft auf GitHub Actions; Overpass ist aus Claudes Umgebung gesperrt).
-Ziel: web/public/daten/<gebiet>_wege.geojson mit Eigenschaft "art" = "weg" (fahrbar) oder "pfad".
+Ziel: web/public/daten/<gebiet>_wege.geojson mit Eigenschaft "art" = "strasse" (für Autos), "weg" (Forstweg) oder "pfad".
 Overpass-Nutzungsregeln: höchstens etwa 10.000 Abfragen/Tag und 1 Abfrage gleichzeitig; wir stellen eine je Gebiet,
 mit 5 s Pause, ohne Retry (Fehler brechen den Lauf mit Ursache ab). Daten: © OpenStreetMap-Mitwirkende, ODbL.
 """
@@ -22,9 +22,12 @@ PAUSE_SEKUNDEN = 5.0
 ZEITLIMIT_SEKUNDEN = 120
 NACHKOMMASTELLEN = 5  # ~1 m, hält die Datei klein
 KENNUNG = "pilzkarte-brandenburg (private Nutzung, github.com/MitWilhelm/pilzkarte-brandenburg)"
-WEGE_TYPEN = "track|path|footway|bridleway|cycleway|unclassified|service"
-FAHRBAR = {"unclassified", "service", "cycleway"}
-FAHRBARE_SPURQUALITAET = {"grade1", "grade2"}
+WEGE_TYPEN = (
+    "track|path|footway|bridleway|cycleway|unclassified|service|residential|living_street|tertiary|secondary|primary"
+)
+STRASSEN = {"primary", "secondary", "tertiary", "unclassified", "residential", "living_street", "service"}
+# Spurqualität 4/5: unbefestigte Spuren und Rückegassen. Ohne Angabe gilt ein track als Forstweg (in Brandenburg häufig).
+UNBEFESTIGTE_SPUR = {"grade4", "grade5"}
 
 
 @dataclass(frozen=True)
@@ -34,10 +37,10 @@ class Weg:
 
 
 def art_von(highway: str, tracktype: str | None) -> str:
-    """'weg' für befestigte bzw. fahrbare Wege, sonst 'pfad' (auch Rückegassen und unbefestigte Spuren)."""
-    if highway in FAHRBAR:
-        return "weg"
-    if highway == "track" and tracktype in FAHRBARE_SPURQUALITAET:
+    """'strasse' für öffentliche Straßen (Autos), 'weg' für Forst- und Wirtschaftswege, sonst 'pfad'."""
+    if highway in STRASSEN:
+        return "strasse"
+    if highway == "track" and tracktype not in UNBEFESTIGTE_SPUR:
         return "weg"
     return "pfad"
 
@@ -91,8 +94,8 @@ def main() -> None:
         }
         ziel = ZIELORDNER / f"{gebiet['name']}_wege.geojson"
         ziel.write_text(json.dumps(sammlung, separators=(",", ":")), encoding="utf-8")
-        anzahl_wege = sum(1 for weg in wege if weg.art == "weg")
-        print(f"{gebiet['name']}: {len(wege)} Linien ({anzahl_wege} Wege), {ziel.stat().st_size // 1024} KB")
+        anzahl = {art: sum(1 for weg in wege if weg.art == art) for art in ("strasse", "weg", "pfad")}
+        print(f"{gebiet['name']}: {len(wege)} Linien {anzahl}, {ziel.stat().st_size // 1024} KB")
 
 
 if __name__ == "__main__":
