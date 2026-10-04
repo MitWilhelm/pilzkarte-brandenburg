@@ -26,7 +26,7 @@ WEGE_TYPEN = (
     "track|path|footway|bridleway|cycleway|unclassified|service|residential|living_street|tertiary|secondary|primary"
 )
 STRASSEN = {"primary", "secondary", "tertiary", "unclassified", "residential", "living_street", "service"}
-# Spurqualität 4/5: unbefestigte Spuren und Rückegassen. Ohne Angabe gilt ein track als Forstweg (in Brandenburg häufig).
+# Spurqualität 4/5: unbefestigte Spuren, Rückegassen. Ohne Angabe gilt ein track als Forstweg (in Brandenburg häufig).
 UNBEFESTIGTE_SPUR = {"grade4", "grade5"}
 
 
