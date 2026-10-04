@@ -1,9 +1,12 @@
 """Tests für den URL-Bau der Standortskarten-Abfrage (ohne Netzwerk)."""
 
 import urllib.parse
+import urllib.request
 from pathlib import Path
 
-from pipeline.io_stok_abfrage import Abfragepunkt, _bereits_abgefragt, _lies_punkte, abfrage_url
+import pytest
+
+from pipeline.io_stok_abfrage import Abfragepunkt, _bereits_abgefragt, _frage_ab, _lies_punkte, abfrage_url
 
 
 def _parameter(url: str) -> dict[str, str]:
@@ -37,3 +40,16 @@ def test_punkte_werden_nach_bereich_gelesen_und_bereits_erledigte_erkannt(tmp_pa
     assert [punkt.id for punkt in _lies_punkte(quelle, (2, None))] == ["c", "d"]
     assert _bereits_abgefragt(ziel) == {"b", "c"}
     assert _bereits_abgefragt(tmp_path / "gibt-es-nicht.jsonl") == set()
+
+
+def test_ein_zeitueberlauf_beim_lesen_wird_als_status_0_vermerkt_statt_abzubrechen(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def zeitueberlauf(*_argumente: object, **_schluessel: object) -> object:
+        raise TimeoutError("The read operation timed out")
+
+    # Ausnahme (Regel 4, Monkeypatching): Netzwerk-Mock nach Regel 9; der echte Fehler trat auf GitHub Actions auf.
+    monkeypatch.setattr(urllib.request, "urlopen", zeitueberlauf)
+    ergebnis = _frage_ab("https://example.invalid/")
+    assert ergebnis["status"] == 0
+    assert ergebnis["typ"] == "zeitueberlauf"

@@ -1,6 +1,7 @@
 # Fragt die Bodenwerte für alle Standortflächen im Landkreis Barnim beim Landesbetrieb Forst ab.
 # 21.763 Punkte bei 1 Abfrage/s: zwei Teile nacheinander (Zeitlimit eines Laufs: 6 Stunden), vorab ein kurzer Test.
 # Ergebnis: daten/barnim_stok_antworten_1.jsonl und _2.jsonl, zurückgeschrieben in denselben Branch.
+# Neustart 04.10.: --fortsetzen überspringt die bereits gespeicherten Antworten (Abbruch nach 6.107 durch Zeitüberlauf).
 name: Barnim-Boden
 
 on:

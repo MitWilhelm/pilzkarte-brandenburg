@@ -90,6 +90,9 @@ def _frage_ab(url: str) -> dict[str, str | int]:
         return {"status": fehler.code, "typ": "fehler", "text": str(fehler)}
     except urllib.error.URLError as fehler:
         return {"status": 0, "typ": "fehler", "text": str(fehler.reason)}
+    except TimeoutError as fehler:
+        # Zeitüberlauf beim Lesen der Antwort ist kein URLError; ohne diesen Zweig brach der Barnim-Lauf ab.
+        return {"status": 0, "typ": "zeitueberlauf", "text": str(fehler)}
 
 
 def main() -> None:
