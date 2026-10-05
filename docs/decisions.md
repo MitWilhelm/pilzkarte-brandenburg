@@ -131,3 +131,27 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
 - **Nicht umgesetzt (fehlende Daten):** Bestandesalter/Grundfläche (Optimumkurve in 6 Studien belegt; braucht
   Kronenhöhe aus LGB-nDOM), Exposition (braucht Geländemodell), Stickstoff-Abschlag (UBA-Daten nur auf Anfrage),
   Buchenmast-Abschlag (Mastjahr-Daten).
+
+## 2026-10-05 — Straßen, Umrisse, Höhendaten verworfen, Fokus Barnim
+
+- **Kontext:** Wegrand-Aufschlag, Brennpunkt-Anzeige und Höhendaten (Kronenhöhe, Hang) waren offen.
+- **Entscheidungen:**
+  - OSM-Wege in drei Arten: Straße für Autos (gelb), Forstweg (weiß), Pfad (gestrichelt). Der Wegrand-Aufschlag
+    (15 %, ~25 m) gilt nur noch an Forstwegen und Pfaden: Die Belege (dünnere Streu, mehr Licht) betreffen
+    Waldwege, an Autostraßen kommen Stickstoff, Salz und Staub hinzu. Wirkung: 8 % des Waldes in Joachimsthal ändern
+    sich um im Mittel 3,5 Stufen; an den Fundstellen praktisch nichts.
+  - Brennpunkte als Umriss der 100-m-Zellen in Signalfarben (Türkis heute, Pink letzte 7 Tage) statt Ring im
+    Schwerpunkt. Grund: Bei verwinkelten Flächen lag der Ring neben der Fläche (Fund bei 52.9956/13.7105: 96-ha-Fläche,
+    Ring 750 m entfernt). Dazu ein Knopf „Nur Brennpunkte“ (Rest der Karte grau).
+  - Hang/Nordlage wird nicht verwendet (Brandenburg flach, Nutzer: „Hang weglassen“). `hangfaktor` und
+    `strukturfaktor` bleiben in `pipeline/habitat.py` mit Tests, werden aber von `io_heatmap.py` nicht aufgerufen.
+  - Fokus bis auf Weiteres: Landkreis Barnim, nicht ganz Brandenburg. Die Webseite heißt „Pilzkarte Barnim“.
+- **Höhendaten (LGB bDOM/DGM):** Der Server liefert nur ~30–80 KB/s (auch beim Nutzer zu Hause: 39 MB in 8 min), die
+  Verbindung riss nach 9 von 128 Kacheln ab. Alle bDOM-Kacheln wären 17–47 h. Verworfen für jetzt.
+- **Freie Kronenhöhenkarten:** ETH-Weltkarte 2020 (10 m) taugt nicht: in beiden Testgebieten 21–29 m für fast alle
+  Waldpixel, auch auf Kahlschlägen. Meta/WRI (1 m, CC-BY-4.0) streut plausibel (Kiefer Median 17–18 m, P10 10–11 m),
+  ist aber nicht gegen LGB-Messwerte geprüft. An den Fundstellen (15 m, gleichmäßiges Dach) trennt sie nicht.
+- **Funde und Modell:** 6 Funde (4 Joachimsthal, 2 GBIF Schwärzesee) liegen im Mittel bei Rang ~53 % im Gebiet, kaum
+  über Zufall. Reine Kiefernflächen auf Z2 trennt das Modell nicht; Unterstand (Buche/Eiche unter Kiefer) ist von
+  keiner Karte sichtbar. Ein Fund (53.00103/13.71483) lag bei Stufe 67; die Koordinate ist unsicher.
+- **Verworfen:** Mischungsabzug abschwächen (0,8 oder 1,0): hilft dem schwachen Fund nicht und flacht die Karte ab.

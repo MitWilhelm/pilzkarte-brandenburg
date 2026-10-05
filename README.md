@@ -29,7 +29,6 @@ Im Repository (`daten/`):
 | Datei | Inhalt | Quelle | Lizenz |
 |---|---|---|---|
 | `barnim_grenze_25833.geojson` | Grenze des Landkreises Barnim (AGS 12060), EPSG:25833 | [BKG VG250](https://sgx.geodatenzentrum.de/wfs_vg250), abgerufen am 04.10.2026 | Datenlizenz Deutschland – Namensnennung 2.0, „© GeoBasis-DE / BKG (2026)“ |
-| `<gebiet>_struktur.tif` | Kronenhöhe, Kronenschluss und Gelände je 10-m-Pixel, abgeleitet aus bDOM und DGM (1-km-Kacheln, EPSG:25833) | [LGB Brandenburg](https://data.geobasis-bb.de/geobasis/daten/), abgerufen am 04.10.2026 | Datenlizenz Deutschland – Namensnennung 2.0, „© GeoBasis-DE/LGB (2026)“ |
 
 Zur Laufzeit (geplant):
 
@@ -39,7 +38,7 @@ Zur Laufzeit (geplant):
 | Hintergrundkarte, Wege und Pfade (`web/public/daten/*_wege.geojson`, per Overpass) | [OpenStreetMap](https://www.openstreetmap.org) | ODbL |
 
 Quellenvermerke: „© DLR, CC-BY-4.0“ · „Landesbetrieb Forst Brandenburg,
-dl-de/by-2-0“ · „Wetterdaten: Open-Meteo.com“ · „© OpenStreetMap-Mitwirkende“ · „© GeoBasis-DE / BKG (2026)“ · „© GeoBasis-DE/LGB (2026)“
+dl-de/by-2-0“ · „Wetterdaten: Open-Meteo.com“ · „© OpenStreetMap-Mitwirkende“ · „© GeoBasis-DE / BKG (2026)“
 
 ## Regeln
 
