@@ -1,4 +1,5 @@
-// Einstieg der Webseite: lädt Gebiete und Daten-Bilder, baut die Karte und verbindet Bedienung, Wetter und Tafel.
+// Einstieg der Webseite: baut die Karte, lädt die 10-km-Kacheln erst, wenn sie ins Bild kommen, und verbindet
+// Bedienung, Wetter und Tafel.
 import maplibregl from "maplibre-gl";
 import {
   bodenAnPunkt,
@@ -12,20 +13,21 @@ import {
   type Kartenebene,
 } from "./karte.ts";
 import { findeHotspots, hotspotart, type Hotspot, type Hotspotart, type MarkierterHotspot } from "./hotspots.ts";
-import { baumartName, KANAL_JE_PILZ, pixelAnStelle, stufeninfo, type Gebiet } from "./geo.ts";
+import { baumartName, gebieteImAusschnitt, KANAL_JE_PILZ, pixelAnStelle, stufeninfo, type Gebiet, type Ort } from "./geo.ts";
 import { ladeDatenbild, ladeGebiete } from "./clients/daten.ts";
 import { richteMeldenEin } from "./melden.ts";
 import { ladeWetter, type Wetterreihe } from "./clients/openmeteo.ts";
 import { indexverlauf, tagesindex, type Pilzart } from "./wachstum.ts";
 import {
   element,
-  fuelleGebiete,
+  fuelleOrte,
   fuelleLegende,
   schalteDetails,
   schliessePunkt,
   sindDetailsOffen,
   zeigeIndex,
   zeigeIndexFehler,
+  zeigeLadehinweis,
   zeigePunkt,
   zeigePunktwetter,
   zeigePunktwetterFehler,
@@ -37,14 +39,32 @@ const WETTER_RASTER_GRAD = 0.02; // ~2 km: nahe Punkte teilen sich einen Wettera
 const FLUG_ZOOM = 13;
 const TAGE_RUECKBLICK = 7; // so weit zurück zählt ein günstiger Index für ältere, große Pilze
 const PILZNAMEN: Readonly<Record<Pilzart, string>> = { steinpilz: "Steinpilz", pfifferling: "Pfifferling" };
+const KACHEL_ORDNER = "daten/barnim";
+const KACHEL_UEBERSICHT = "kacheln.json";
+// Unter Zoom 11 wären fast alle 25 Kacheln (~30 MB) im Bild; im Wald mit schwachem Netz zu viel.
+const MIN_ZOOM_LADEN = 11;
+const HINWEIS_ZOOM = "Zum Laden der Pilzkarte näher heranzoomen.";
+// Mittelpunkte wie die früheren Testgebiete (pipeline/gebiete.py); weitere Orte auf Wunsch des Nutzers.
+const ORTE: readonly Ort[] = [
+  { name: "joachimsthal", anzeigename: "Joachimsthal", mitte: [13.745, 52.979] },
+  { name: "schwaerzesee", anzeigename: "Schwärzesee", mitte: [13.712, 52.815] },
+];
 const SCHUTZHINWEISE: Readonly<Record<string, string>> = {
   schwaerzesee:
     "Der Schwärzesee und das Schwärzetal liegen im Naturschutzgebiet „Nonnenfließ-Schwärzetal“. Dort kann das Sammeln verboten sein. Bitte Schilder vor Ort beachten.",
 };
 
+/** Ort, für den der Index oben gilt: GPS-Standort oder Kartenmitte. */
+interface Indexort {
+  readonly name: string;
+  readonly breite: number;
+  readonly laenge: number;
+}
+
 interface Zustand {
   pilz: Pilzart;
-  gebiet: Gebiet;
+  indexOrt: Indexort;
+  hasGps: boolean; // sobald ein GPS-Standort kam, gilt der Index für ihn statt für die Kartenmitte
   markierung: maplibregl.Marker | null;
   letzterTipp: maplibregl.MapMouseEvent | null; // für Neubewertung beim Wechsel der Pilzart
   isBrennpunkteAn: boolean; // Knopf: Brennpunkt-Flächen türkis/pink, übrige Heatmap grau
@@ -70,13 +90,13 @@ function fehlertext(fehler: unknown): string {
   return fehler instanceof Error ? fehler.message : String(fehler);
 }
 
-async function aktualisiereGebietsindex(zustand: Zustand): Promise<void> {
-  const { gebiet, pilz } = zustand;
-  element("index-ort", HTMLElement).textContent = gebiet.anzeigename;
+async function aktualisiereIndex(zustand: Zustand): Promise<void> {
+  const { indexOrt, pilz } = zustand;
+  element("index-ort", HTMLElement).textContent = indexOrt.name;
   try {
-    const reihe = await wetterFuer(gebiet.mitte[1], gebiet.mitte[0]);
-    if (zustand.gebiet === gebiet && zustand.pilz === pilz) {
-      zeigeIndex(gebiet.anzeigename, indexverlauf(reihe.tage, reihe.heute, pilz));
+    const reihe = await wetterFuer(indexOrt.breite, indexOrt.laenge);
+    if (zustand.indexOrt === indexOrt && zustand.pilz === pilz) {
+      zeigeIndex(indexOrt.name, indexverlauf(reihe.tage, reihe.heute, pilz));
     }
   } catch (fehler) {
     zeigeIndexFehler(fehlertext(fehler));
@@ -166,46 +186,100 @@ async function zeigeStelle(karte: maplibregl.Map, ebenen: readonly Kartenebene[]
   }
 }
 
+/** Alles, was das Nachladen der Kacheln braucht; `ebenen` und `angefragt` wachsen mit jeder geladenen Kachel. */
+interface Kachellader {
+  readonly karte: maplibregl.Map;
+  readonly alle: readonly Gebiet[];
+  readonly ebenen: Kartenebene[];
+  readonly angefragt: Set<string>;
+}
+
+/** Lädt die Kacheln im Bild, die noch fehlen; eine fehlgeschlagene wird beim nächsten Verschieben erneut versucht. */
+async function ladeSichtbare(lader: Kachellader, zustand: Zustand): Promise<void> {
+  const { karte, alle, ebenen, angefragt } = lader;
+  if (karte.getZoom() < MIN_ZOOM_LADEN) {
+    zeigeLadehinweis(HINWEIS_ZOOM);
+    return;
+  }
+  zeigeLadehinweis(null);
+  const bild = karte.getBounds();
+  const ausschnitt = { west: bild.getWest(), sued: bild.getSouth(), ost: bild.getEast(), nord: bild.getNorth() };
+  const neu = gebieteImAusschnitt(alle, ausschnitt).filter((gebiet) => !angefragt.has(gebiet.name));
+  for (const gebiet of neu) {
+    angefragt.add(gebiet.name);
+  }
+  const geladen = await Promise.all(
+    neu.map(async (gebiet): Promise<Kartenebene | null> => {
+      try {
+        return { gebiet, daten: await ladeDatenbild(gebiet) };
+      } catch (fehler) {
+        angefragt.delete(gebiet.name);
+        zeigeLadehinweis(`Ein Kartenteil konnte nicht geladen werden (${fehlertext(fehler)}). Karte verschieben zum erneuten Versuch.`);
+        return null;
+      }
+    }),
+  );
+  const ebenenNeu = geladen.filter((ebene): ebene is Kartenebene => ebene !== null);
+  if (ebenenNeu.length === 0) {
+    return;
+  }
+  fuegeEbenenHinzu(karte, ebenenNeu, KANAL_JE_PILZ[zustand.pilz]);
+  // Dieselbe Liste kennen Melden und Farbschema; neue Kacheln gelten dort ab jetzt mit.
+  ebenen.push(...ebenenNeu);
+  if (zustand.isBrennpunkteAn) {
+    zeigeAnsicht(karte, ebenen, zustand);
+  }
+  await aktualisiereHotspots(karte, ebenen, zustand);
+}
+
 async function start(): Promise<void> {
   fuelleLegende();
-  const gebiete = await ladeGebiete();
-  const erstes = gebiete[0];
-  if (erstes === undefined) {
-    throw new Error("Invariante verletzt: keine Gebiete");
+  fuelleOrte(ORTE);
+  const [startOrt] = ORTE;
+  if (startOrt === undefined) {
+    throw new Error("Invariante verletzt: keine Orte für die Sprungliste");
   }
-  fuelleGebiete(gebiete);
+  const kacheln = await ladeGebiete(KACHEL_ORDNER, KACHEL_UEBERSICHT);
   const zustand: Zustand = {
     pilz: "steinpilz",
-    gebiet: erstes,
+    indexOrt: { name: "Kartenmitte", breite: startOrt.mitte[1], laenge: startOrt.mitte[0] },
+    hasGps: false,
     markierung: null,
     letzterTipp: null,
     isBrennpunkteAn: false,
     brennpunkte: [],
   };
-  zeigeSchutzhinweis(SCHUTZHINWEISE[erstes.name] ?? null);
-  void aktualisiereGebietsindex(zustand);
+  void aktualisiereIndex(zustand);
 
-  const { karte, standortSteuerung } = erzeugeKarte(element("karte", HTMLElement), erstes.mitte);
+  const { karte, standortSteuerung } = erzeugeKarte(element("karte", HTMLElement), startOrt.mitte);
   // "style.load" statt "load": "load" wartet auf die OSM-Kacheln, und bei schwachem Netz im Wald
-  // würde die Heatmap sonst erst mit dem Hintergrund erscheinen. Der Listener steht vor dem await,
-  // damit das einmalige Ereignis nicht verpasst wird.
-  const stilGeladen = karte.once("style.load");
-  const ebenen: Kartenebene[] = await Promise.all(
-    gebiete.map(async (gebiet) => ({ gebiet, daten: await ladeDatenbild(gebiet) })),
-  );
-  await stilGeladen;
-  fuegeEbenenHinzu(karte, ebenen, KANAL_JE_PILZ[zustand.pilz]);
+  // würde die Heatmap sonst erst mit dem Hintergrund erscheinen.
+  await karte.once("style.load");
+  const ebenen: Kartenebene[] = [];
+  const lader: Kachellader = { karte, alle: kacheln, ebenen, angefragt: new Set<string>() };
   folgeFarbschema(karte, ebenen);
-  beiGpsStandort(
-    standortSteuerung,
-    richteMeldenEin({
-      ebenen,
-      aktuellePilzart: () => zustand.pilz,
-      ringart,
-      indexHeute: (stelle, pilz) => indexHeuteAn(stelle.breite, stelle.laenge, pilz),
-      speicher: window.localStorage,
-    }),
-  );
+  const meldeStandort = richteMeldenEin({
+    ebenen,
+    aktuellePilzart: () => zustand.pilz,
+    ringart,
+    indexHeute: (stelle, pilz) => indexHeuteAn(stelle.breite, stelle.laenge, pilz),
+    speicher: window.localStorage,
+  });
+  beiGpsStandort(standortSteuerung, (standort) => {
+    meldeStandort(standort);
+    zustand.hasGps = true;
+    zustand.indexOrt = { name: "Dein Standort", breite: standort.breite, laenge: standort.laenge };
+    void aktualisiereIndex(zustand);
+  });
+  karte.on("moveend", () => {
+    void ladeSichtbare(lader, zustand);
+    if (!zustand.hasGps) {
+      const mitte = karte.getCenter();
+      zustand.indexOrt = { name: "Kartenmitte", breite: mitte.lat, laenge: mitte.lng };
+      void aktualisiereIndex(zustand);
+    }
+  });
+  void ladeSichtbare(lader, zustand);
   void aktualisiereHotspots(karte, ebenen, zustand);
   const knopf = element("nur-brennpunkte", HTMLButtonElement);
   fuegeKnopfHinzu(karte, knopf);
@@ -237,7 +311,7 @@ async function start(): Promise<void> {
     zustand.pilz = ziel.value;
     zustand.brennpunkte = [];
     zeigeAnsicht(karte, ebenen, zustand);
-    void aktualisiereGebietsindex(zustand);
+    void aktualisiereIndex(zustand);
     void aktualisiereHotspots(karte, ebenen, zustand);
     if (zustand.letzterTipp !== null) {
       void zeigeStelle(karte, ebenen, zustand, zustand.letzterTipp);
@@ -245,14 +319,16 @@ async function start(): Promise<void> {
   });
   element("gebietswahl", HTMLSelectElement).addEventListener("change", (ereignis) => {
     const ziel = ereignis.target;
-    const gewaehlt = gebiete.find((gebiet) => ziel instanceof HTMLSelectElement && gebiet.name === ziel.value);
+    const gewaehlt = ORTE.find((ort) => ziel instanceof HTMLSelectElement && ort.name === ziel.value);
     if (gewaehlt === undefined) {
       return;
     }
-    zustand.gebiet = gewaehlt;
     zeigeSchutzhinweis(SCHUTZHINWEISE[gewaehlt.name] ?? null);
     karte.flyTo({ center: [gewaehlt.mitte[0], gewaehlt.mitte[1]], zoom: FLUG_ZOOM });
-    void aktualisiereGebietsindex(zustand);
+    // Zurück auf "Springen zu …", damit derselbe Ort später erneut wählbar ist ("change" feuert sonst nicht).
+    if (ziel instanceof HTMLSelectElement) {
+      ziel.value = "";
+    }
   });
   element("bodengrenzen", HTMLInputElement).addEventListener("change", (ereignis) => {
     const ziel = ereignis.target;

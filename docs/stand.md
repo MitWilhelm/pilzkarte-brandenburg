@@ -4,31 +4,38 @@ Stand: 05.10.2026. Für jede neue Claude-Code-Sitzung: zuerst `CLAUDE.md`, dann 
 
 ## Lage in einem Satz
 
-Die mobile Karte „Pilzkarte Barnim“ ist live (GitHub Pages, gebaut von `main`) für die Testgebiete Joachimsthal und
-Schwärzesee. Fokus ist der Landkreis Barnim; ganz Brandenburg ist zurückgestellt.
+Die mobile Karte „Pilzkarte Barnim“ ist live (GitHub Pages, gebaut von `main`) für den **ganzen Landkreis Barnim** in
+25 Kacheln à 10 km, die erst geladen werden, wenn sie ins Bild kommen (ab Zoom 11). Ganz Brandenburg ist zurückgestellt.
 
 ## Läuft und ist live
 
 | Bereich | Wo | Stand |
 |---|---|---|
-| Habitat-Heatmap | `pipeline/habitat.py`, `nachbarschaft.py`, `io_heatmap.py` | Baum × Boden × Mischung, Stufen 50–100 relativ zum Gebiet; Wegrand +15 % nur an Forstwegen und Pfaden; ohne Höhendaten, ohne Hang |
+| Habitat-Heatmap | `pipeline/habitat.py`, `nachbarschaft.py`, `io_heatmap.py barnim` | Baum × Boden × Mischung, Stufen 50–100 relativ zu ganz Barnim; Wegrand +15 % nur an Forstwegen und Pfaden; ohne Höhendaten, ohne Hang |
+| Kacheln | `pipeline/kacheln.py`, `io_barnim_zuschnitt.py`, `io_webdaten.py barnim` → `web/public/daten/barnim/` | Je 10-km-Kachel Daten-PNG, Boden- und Wege-GeoJSON; Übersicht `kacheln.json`; Webseite lädt nur Kacheln im Bild |
 | Wachstumsindex | `web/src/wachstum.ts` | Regen stufenlos (voll ab 20 mm, Annahme), Lufttemperatur 11–15,5 °C optimal, Hitze-Bremse, Feuchte, Saison, Frost |
-| Wege | `pipeline/io_waldwege.py` → `web/public/daten/*_wege.geojson` | OSM: Straße (gelb), Forstweg (weiß), Pfad (gestrichelt) |
-| Brennpunkte | `web/src/hotspots.ts`, `karte.ts` | Umrisse ab Stufe 85, Türkis = Index heute günstig, Pink = nur letzte 7 Tage; Knopf „Nur Brennpunkte“ |
+| Wege | `pipeline/io_waldwege.py barnim` → `web/public/daten/barnim/*_wege.geojson` | OSM: Straße (gelb), Forstweg (weiß), Pfad (gestrichelt); nur im Wald (+50 m), Rohantwort lokal in `rohdaten/barnim_wege/` |
+| Brennpunkte | `web/src/hotspots.ts`, `karte.ts` | Knopf rechts: Flächen ab Stufe 85 ganz türkis (Index heute günstig) bzw. pink (letzte 7 Tage), übrige Heatmap grau |
+| Stellen-Box | `web/src/ansicht.ts`, `index.html` | Kompakte Vorschau (Kennziffer, Bewertung, Index, Route/Komoot/Details), Details klappen nach oben auf |
+| Index oben, Sprungliste | `web/src/main.ts` | Index für GPS-Standort, sonst Kartenmitte; Sprungliste Joachimsthal, Schwärzesee |
 | Melden | `web/src/meldung.ts`, `melden.ts`, `clients/meldespeicher.ts` | Fund oder „Nichts gefunden“ + Waldbeschreibung, nur mit GPS ≤ 30 m, im Handy gespeichert, „Senden“ öffnet GitHub-Issue (Label `meldung`) |
 | Barnim-Bodenwerte | `daten/barnim_stok_antworten_1.jsonl`, `_2.jsonl`, `_nachholen.jsonl` | Alle 21.763 Standortflächen abgefragt, alle mit Bodenangaben (34 Nachholer) |
 
 ## Offen (in dieser Reihenfolge sinnvoll)
 
-1. **Barnim-Karte bauen** – Plan siehe Abschnitt „Plan Barnim-Karte“ unten (vom Nutzer am 05.10. freigegeben:
-   lokal umsetzen, Stufen relativ zu ganz Barnim). Noch kein Code dafür.
+1. **Barnim-Karte, Rest:** Schritte 1–6 sind umgesetzt (siehe Plan unten). Offen: Schritt 7 (alte Testgebiet-Dateien
+   `daten/joachimsthal_*`, `daten/schwaerzesee_*`, `web/public/daten/gebiete.json`, `joachimsthal*`/`schwaerzesee*` entfernen;
+   die Webseite nutzt sie nicht mehr; vorher Nutzer fragen), weitere Orte für die Sprungliste (Nutzer fragen),
+   Komoot-Knopf soll die App öffnen (vom Nutzer zurückgestellt; Recherche: `/discover/<Name>/@lat,lng` wird von der
+   iPhone-App übernommen, `/plan/` nicht). Standort-Endung „v“ (0,35 %) ist eine Annahme (decisions.md).
 2. **Meldungen auswerten:** Issues mit Label `meldung` einsammeln und mit der Heatmap abgleichen (Hotspot ohne Fund,
    Fund ohne Hotspot). Das Label `meldung` im Repository anlegen. Auswertungsskript fehlt.
 3. **Funde auswerten:** Die Funde liegen in `daten/funde.csv` (öffentlich, vom Nutzer erlaubt). Neue Funde kommen über die
    Melde-Funktion als Issues; sie in die CSV übernehmen und gegen die Heatmap prüfen.
-4. **Handy-Test der Live-Seite** (nie auf echtem Handy geprüft): GPS, Melden, Knopf „Nur Brennpunkte“, Umrisse, Dunkelmodus.
+4. **Handy-Test der Live-Seite** (nie auf echtem Handy geprüft): GPS, Melden, Knopf Brennpunkte, Kacheln nachladen im
+   Wald mit schwachem Netz, Dunkelmodus.
 5. **Aufräumen:** `pipeline/io_hoehe.py` und `.github/workflows/hoehendaten.yml` sind ohne Verwendung (Hang und Kronenhöhe
-   verworfen); mypy-Fehler `pipeline/nachbarschaft.py:31`; Recherche-ZIP liegt öffentlich im Release; alte Branches
+   verworfen); `Hotspot.umriss` wird nicht mehr angezeigt (nur noch berechnet und getestet); Recherche-ZIP liegt öffentlich im Release; alte Branches
    (`webseite`, `habitat-v2`, `habitat-heatmap`, `boden-abfrage`, `daten-zuschnitt`) löschen.
 6. **Ungeklärt:** Unterstand (Buche/Eiche unter Kiefer) ist von keiner Karte sichtbar; reine Kiefernflächen trennt das Modell
    schwach (6 Funde, mittlerer Rang 62 %). Dafür sind die Meldungen gedacht.
@@ -99,4 +106,8 @@ Rohdaten (nicht im Git) aus dem Release `daten-v1` nach `rohdaten/` laden: `tree
 
 ## Branches
 
-`main` ist live. Der Arbeitsbranch `claude/cool-hamilton-x8pj44` ist identisch mit `main`.
+`main` ist live. Gearbeitet wurde lokal auf `barnim-karte` und `design-live` (beide in `main` enthalten);
+`claude/cool-hamilton-x8pj44` ist veraltet.
+
+Lokal fehlten Python 3.12 und Node: sie liegen jetzt in `~/.local` (uv-Python, Node-LTS). `pip install -e .` scheitert an
+der Paketerkennung von setuptools (mehrere Ordner); die Abhängigkeiten direkt installieren reicht (pytest findet `pipeline`).

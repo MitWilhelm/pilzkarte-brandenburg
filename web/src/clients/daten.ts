@@ -1,40 +1,40 @@
-// Lädt die exportierten Gebietsdaten (gebiete.json, Daten-PNG) vom eigenen Webserver und prüft sie.
+// Lädt die exportierten Gebietsdaten (Übersicht wie barnim/kacheln.json, Daten-PNG) vom eigenen Webserver und prüft sie.
 // Kein Rate-Limit (eigene Dateien); Fehler werden mit Ursache weitergereicht.
 import type { Ecke, Gebiet } from "../geo.ts";
 
 function zahl(wert: unknown, name: string): number {
   if (typeof wert !== "number" || !Number.isFinite(wert)) {
-    throw new Error(`Invariante verletzt: gebiete.json, ${name} ist keine Zahl`);
+    throw new Error(`Invariante verletzt: Übersicht, ${name} ist keine Zahl`);
   }
   return wert;
 }
 
 function text(wert: unknown, name: string): string {
   if (typeof wert !== "string" || wert === "") {
-    throw new Error(`Invariante verletzt: gebiete.json, ${name} ist kein Text`);
+    throw new Error(`Invariante verletzt: Übersicht, ${name} ist kein Text`);
   }
   return wert;
 }
 
 function eintrag(objekt: unknown, schluessel: string): unknown {
   if (typeof objekt !== "object" || objekt === null) {
-    throw new Error(`Invariante verletzt: gebiete.json, Objekt erwartet bei ${schluessel}`);
+    throw new Error(`Invariante verletzt: Übersicht, Objekt erwartet bei ${schluessel}`);
   }
   return Object.entries(objekt).find(([name]) => name === schluessel)?.[1];
 }
 
 function ecke(wert: unknown, name: string): Ecke {
   if (!Array.isArray(wert) || wert.length !== 2) {
-    throw new Error(`Invariante verletzt: gebiete.json, ${name} ist kein Koordinatenpaar`);
+    throw new Error(`Invariante verletzt: Übersicht, ${name} ist kein Koordinatenpaar`);
   }
   const paar: readonly unknown[] = wert;
   return [zahl(paar[0], `${name}[0]`), zahl(paar[1], `${name}[1]`)];
 }
 
-/** Prüft den Inhalt von gebiete.json (rein, ohne Netzwerk). */
-export function gebieteAusJson(inhalt: unknown): Gebiet[] {
+/** Prüft den Inhalt einer Übersicht wie barnim/kacheln.json (rein, ohne Netzwerk); `ordner` enthält die Dateien. */
+export function gebieteAusJson(inhalt: unknown, ordner: string): Gebiet[] {
   if (!Array.isArray(inhalt) || inhalt.length === 0) {
-    throw new Error("Invariante verletzt: gebiete.json ist keine nicht-leere Liste");
+    throw new Error("Invariante verletzt: Übersicht ist keine nicht-leere Liste");
   }
   return inhalt.map((roh: unknown, nummer): Gebiet => {
     const ecken = eintrag(roh, "ecken");
@@ -49,6 +49,7 @@ export function gebieteAusJson(inhalt: unknown): Gebiet[] {
       breitePixel: zahl(eintrag(roh, "breitePixel"), "breitePixel"),
       hoehePixel: zahl(eintrag(roh, "hoehePixel"), "hoehePixel"),
       ecken: [ecke(liste[0], "ecken[0]"), ecke(liste[1], "ecken[1]"), ecke(liste[2], "ecken[2]"), ecke(liste[3], "ecken[3]")],
+      ordner,
     };
   });
 }
@@ -66,14 +67,15 @@ async function hole(url: string): Promise<Response> {
   return antwort;
 }
 
-export async function ladeGebiete(): Promise<Gebiet[]> {
-  const inhalt: unknown = await (await hole("daten/gebiete.json")).json();
-  return gebieteAusJson(inhalt);
+/** Lädt die Übersicht `<ordner>/<datei>`; nur sie, die Daten-Bilder kommen einzeln mit ladeDatenbild. */
+export async function ladeGebiete(ordner: string, datei: string): Promise<Gebiet[]> {
+  const inhalt: unknown = await (await hole(`${ordner}/${datei}`)).json();
+  return gebieteAusJson(inhalt, ordner);
 }
 
 /** Lädt das Daten-PNG verlustfrei: ohne Farbraum-Umrechnung, damit Codes und Stufen exakt bleiben. */
 export async function ladeDatenbild(gebiet: Gebiet): Promise<ImageData> {
-  const bild = await createImageBitmap(await (await hole(`daten/${gebiet.name}.png`)).blob(), {
+  const bild = await createImageBitmap(await (await hole(`${gebiet.ordner}/${gebiet.name}.png`)).blob(), {
     colorSpaceConversion: "none",
     premultiplyAlpha: "none",
   });

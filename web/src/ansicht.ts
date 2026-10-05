@@ -1,5 +1,5 @@
 // Ansicht: füllt die Tafel mit Index, 7-Tage-Trend und Punkt-Infos. Nur textContent und DOM-Knoten (Regel 12).
-import { STUFEN, googleMapsRoute, komootPlaner, type Gebiet } from "./geo.ts";
+import { STUFEN, googleMapsRoute, komootPlaner, type Ort } from "./geo.ts";
 import { indexWort, type Tagesindex, type Tageswetter } from "./wachstum.ts";
 
 const WOCHENTAG = new Intl.DateTimeFormat("de-DE", { weekday: "short", timeZone: "UTC" });
@@ -144,10 +144,21 @@ export function zeigePunktwetterFehler(meldung: string): void {
   }
 }
 
-export function fuelleGebiete(gebiete: readonly Gebiet[]): void {
+/** Sprungliste: erster Eintrag ist nur die Aufforderung, damit jeder Ort per "change" anwählbar ist. */
+export function fuelleOrte(orte: readonly Ort[]): void {
+  const aufforderung = new Option("Springen zu …", "", true, true);
+  aufforderung.disabled = true;
   element("gebietswahl", HTMLSelectElement).replaceChildren(
-    ...gebiete.map((gebiet) => new Option(gebiet.anzeigename, gebiet.name)),
+    aufforderung,
+    ...orte.map((ort) => new Option(ort.anzeigename, ort.name)),
   );
+}
+
+/** Hinweis über dem Index, z. B. "näher heranzoomen" oder ein Ladefehler; null blendet ihn aus. */
+export function zeigeLadehinweis(text: string | null): void {
+  const hinweis = element("lade-hinweis", HTMLElement);
+  hinweis.hidden = text === null;
+  hinweis.textContent = text ?? "";
 }
 
 export function fuelleLegende(): void {

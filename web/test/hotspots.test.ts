@@ -13,6 +13,7 @@ function kleinesGebiet(): Gebiet {
     anzeigename: "Probe",
     mitte: [13.7, 52.9],
     breitePixel: BREITE,
+    ordner: "daten",
     hoehePixel: HOEHE,
     ecken: [
       [13.69, 52.91],

@@ -184,7 +184,7 @@ export function fuegeEbenenHinzu(karte: maplibregl.Map, ebenen: readonly Kartene
       // nearest: Klassen nicht verwischen, jedes 10-m-Feld bleibt erkennbar
       paint: { "raster-opacity": HEATMAP_DECKKRAFT, "raster-resampling": "nearest" },
     });
-    karte.addSource(`boden-${gebiet.name}`, { type: "geojson", data: `daten/${gebiet.name}_boden.geojson` });
+    karte.addSource(`boden-${gebiet.name}`, { type: "geojson", data: `${gebiet.ordner}/${gebiet.name}_boden.geojson` });
     // Unsichtbare Füllung, damit ein Tipp die Bodenfläche findet; Linien nur auf Wunsch sichtbar.
     karte.addLayer({
       id: `boden-flaeche-${gebiet.name}`,
@@ -207,7 +207,7 @@ export function fuegeEbenenHinzu(karte: maplibregl.Map, ebenen: readonly Kartene
 function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
   const schema = farbschema();
   const quelle = `wege-quelle-${gebiet.name}`;
-  karte.addSource(quelle, { type: "geojson", data: `daten/${gebiet.name}_wege.geojson` });
+  karte.addSource(quelle, { type: "geojson", data: `${gebiet.ordner}/${gebiet.name}_wege.geojson` });
   karte.addLayer({
     id: `pfade-${gebiet.name}`,
     type: "line",

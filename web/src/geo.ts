@@ -18,9 +18,38 @@ export interface Gebiet {
   readonly hoehePixel: number;
   // Reihenfolge wie MapLibre-Bildquellen: oben links, oben rechts, unten rechts, unten links
   readonly ecken: readonly [Ecke, Ecke, Ecke, Ecke];
+  readonly ordner: string; // Ordner der Dateien relativ zur Seite, z. B. "daten/barnim"
 }
 
 export type Ecke = readonly [number, number];
+
+/** Sichtbarer Kartenausschnitt in Grad (WGS84). */
+export interface Kartenausschnitt {
+  readonly west: number;
+  readonly sued: number;
+  readonly ost: number;
+  readonly nord: number;
+}
+
+/** Ein Ziel der Sprungliste. */
+export interface Ort {
+  readonly name: string;
+  readonly anzeigename: string;
+  readonly mitte: readonly [number, number]; // [Länge, Breite]
+}
+
+/** Gebiete (Kacheln), deren Bild den Ausschnitt schneidet; bloßes Berühren an der Kante zählt nicht. */
+export function gebieteImAusschnitt(gebiete: readonly Gebiet[], ausschnitt: Kartenausschnitt): Gebiet[] {
+  return gebiete.filter((gebiet) => {
+    const [obenLinks, , untenRechts] = gebiet.ecken;
+    return (
+      obenLinks[0] < ausschnitt.ost &&
+      untenRechts[0] > ausschnitt.west &&
+      untenRechts[1] < ausschnitt.nord &&
+      obenLinks[1] > ausschnitt.sued
+    );
+  });
+}
 
 export interface Pixel {
   readonly spalte: number;

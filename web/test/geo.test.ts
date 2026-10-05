@@ -1,7 +1,7 @@
 // Tests für die reinen Geo-Hilfen in src/geo.ts.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { baumartName, googleMapsRoute, pixelAnStelle, standortAusGpsEreignis, stufeninfo, type Gebiet } from "../src/geo.ts";
+import { baumartName, gebieteImAusschnitt, googleMapsRoute, pixelAnStelle, standortAusGpsEreignis, stufeninfo, type Gebiet } from "../src/geo.ts";
 
 // Werte wie in web/public/daten/gebiete.json (Export vom 03.10.2026).
 function joachimsthal(): Gebiet {
@@ -17,8 +17,23 @@ function joachimsthal(): Gebiet {
       [13.795107, 52.948802],
       [13.694949, 52.948802],
     ],
+    ordner: "daten",
   };
 }
+
+function kachel(name: string, west: number, sued: number): Gebiet {
+  return { ...joachimsthal(), name, ecken: [[west, sued + 0.1], [west + 0.1, sued + 0.1], [west + 0.1, sued], [west, sued]] };
+}
+
+test("im Ausschnitt liegen genau die Kacheln, deren Bild ihn schneidet, nicht die nur angrenzenden", () => {
+  const kacheln = [kachel("links", 13.5, 52.9), kachel("mitte", 13.6, 52.9), kachel("rechts", 13.7, 52.9), kachel("unten", 13.6, 52.8)];
+  const namen = gebieteImAusschnitt(kacheln, { west: 13.55, sued: 52.9, ost: 13.65, nord: 52.95 }).map((gebiet) => gebiet.name);
+  assert.deepEqual(namen, ["links", "mitte"]);
+});
+
+test("ein Ausschnitt fern aller Kacheln ergibt keine Kachel", () => {
+  assert.deepEqual(gebieteImAusschnitt([kachel("a", 13.5, 52.9)], { west: 14.5, sued: 51.0, ost: 14.6, nord: 51.1 }), []);
+});
 
 test("die linke obere Ecke liegt im ersten Pixel", () => {
   assert.deepEqual(pixelAnStelle(joachimsthal(), 13.69496, 53.00919), { spalte: 0, zeile: 0 });
