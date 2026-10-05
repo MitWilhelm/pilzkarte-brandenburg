@@ -108,7 +108,7 @@ p, h1, ol, dl, dd { margin: 0; }
 .tafel-griff:focus-visible { outline: 3px solid var(--text); outline-offset: -3px; border-radius: 12px; }
 /* Handy: Tafel startet eingeklappt (nur Index-Zeile); data-offen setzt src/ansicht.ts. */
 @media (max-width: 899px) {
-  .tafel:not([data-offen="ja"]) > :not(.tafel-griff, #lade-hinweis, #schutz-hinweis, #block-index, #block-punkt) { display: none; }
+  .tafel:not([data-offen="ja"]) > :not(.tafel-griff, #lade-hinweis, #gps-hinweis, #schutz-hinweis, #block-index, #block-punkt) { display: none; }
   .tafel:not([data-offen="ja"]) #trend, .tafel:not([data-offen="ja"]) #index-grund { display: none; }
   .tafel:not([data-offen="ja"]) .index-zahl { width: 48px; height: 48px; font-size: 20px; }
 }

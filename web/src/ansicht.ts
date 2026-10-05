@@ -167,6 +167,13 @@ export function schalteLegende(isOffen: boolean): void {
   element("legende-knopf", HTMLButtonElement).setAttribute("aria-expanded", String(isOffen));
 }
 
+/** GPS-Hinweis (blockiert, kein Signal); null blendet ihn aus. */
+export function zeigeGpsHinweis(text: string | null): void {
+  const hinweis = element("gps-hinweis", HTMLElement);
+  hinweis.hidden = text === null;
+  hinweis.textContent = text ?? "";
+}
+
 /** Hinweis über dem Index, z. B. "näher heranzoomen" oder ein Ladefehler; null blendet ihn aus. */
 export function zeigeLadehinweis(text: string | null): void {
   const hinweis = element("lade-hinweis", HTMLElement);

@@ -8,6 +8,7 @@ import {
   folgeFarbschema,
   zeigeBodengrenzen,
   fuegeKnopfHinzu,
+  beiGpsProblem,
   beiGpsStandort,
   zeigeHeatmap,
   zeigeTipps,
@@ -30,6 +31,7 @@ import {
   schliessePunkt,
   sindDetailsOffen,
   zeigeIndex,
+  zeigeGpsHinweis,
   zeigeIndexFehler,
   zeigeLadehinweis,
   zeigePunkt,
@@ -307,6 +309,7 @@ async function start(): Promise<void> {
     indexHeute: (stelle, pilz) => indexHeuteAn(stelle.breite, stelle.laenge, pilz),
     speicher: window.localStorage,
   });
+  beiGpsProblem(standortSteuerung, zeigeGpsHinweis);
   beiGpsStandort(standortSteuerung, (standort) => {
     meldeStandort(standort);
     zustand.hasGps = true;

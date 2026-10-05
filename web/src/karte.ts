@@ -161,6 +161,41 @@ export function erzeugeKarte(
   return { karte, standortSteuerung };
 }
 
+const GPS_FEHLER_VERWEIGERT = 1; // GeolocationPositionError.PERMISSION_DENIED
+const HINWEIS_GPS_BLOCKIERT =
+  "Der Standort ist für diese Seite blockiert, deshalb sind GPS und Melden aus. iPhone: Einstellungen › Datenschutz & Sicherheit › Ortungsdienste einschalten, dort „Safari-Websites“ auf „Beim Verwenden der App“; dann in Safari „aA“ › Website-Einstellungen › Standort › Erlauben. Android (Chrome): Schloss-Symbol neben der Adresse › Berechtigungen › Standort › Zulassen. Danach die Seite neu laden.";
+const HINWEIS_GPS_KEIN_SIGNAL = "Kein GPS-Standort gefunden. Kurz unter freiem Himmel warten und den Standort-Knopf erneut tippen.";
+
+/**
+ * Meldet, warum es keinen GPS-Standort gibt (null: kein Problem). MapLibre schaltet den Knopf bei verweigerter
+ * Erlaubnis still ab (durchgestrichen); ohne diesen Hinweis wirkt GPS dann einfach kaputt.
+ */
+export function beiGpsProblem(steuerung: maplibregl.GeolocateControl, aufruf: (hinweis: string | null) => void): void {
+  steuerung.on("error", (fehler: unknown) => {
+    const isVerweigert = typeof fehler === "object" && fehler !== null && "code" in fehler && fehler.code === GPS_FEHLER_VERWEIGERT;
+    aufruf(isVerweigert ? HINWEIS_GPS_BLOCKIERT : HINWEIS_GPS_KEIN_SIGNAL);
+  });
+  steuerung.on("geolocate", () => {
+    aufruf(null);
+  });
+  // Erlaubnis-Abfrage gibt es nicht in jedem Browser (älteres Safari); dann bleibt es beim Fehler-Ereignis oben.
+  if (!("permissions" in navigator)) {
+    return;
+  }
+  void navigator.permissions.query({ name: "geolocation" }).then(
+    (erlaubnis) => {
+      const pruefe = (): void => {
+        aufruf(erlaubnis.state === "denied" ? HINWEIS_GPS_BLOCKIERT : null);
+      };
+      pruefe();
+      erlaubnis.addEventListener("change", pruefe);
+    },
+    (fehler: unknown) => {
+      console.warn("Standort-Erlaubnis nicht abfragbar", fehler);
+    },
+  );
+}
+
 /** Meldet jeden GPS-Standort der Karte; das Ereignis von MapLibre ist untypisiert und wird hier geprüft. */
 export function beiGpsStandort(steuerung: maplibregl.GeolocateControl, aufruf: (standort: Standort) => void): void {
   steuerung.on("geolocate", (ereignis: unknown) => {
