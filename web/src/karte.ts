@@ -58,6 +58,9 @@ const STRASSE_BREITE: readonly [number, number, number, number] = [12, 2.5, 16, 
 const STRASSE_RAND_BREITE: readonly [number, number, number, number] = [12, 4, 16, 12];
 const PFAD_STRICHE: readonly [number, number] = [2, 1.5];
 const TIPP_FENSTER_ABSTAND = 26; // Pixel vom Mittelpunkt der runden Tipp-Markierung
+const TIPP_QUELLE = "tipp-kerne";
+const TIPP_RAHMEN_RAND = "tipp-kerne-rand";
+const TIPP_RAHMEN = "tipp-kerne-linie";
 
 export interface Kartenebene {
   readonly gebiet: Gebiet;
@@ -165,6 +168,11 @@ export function beiGpsStandort(steuerung: maplibregl.GeolocateControl, aufruf: (
   });
 }
 
+/** Neue Kartenebenen kommen unter die Tipp-Rahmen, damit später geladene Kacheln sie nicht überdecken. */
+function vorTipps(karte: maplibregl.Map): string | undefined {
+  return karte.getLayer(TIPP_RAHMEN_RAND) === undefined ? undefined : TIPP_RAHMEN_RAND;
+}
+
 export function fuegeEbenenHinzu(karte: maplibregl.Map, ebenen: readonly Kartenebene[], kanal: Pilzkanal): void {
   for (const ebene of ebenen) {
     const { gebiet } = ebene;
@@ -184,7 +192,7 @@ export function fuegeEbenenHinzu(karte: maplibregl.Map, ebenen: readonly Kartene
       source: `heatmap-${gebiet.name}`,
       // nearest: Klassen nicht verwischen, jedes 10-m-Feld bleibt erkennbar
       paint: { "raster-opacity": HEATMAP_DECKKRAFT, "raster-resampling": "nearest" },
-    });
+    }, vorTipps(karte));
     karte.addSource(`boden-${gebiet.name}`, { type: "geojson", data: `${gebiet.ordner}/${gebiet.name}_boden.geojson` });
     // Unsichtbare Füllung, damit ein Tipp die Bodenfläche findet; Linien nur auf Wunsch sichtbar.
     karte.addLayer({
@@ -192,14 +200,14 @@ export function fuegeEbenenHinzu(karte: maplibregl.Map, ebenen: readonly Kartene
       type: "fill",
       source: `boden-${gebiet.name}`,
       paint: { "fill-opacity": 0 },
-    });
+    }, vorTipps(karte));
     karte.addLayer({
       id: `boden-linie-${gebiet.name}`,
       type: "line",
       source: `boden-${gebiet.name}`,
       layout: { visibility: "none" },
       paint: { "line-color": "#4b3a6b", "line-width": BODEN_LINIENBREITE },
-    });
+    }, vorTipps(karte));
     fuegeWegeHinzu(karte, gebiet);
   }
 }
@@ -216,7 +224,7 @@ function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
     filter: ["==", ["get", "art"], "pfad"],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": schema.pfad, "line-width": breite(PFAD_BREITE), "line-dasharray": [...PFAD_STRICHE] },
-  });
+  }, vorTipps(karte));
   karte.addLayer({
     id: `wege-rand-${gebiet.name}`,
     type: "line",
@@ -224,7 +232,7 @@ function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
     filter: ["==", ["get", "art"], "weg"],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": schema.wegRand, "line-width": breite(WEG_RAND_BREITE) },
-  });
+  }, vorTipps(karte));
   karte.addLayer({
     id: `wege-${gebiet.name}`,
     type: "line",
@@ -232,7 +240,7 @@ function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
     filter: ["==", ["get", "art"], "weg"],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": schema.weg, "line-width": breite(WEG_BREITE) },
-  });
+  }, vorTipps(karte));
   karte.addLayer({
     id: `strassen-rand-${gebiet.name}`,
     type: "line",
@@ -240,7 +248,7 @@ function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
     filter: ["==", ["get", "art"], "strasse"],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": schema.strasseRand, "line-width": breite(STRASSE_RAND_BREITE) },
-  });
+  }, vorTipps(karte));
   karte.addLayer({
     id: `strassen-${gebiet.name}`,
     type: "line",
@@ -248,7 +256,7 @@ function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
     filter: ["==", ["get", "art"], "strasse"],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": schema.strasse, "line-width": breite(STRASSE_BREITE) },
-  });
+  }, vorTipps(karte));
 }
 
 export function zeigeHeatmap(karte: maplibregl.Map, ebenen: readonly Kartenebene[], ansicht: Heatmapansicht): void {
@@ -303,6 +311,7 @@ export interface Tippmarke {
   readonly laenge: number;
   readonly breite: number;
   readonly zeilen: readonly string[];
+  readonly ecken: readonly (readonly [number, number])[]; // Rahmen der Kernfläche (bis 10 ha)
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -325,8 +334,22 @@ function pilzSymbol(): SVGSVGElement {
   return symbol;
 }
 
-/** Setzt die Tipp-Markierungen (Pilz-Symbol mit Nummer); Antippen öffnet ein Fenster mit den Zeilen. */
+/** Setzt die Tipp-Markierungen (Pilz-Symbol mit Nummer) und rahmt ihre Kernfläche; Antippen öffnet ein Fenster. */
 export function zeigeTipps(karte: maplibregl.Map, tipps: readonly Tippmarke[]): void {
+  karte.addSource(TIPP_QUELLE, {
+    type: "geojson",
+    data: {
+      type: "FeatureCollection",
+      features: tipps.map((tipp) => ({
+        type: "Feature",
+        properties: { nummer: tipp.nummer },
+        geometry: { type: "LineString", coordinates: [...tipp.ecken, ...tipp.ecken.slice(0, 1)].map(([laenge, breite]) => [laenge, breite]) },
+      })),
+    },
+  });
+  // Dunkler Rand unter der türkisen Linie: sichtbar auf Heatmap-Rot wie auf hellem Hintergrund.
+  karte.addLayer({ id: TIPP_RAHMEN_RAND, type: "line", source: TIPP_QUELLE, paint: { "line-color": "#0b0f14", "line-width": 6 } });
+  karte.addLayer({ id: TIPP_RAHMEN, type: "line", source: TIPP_QUELLE, paint: { "line-color": "#00e5ff", "line-width": 3 } });
   for (const tipp of tipps) {
     const knopf = document.createElement("button");
     knopf.type = "button";

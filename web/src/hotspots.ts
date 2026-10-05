@@ -28,6 +28,15 @@ export interface Brennpunktflaeche {
   readonly art: Hotspotart;
 }
 
+/** Beste kleine Teilfläche eines Brennpunkts (höchstens 10 ha), Ziel einer Tipp-Markierung. */
+export interface Kern {
+  readonly laenge: number;
+  readonly breite: number;
+  readonly flaecheHektar: number;
+  readonly mittlereStufe: number;
+  readonly ecken: readonly (readonly [number, number])[]; // Umriss (Länge, Breite): oben links, oben rechts, unten rechts, unten links
+}
+
 export interface Hotspotsuche {
   readonly daten: Uint8ClampedArray; // RGBA wie im Daten-PNG: R Baumart, G Steinpilz, B Pfifferling
   readonly kanal: Pilzkanal;
@@ -42,6 +51,8 @@ const ZELLE_PIXEL = 10; // Daten-Pixel sind 10 m groß: eine Zelle ist 100 m x 1
 const MIN_ANTEIL_HOCH = 0.5; // so viel Anteil einer Zelle muss MIN_STUFE erreichen
 const MIN_ZELLEN = 3; // kleinere Flecken sind keine Empfehlung wert (~3 ha)
 const HEKTAR_PRO_ZELLE = 1;
+// 3 x 3 Zellen à 1 ha = 9 ha: Der Nutzer wünscht Tipps von höchstens 10 ha statt ganzer Brennpunkte (bis ~600 ha).
+const KERN_KANTE_ZELLEN = 3;
 // Signalfarben, die sonst nirgends auf der Karte vorkommen: türkis = heute günstig, pink = nur letzte Tage günstig.
 const FARBE_JE_ART: Readonly<Record<Hotspotart, readonly [number, number, number]>> = {
   heute: [0, 229, 255],
@@ -141,6 +152,76 @@ function naechsteZelleZumSchwerpunkt(zellen: readonly number[], zellenBreit: num
     }
   }
   return beste;
+}
+
+function mittlereStufeDerZelle(suche: Hotspotsuche, zelleX: number, zelleY: number): number {
+  const { daten, kanal, gebiet } = suche;
+  let summe = 0;
+  let anzahl = 0;
+  for (let zeile = zelleY * ZELLE_PIXEL; zeile < Math.min((zelleY + 1) * ZELLE_PIXEL, gebiet.hoehePixel); zeile += 1) {
+    for (let spalte = zelleX * ZELLE_PIXEL; spalte < Math.min((zelleX + 1) * ZELLE_PIXEL, gebiet.breitePixel); spalte += 1) {
+      const wert = daten[(zeile * gebiet.breitePixel + spalte) * KANAELE_PRO_PIXEL + kanal];
+      if (wert === undefined) {
+        throw new Error(`Invariante verletzt: Pixel ${String(spalte)}/${String(zeile)} außerhalb der Daten`);
+      }
+      summe += wert;
+      anzahl += 1;
+    }
+  }
+  return summe / anzahl;
+}
+
+/**
+ * Das Quadrat aus KERN_KANTE_ZELLEN² Zellen (9 ha) ganz innerhalb des Brennpunkts mit der höchsten mittleren
+ * Stufe; ist die Fläche dafür zu schmal, die beste einzelne Zelle (1 ha).
+ */
+export function besterKern(suche: Hotspotsuche, zellen: readonly number[]): Kern {
+  const { gebiet } = suche;
+  const zellenBreit = Math.ceil(gebiet.breitePixel / ZELLE_PIXEL);
+  const mittel = new Map(zellen.map((zelle) => [zelle, mittlereStufeDerZelle(suche, zelle % zellenBreit, Math.floor(zelle / zellenBreit))]));
+  let bester: { readonly links: number; readonly oben: number; readonly kante: number; readonly mittel: number } | null = null;
+  for (const kante of [KERN_KANTE_ZELLEN, 1]) {
+    for (const zelle of zellen) {
+      const links = zelle % zellenBreit;
+      const oben = Math.floor(zelle / zellenBreit);
+      let summe = 0;
+      let isVoll = links + kante <= zellenBreit;
+      for (let dy = 0; dy < kante && isVoll; dy += 1) {
+        for (let dx = 0; dx < kante && isVoll; dx += 1) {
+          const wert = mittel.get((oben + dy) * zellenBreit + links + dx);
+          if (wert === undefined) {
+            isVoll = false;
+          } else {
+            summe += wert;
+          }
+        }
+      }
+      const durchschnitt = summe / (kante * kante);
+      if (isVoll && (bester === null || durchschnitt > bester.mittel)) {
+        bester = { links, oben, kante, mittel: durchschnitt };
+      }
+    }
+    if (bester !== null) {
+      break;
+    }
+  }
+  if (bester === null) {
+    throw new Error("Invariante verletzt: Brennpunkt ohne Zellen für einen Kern");
+  }
+  const { links, oben, kante } = bester;
+  const [laenge, breite] = eckeAnZelle(gebiet, links + kante / 2, oben + kante / 2);
+  return {
+    laenge,
+    breite,
+    flaecheHektar: kante * kante * HEKTAR_PRO_ZELLE,
+    mittlereStufe: Math.round(bester.mittel),
+    ecken: [
+      eckeAnZelle(gebiet, links, oben),
+      eckeAnZelle(gebiet, links + kante, oben),
+      eckeAnZelle(gebiet, links + kante, oben + kante),
+      eckeAnZelle(gebiet, links, oben + kante),
+    ],
+  };
 }
 
 export function findeHotspots(suche: Hotspotsuche): Hotspot[] {

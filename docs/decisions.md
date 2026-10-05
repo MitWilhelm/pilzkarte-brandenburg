@@ -259,6 +259,10 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
     Kachelgrenzen geteilt). Markierung: Steinpilz im weißen Kreis mit Nummer; Antippen zeigt Größe, Wachstum, Index, Stand.
   - Neue Entwicklungs-Abhängigkeit `pngjs` (7.0.0, keine weiteren Abhängigkeiten, 650 KB entpackt), nur für das Lesen der
     Kachel-PNGs im Vorberechnungs-Lauf, nicht in der Webseite.
-- **Grenzen:** Wetter bis zu einem Tag alt. Die Markierung sitzt auf dem Anker der Fläche (Zelle nächst dem Schwerpunkt);
-  bei 200–580 ha großen Flächen ist das ein Einstieg, kein Punkt. Pfifferling-Tipps gibt es nicht (Wunsch: Steinpilz).
+- **Grenzen:** Wetter bis zu einem Tag alt. Pfifferling-Tipps gibt es nicht (Wunsch: Steinpilz).
+- **Nachtrag (Nutzer: Tipps höchstens 10 ha):** Die Auswahl der 5 Brennpunkte bleibt (Farbe, Größe); die Markierung zeigt
+  aber auf deren besten Kern: das 3 × 3-Zellen-Quadrat (9 ha) ganz innerhalb der Fläche mit der höchsten mittleren
+  Habitat-Stufe (`besterKern`), bei zu schmalen Flächen die beste Einzelzelle (1 ha). Der Kern wird als türkiser Rahmen
+  gezeichnet. Dabei behoben: `position: relative` an der Markierung überschrieb MapLibres absolute Lage, die Tipps 2–5
+  standen dadurch versetzt.
 - **Verworfen:** Brennpunkt-Suche zusätzlich in Python – zwei Fassungen derselben Regel könnten auseinanderlaufen.

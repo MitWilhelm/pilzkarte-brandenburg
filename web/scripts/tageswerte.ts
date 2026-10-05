@@ -8,7 +8,7 @@ import { PNG } from "pngjs";
 import { gebieteAusJson } from "../src/clients/daten.ts";
 import { ladeWetter, type Wetterreihe } from "../src/clients/openmeteo.ts";
 import { KANAL_JE_PILZ, type Gebiet } from "../src/geo.ts";
-import { findeHotspots, type Hotspot } from "../src/hotspots.ts";
+import { besterKern, findeHotspots, type Hotspot } from "../src/hotspots.ts";
 import { brennpunktArt, wetterSchluessel, type Tagesbrennpunkt, type Tageswerte } from "../src/tageswerte.ts";
 import type { Pilzart } from "../src/wachstum.ts";
 
@@ -22,6 +22,7 @@ const PILZARTEN: readonly Pilzart[] = ["steinpilz", "pfifferling"];
 
 interface Fund {
   readonly gebiet: Gebiet;
+  readonly daten: Uint8ClampedArray;
   readonly hotspot: Hotspot;
   readonly pilz: Pilzart;
 }
@@ -55,7 +56,7 @@ function findeAlle(kacheln: readonly Gebiet[]): Fund[] {
     const daten = new Uint8ClampedArray(bild.data.buffer, bild.data.byteOffset, bild.data.length);
     for (const pilz of PILZARTEN) {
       for (const hotspot of findeHotspots({ daten, kanal: KANAL_JE_PILZ[pilz], gebiet })) {
-        funde.push({ gebiet, hotspot, pilz });
+        funde.push({ gebiet, daten, hotspot, pilz });
       }
     }
   }
@@ -98,7 +99,7 @@ async function main(): Promise<void> {
   const funde = findeAlle(kacheln);
   const wetter = await ladeWetterFuerAlle(funde);
   const jePilz: Record<Pilzart, Tagesbrennpunkt[]> = { steinpilz: [], pfifferling: [] };
-  for (const { gebiet, hotspot, pilz } of funde) {
+  for (const { gebiet, daten, hotspot, pilz } of funde) {
     const reihe = wetter.get(wetterSchluessel(hotspot.breite, hotspot.laenge));
     if (reihe === undefined) {
       continue; // Wetterabruf dieser Zelle gescheitert (oben gemeldet); ohne Wetter keine Bewertung
@@ -106,7 +107,8 @@ async function main(): Promise<void> {
     const { art, indexHeute } = brennpunktArt(reihe.tage, reihe.heute, pilz);
     if (art !== null) {
       const { laenge, breite, flaecheHektar, zellen } = hotspot;
-      jePilz[pilz].push({ gebietName: gebiet.name, laenge, breite, flaecheHektar, zellen, art, indexHeute });
+      const kern = besterKern({ daten, kanal: KANAL_JE_PILZ[pilz], gebiet }, zellen);
+      jePilz[pilz].push({ gebietName: gebiet.name, laenge, breite, flaecheHektar, zellen, art, indexHeute, kern });
     }
   }
   const tageswerte: Tageswerte = { erstellt: new Date().toISOString(), ...jePilz };

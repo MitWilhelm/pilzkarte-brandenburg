@@ -5,7 +5,8 @@ import { tageswerteAusJson, topSammelplaetze, wetterSchluessel, type Tagesbrennp
 
 function punkt(name: string, art: Tagesbrennpunkt["art"], flaecheHektar: number, laenge: number): Tagesbrennpunkt {
   // Längengrade 0,1° auseinander sind bei 52,8° Breite gut 6 km: weit genug für getrennte Tipps.
-  return { gebietName: name, laenge, breite: 52.8, flaecheHektar, zellen: [1, 2, 3], art, indexHeute: 70 };
+  const kern = { laenge, breite: 52.8, flaecheHektar: 9, mittlereStufe: 95, ecken: [[laenge, 52.8], [laenge, 52.8], [laenge, 52.8], [laenge, 52.8]] as const };
+  return { gebietName: name, laenge, breite: 52.8, flaecheHektar, zellen: [1, 2, 3], art, indexHeute: 70, kern };
 }
 
 test("heute wachsende Flächen kommen vor denen der letzten Tage, auch wenn diese größer sind", () => {

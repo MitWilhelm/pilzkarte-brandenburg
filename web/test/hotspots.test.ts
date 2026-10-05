@@ -1,7 +1,7 @@
 // Tests für die Brennpunkt-Suche in src/hotspots.ts (synthetische Daten-Bilder, kein Netzwerk).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { faerbeBrennpunkte, findeHotspots, flaecheAnStelle, hotspotart, koordinateAnPixel, MIN_STUFE } from "../src/hotspots.ts";
+import { besterKern, faerbeBrennpunkte, findeHotspots, flaecheAnStelle, hotspotart, koordinateAnPixel, MIN_STUFE } from "../src/hotspots.ts";
 import { pixelAnStelle, type Gebiet } from "../src/geo.ts";
 
 const BREITE = 60;
@@ -144,4 +144,39 @@ test("die Fläche an einer Stelle wird über die 100-m-Zelle gefunden, daneben u
   assert.equal(flaecheAnStelle(gebiet, { spalte: 25, zeile: 25 }, flaechen), flaechen[0]);
   assert.equal(flaecheAnStelle(gebiet, { spalte: 5, zeile: 5 }, flaechen), null);
   assert.equal(flaecheAnStelle({ ...gebiet, name: "anderes" }, { spalte: 25, zeile: 25 }, flaechen), null);
+});
+
+test("der Kern ist das 9-ha-Quadrat mit der höchsten mittleren Stufe innerhalb der Brennpunkt-Fläche", () => {
+  const gebiet = kleinesGebiet();
+  // 50 x 50 Pixel Stufe 90 (25 Zellen), darin ein 30 x 30-Block Stufe 99 rechts unten (Zellen 2..4)
+  const daten = bildMitBlock(90, { von: 0, bis: 50 });
+  for (let zeile = 20; zeile < 50; zeile += 1) {
+    for (let spalte = 20; spalte < 50; spalte += 1) {
+      daten[(zeile * BREITE + spalte) * 4 + 1] = 99;
+    }
+  }
+  const [flaeche] = findeHotspots({ daten, kanal: 1, gebiet });
+  assert.ok(flaeche !== undefined);
+  const kern = besterKern({ daten, kanal: 1, gebiet }, flaeche.zellen);
+  assert.equal(kern.flaecheHektar, 9);
+  assert.equal(kern.mittlereStufe, 99);
+  const mitte = pixelAnStelle(gebiet, kern.laenge, kern.breite);
+  assert.ok(mitte !== null);
+  assert.ok(Math.abs(mitte.spalte - 35) <= 1 && Math.abs(mitte.zeile - 35) <= 1, `Kernmitte bei ${String(mitte.spalte)}/${String(mitte.zeile)}`);
+  assert.equal(kern.ecken.length, 4);
+});
+
+test("ist die Fläche für 3 x 3 Zellen zu schmal, ist der Kern die beste einzelne Zelle mit 1 ha", () => {
+  const gebiet = kleinesGebiet();
+  const daten = new Uint8ClampedArray(BREITE * HOEHE * 4);
+  for (let spalte = 0; spalte < 40; spalte += 1) {
+    for (let zeile = 0; zeile < 10; zeile += 1) {
+      daten[(zeile * BREITE + spalte) * 4 + 1] = spalte >= 30 ? 98 : 88;
+    }
+  }
+  const [flaeche] = findeHotspots({ daten, kanal: 1, gebiet });
+  assert.ok(flaeche !== undefined);
+  const kern = besterKern({ daten, kanal: 1, gebiet }, flaeche.zellen);
+  assert.equal(kern.flaecheHektar, 1);
+  assert.equal(kern.mittlereStufe, 98);
 });

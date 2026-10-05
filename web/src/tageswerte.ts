@@ -1,7 +1,7 @@
 // Tageswerte: Brennpunkte mit Wetter, morgens einmal vorberechnet (scripts/tageswerte.ts), und die Auswahl der
 // Top-Sammelplätze. Reine Funktionen ohne I/O; dieselben Regeln gelten im Browser und im Vorberechnungs-Lauf.
 import { abstandMeter } from "./geo.ts";
-import { hotspotart, type Hotspotart } from "./hotspots.ts";
+import { hotspotart, type Hotspotart, type Kern } from "./hotspots.ts";
 import { tagesindex, type Pilzart, type Tageswetter } from "./wachstum.ts";
 
 export const TAGE_RUECKBLICK = 7; // so weit zurück zählt ein günstiger Index für ältere, große Pilze
@@ -19,6 +19,7 @@ export interface Tagesbrennpunkt {
   readonly zellen: readonly number[];
   readonly art: Hotspotart;
   readonly indexHeute: number;
+  readonly kern: Kern; // beste Teilfläche bis 10 ha, Ziel der Tipp-Markierung
 }
 
 export interface Tageswerte {
@@ -98,6 +99,29 @@ function eintrag(objekt: unknown, schluessel: string): unknown {
   return Object.entries(objekt).find(([name]) => name === schluessel)?.[1];
 }
 
+function koordinate(wert: unknown, name: string): readonly [number, number] {
+  if (!Array.isArray(wert) || wert.length !== 2) {
+    throw new Error(`Invariante verletzt: tageswerte.json, ${name} ist kein Koordinatenpaar`);
+  }
+  const paar: readonly unknown[] = wert;
+  return [zahl(paar[0], `${name}[0]`), zahl(paar[1], `${name}[1]`)];
+}
+
+function kern(roh: unknown): Kern {
+  const ecken = eintrag(roh, "ecken");
+  if (!Array.isArray(ecken) || ecken.length !== 4) {
+    throw new Error("Invariante verletzt: tageswerte.json, Kern hat nicht vier Ecken");
+  }
+  const liste: readonly unknown[] = ecken;
+  return {
+    laenge: zahl(eintrag(roh, "laenge"), "kern.laenge"),
+    breite: zahl(eintrag(roh, "breite"), "kern.breite"),
+    flaecheHektar: zahl(eintrag(roh, "flaecheHektar"), "kern.flaecheHektar"),
+    mittlereStufe: zahl(eintrag(roh, "mittlereStufe"), "kern.mittlereStufe"),
+    ecken: liste.map((ecke, nummer) => koordinate(ecke, `kern.ecken[${String(nummer)}]`)),
+  };
+}
+
 function brennpunkte(liste: unknown, pilz: Pilzart): Tagesbrennpunkt[] {
   if (!Array.isArray(liste)) {
     throw new Error(`Invariante verletzt: tageswerte.json, ${pilz} ist keine Liste`);
@@ -121,6 +145,7 @@ function brennpunkte(liste: unknown, pilz: Pilzart): Tagesbrennpunkt[] {
       zellen: zellListe.map((zelle) => zahl(zelle, "zellen[]")),
       art,
       indexHeute: zahl(eintrag(roh, "indexHeute"), "indexHeute"),
+      kern: kern(eintrag(roh, "kern")),
     };
   });
 }

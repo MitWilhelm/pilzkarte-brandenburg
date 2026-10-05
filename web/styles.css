@@ -180,7 +180,8 @@ p, h1, ol, dl, dd { margin: 0; }
 /* Tipp-Markierung: Pilz im weißen Kreis mit türkisem Rand (Signalfarbe "wächst heute"), Nummer als Plakette.
    Keine Drehung: MapLibre setzt am Markierungs-Element selbst ein transform zum Positionieren. */
 .tipp-marke {
-  position: relative; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; cursor: pointer;
+  /* Kein position: MapLibre setzt .maplibregl-marker absolut; das dient zugleich als Bezug für die Nummer. */
+  width: 44px; height: 44px; padding: 0; display: grid; place-items: center; cursor: pointer;
   border: 3px solid #00b8cc; border-radius: 50%; background: #ffffff; box-shadow: 0 4px 12px rgb(0 0 0 / 0.35);
 }
 .tipp-marke .tipp-hut { fill: #7a3b12; }

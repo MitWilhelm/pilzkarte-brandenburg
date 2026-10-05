@@ -248,7 +248,8 @@ function tippZeilen(punkt: Tagesbrennpunkt, stand: string): string[] {
   const wachstum = punkt.art === "heute" ? "wächst heute" : "günstig in den letzten 7 Tagen";
   return [
     "Steinpilz-Tipp",
-    `${String(punkt.flaecheHektar)} ha zusammenhängend, ${wachstum}`,
+    `Kernfläche ${String(punkt.kern.flaecheHektar)} ha, Habitat-Stufe im Mittel ${String(punkt.kern.mittlereStufe)}`,
+    `In einem ${String(punkt.flaecheHektar)} ha großen Brennpunkt, ${wachstum}`,
     `Wachstumsindex heute: ${String(punkt.indexHeute)}`,
     `Stand: ${stand}`,
   ];
@@ -292,9 +293,10 @@ async function start(): Promise<void> {
       karte,
       topSammelplaetze(tageswerte.steinpilz, ANZAHL_TIPPS).map((punkt, nummer) => ({
         nummer: nummer + 1,
-        laenge: punkt.laenge,
-        breite: punkt.breite,
+        laenge: punkt.kern.laenge,
+        breite: punkt.kern.breite,
         zeilen: tippZeilen(punkt, stand),
+        ecken: punkt.kern.ecken,
       })),
     );
   }
