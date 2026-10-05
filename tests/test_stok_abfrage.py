@@ -6,7 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from pipeline.io_stok_abfrage import Abfragepunkt, _bereits_abgefragt, _frage_ab, _lies_punkte, abfrage_url
+from pipeline.io_stok_abfrage import (
+    Abfragepunkt,
+    _bereits_abgefragt,
+    _frage_ab,
+    _lies_punkte,
+    abfrage_url,
+    fehlgeschlagene_ids,
+)
 
 
 def _parameter(url: str) -> dict[str, str]:
@@ -53,3 +60,13 @@ def test_ein_zeitueberlauf_beim_lesen_wird_als_status_0_vermerkt_statt_abzubrech
     ergebnis = _frage_ab("https://example.invalid/")
     assert ergebnis["status"] == 0
     assert ergebnis["typ"] == "zeitueberlauf"
+
+
+def test_nachholen_nennt_nur_ids_ohne_erfolgreiche_antwort(tmp_path: Path) -> None:
+    erste = tmp_path / "eins.jsonl"
+    zweite = tmp_path / "zwei.jsonl"
+    erste.write_text(
+        '{"id": "1", "status": 200}\n{"id": "2", "status": 0}\n{"id": "3", "status": 404}\n', encoding="utf-8"
+    )
+    zweite.write_text('{"id": "3", "status": 200}\n{"id": "4", "status": 0}\n\n', encoding="utf-8")
+    assert fehlgeschlagene_ids([erste, zweite]) == {"2", "4"}

@@ -15,13 +15,14 @@ import urllib.request
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-__all__ = ["Abfragepunkt", "abfrage_url", "main"]
+__all__ = ["Abfragepunkt", "abfrage_url", "fehlgeschlagene_ids", "main"]
 
 DIENST_URL = "https://www.brandenburg-forst.de/ogc/stok"
 LAYER = "stok_fskf"
 FENSTER_HALB_METER = 10
 FENSTER_PIXEL = 21  # ungerade, damit der Punkt genau im Mittelpixel liegt
 PAUSE_SEKUNDEN = 1.0
+HTTP_OK = 200
 ZEITLIMIT_SEKUNDEN = 30
 MAX_ANTWORT_ZEICHEN = 20_000
 FORMAT_STANDARD = "application/json"
@@ -80,6 +81,21 @@ def _bereits_abgefragt(ziel: Path) -> set[str]:
         return {json.loads(zeile)["id"] for zeile in datei if zeile.strip()}
 
 
+def fehlgeschlagene_ids(dateien: list[Path]) -> set[str]:
+    """IDs, die in den Antwortdateien nie mit Status 200 vorkommen (Zeitüberlauf, 404 usw.)."""
+    alle: set[str] = set()
+    erfolgreich: set[str] = set()
+    for datei in dateien:
+        with datei.open(encoding="utf-8") as zeilen:
+            for zeile in zeilen:
+                if zeile.strip():
+                    eintrag = json.loads(zeile)
+                    alle.add(eintrag["id"])
+                    if eintrag["status"] == HTTP_OK:
+                        erfolgreich.add(eintrag["id"])
+    return alle - erfolgreich
+
+
 def _frage_ab(url: str) -> dict[str, str | int]:
     anfrage = urllib.request.Request(url, headers={"User-Agent": KENNUNG})
     try:
@@ -104,6 +120,13 @@ def main() -> None:
     argumente.add_argument("--von", type=int, default=0, help="erster Punkt (Index, einschließlich)")
     argumente.add_argument("--bis", type=int, default=None, help="letzter Punkt (Index, ausschließlich)")
     argumente.add_argument("--fortsetzen", action="store_true", help="bereits im Ziel stehende Punkte überspringen")
+    argumente.add_argument(
+        "--nachholen",
+        type=Path,
+        nargs="+",
+        default=None,
+        help="nur Punkte erneut abfragen, die in diesen Antwortdateien nie Status 200 hatten",
+    )
     eingabe = argumente.parse_args()
     formate = FORMATE_DIAGNOSE if eingabe.alle_formate else (FORMAT_STANDARD,)
     bis = eingabe.bis if eingabe.anzahl is None else eingabe.von + eingabe.anzahl
@@ -111,7 +134,12 @@ def main() -> None:
     modus = "a" if eingabe.fortsetzen else "w"
     eingabe.ziel.parent.mkdir(parents=True, exist_ok=True)
     with eingabe.ziel.open(modus, encoding="utf-8") as ziel:
-        for punkt in _lies_punkte(eingabe.quelle, (eingabe.von, bis)):
+        punkte = _lies_punkte(eingabe.quelle, (eingabe.von, bis))
+        if eingabe.nachholen is not None:
+            gesucht = fehlgeschlagene_ids(eingabe.nachholen)
+            punkte = [punkt for punkt in punkte if punkt.id in gesucht]
+            print(f"{len(punkte)} Punkte werden nachgeholt")
+        for punkt in punkte:
             if punkt.id in erledigt:
                 continue
             for info_format in formate:

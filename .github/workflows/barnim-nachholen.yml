@@ -1,0 +1,35 @@
+# Fragt die Barnim-Flächen nach, die in Teil 1 und 2 nie Status 200 hatten (34 von 21.763: Zeitüberläufe, 404).
+# Ergebnis: daten/barnim_stok_antworten_nachholen.jsonl; Läuft vom Branch aus, weil der LFB-Server von dort erreichbar ist.
+name: Barnim-Nachholen
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/cool-hamilton-x8pj44]
+    paths:
+      - .github/workflows/barnim-nachholen.yml
+
+permissions:
+  contents: write
+
+jobs:
+  nachholen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pipeline.io_stok_abfrage --quelle daten/barnim_stok_punkte.csv \
+            --ziel daten/barnim_stok_antworten_nachholen.jsonl \
+            --nachholen daten/barnim_stok_antworten_1.jsonl daten/barnim_stok_antworten_2.jsonl
+      - name: Ergebnis zurückschreiben
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add daten/barnim_stok_antworten_nachholen.jsonl
+          git commit -m "Barnim-Boden: 34 fehlende Flaechen nachgefragt" || exit 0
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
