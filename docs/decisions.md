@@ -266,3 +266,29 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   gezeichnet. Dabei behoben: `position: relative` an der Markierung überschrieb MapLibres absolute Lage, die Tipps 2–5
   standen dadurch versetzt.
 - **Verworfen:** Brennpunkt-Suche zusätzlich in Python – zwei Fassungen derselben Regel könnten auseinanderlaufen.
+
+## 2026-10-05 — Bestandshöhe aus dem LGB-nDOM im Habitat-Modell (nur Abwertung)
+
+- **Kontext:** Der Nutzer wollte die Höhenprüfung für ganz Barnim und die Wirkung auf Bewertung und Tipps. Frühere
+  Entscheidung (Kronenhöhe verworfen) beruhte auf unbrauchbaren freien Karten und einem LGB-Server mit 30–80 KB/s.
+  Am 05.10. lieferte derselbe Server 10 MB/s: Alle 1.498 Kacheln mit Wald (~22 GB) in ~46 min.
+- **Recherche-Lage:** Ein Altersoptimum für Steinpilz ist **nicht belegt**. Nordspanien, Waldkiefer: Fruktifikation in
+  allen Altersklassen; belegt ist nur ein Dichteoptimum (Grundfläche 30–40 m²/ha). Die Recherche-Notiz empfiehlt nur,
+  sehr junge, niedrige Bestände abzuwerten. Der ältere, unbenutzte `strukturfaktor` in `habitat.py` (Optimum bei 19–22 m,
+  Abwertung ab 25 m, Verweis auf „Gipfel 51–70 Jahre“) beruht auf einer unverifizierten Angabe und wird nicht genutzt.
+- **Entscheidung (Nutzer):** Nur junge/niedrige Bestände und Kahlschläge abwerten, kein Alters-Bonus.
+  - `pipeline/io_ndom.py` lädt jede Kachel, `pipeline/hoehe.py` rechnet je 10-m-Pixel die **Oberhöhe**: oberstes
+    Prozent der 1-m-Zellmittel in einem 51 × 51 m-Fenster. Ergebnis `daten/barnim_oberhoehe.tif` (4,5 MB, Median 28 m).
+  - `hoehenfaktor` in `habitat.py`: bis 3 m 0 (kein Habitat), linear bis 10 m auf 1, darüber 1. Beide Grenzen sind
+    **Annahmen**. Pixel ohne Daten sind neutral (kommt in Barnim nicht vor: 0 von 7,08 Mio. Waldpixeln).
+- **Messfehler gefunden und behoben:** Mit dem oberen Zehntel galten 11,9 % der Buchen- und 4,3 % der Eichenpixel
+  als offen, aber nur 0,1 % der Kiefern (Winterbefliegung ohne Laub: dünnes Kronendach). Mit dem obersten Prozent sind es
+  4,2 % / 0,8 % / 0,0 %. Zwei Rohdaten-Stichproben (größte entfernte 100-m-Blöcke): über 99,6 % der Punkte unter 1 m,
+  dort steht kein Wald (Rodung oder Lichtung; OSM führt die Stellen noch als Wald).
+- **Wirkung:** 605 ha (1,1 %) Steinpilz-Habitat entfallen, 86 ha werden teilweise abgewertet. Fast alles Buche (408 ha)
+  und Eiche (185 ha). Alle 7 Steinpilz-Funde mit Standort behalten ihre Stufe (Oberhöhe 25–33 m). Pfifferling: 578 ha.
+- **Grenzen:** Die Höhe trennt gute von schlechten Beständen nicht (Median 28 m). Fund f08 (3 alte Steinpilze, lückiger
+  Altbestand mit viel Laub) liegt wie die Tipps 1 und 3 in hohem, lückigem Bestand. Dichte (Lückigkeit) wird nicht
+  bewertet, dafür gibt es zu wenige Belege. Die nDOM-Daten sind neuer als die DLR-Baumartenkarte (2022).
+- **Verworfen:** Oberes Zehntel (siehe Messfehler); Alters-Bonus (nicht belegt); Lückigkeit als Abschlag (Annahme, würde
+  f08 und Tipps abwerten).
