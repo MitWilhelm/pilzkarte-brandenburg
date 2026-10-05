@@ -1,5 +1,5 @@
-// Findet Brennpunkte: zusammenhängende Stellen mit sehr hoher Habitat-Stufe, die auf der Karte
-// mit einem Umriss markiert werden. Reine Funktion (kein I/O), arbeitet auf dem Daten-PNG eines Gebiets.
+// Findet Brennpunkte: zusammenhängende Stellen mit sehr hoher Habitat-Stufe, die auf der Karte als
+// farbige Fläche markiert werden. Reine Funktion (kein I/O), arbeitet auf dem Daten-PNG eines Gebiets.
 import { mercatorY, type Gebiet, type Pilzkanal, type Pixel } from "./geo.ts";
 
 export type Hotspotart = "heute" | "letzte-tage";
@@ -35,6 +35,13 @@ const ZELLE_PIXEL = 10; // Daten-Pixel sind 10 m groß: eine Zelle ist 100 m x 1
 const MIN_ANTEIL_HOCH = 0.5; // so viel Anteil einer Zelle muss MIN_STUFE erreichen
 const MIN_ZELLEN = 3; // kleinere Flecken sind keine Empfehlung wert (~3 ha)
 const HEKTAR_PRO_ZELLE = 1;
+// Signalfarben, die sonst nirgends auf der Karte vorkommen: türkis = heute günstig, pink = nur letzte Tage günstig.
+const FARBE_JE_ART: Readonly<Record<Hotspotart, readonly [number, number, number]>> = {
+  heute: [0, 229, 255],
+  "letzte-tage": [255, 43, 214],
+};
+const GRAU: readonly [number, number, number] = [150, 155, 150];
+const BRENNPUNKT_DECKKRAFT = 235; // fast deckend, damit die Fläche auch auf dem Handy in der Sonne heraussticht
 const GRAD_ZU_RAD = Math.PI / 180;
 const NACHBARN: readonly (readonly [number, number])[] = [
   [-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1],
@@ -178,23 +185,41 @@ export function findeHotspots(suche: Hotspotsuche): Hotspot[] {
   return hotspots.sort((a, b) => b.flaecheHektar - a.flaecheHektar);
 }
 
-/** Macht gefärbte Pixel außerhalb der Brennpunkte dieses Gebiets durchsichtig (Ansicht "Nur Brennpunkte"). */
-export function nurInBrennpunkten(
+/**
+ * Ansicht "Brennpunkte": gefärbte Pixel in den Flächen dieses Gebiets bekommen die Signalfarbe ihrer Art
+ * (ganze Fläche statt Umriss), alle übrigen gefärbten Pixel werden grau. Durchsichtige Pixel bleiben durchsichtig.
+ */
+export function faerbeBrennpunkte(
   farben: Uint8ClampedArray<ArrayBuffer>,
   gebiet: Gebiet,
-  brennpunkte: readonly Hotspot[],
+  brennpunkte: readonly MarkierterHotspot[],
 ): Uint8ClampedArray<ArrayBuffer> {
   if (farben.length !== gebiet.breitePixel * gebiet.hoehePixel * KANAELE_PRO_PIXEL) {
     throw new Error(`Invariante verletzt: ${String(farben.length)} Bytes passen nicht zum Gebiet ${gebiet.name}`);
   }
   const zellenBreit = Math.ceil(gebiet.breitePixel / ZELLE_PIXEL);
-  const sichtbar = new Set(brennpunkte.filter((punkt) => punkt.gebietName === gebiet.name).flatMap((punkt) => punkt.zellen));
+  const artJeZelle = new Map<number, Hotspotart>();
+  for (const punkt of brennpunkte) {
+    if (punkt.gebietName === gebiet.name) {
+      for (const zelle of punkt.zellen) {
+        artJeZelle.set(zelle, punkt.art);
+      }
+    }
+  }
   const ergebnis = new Uint8ClampedArray(farben);
   for (let zeile = 0; zeile < gebiet.hoehePixel; zeile += 1) {
     for (let spalte = 0; spalte < gebiet.breitePixel; spalte += 1) {
-      const zelle = Math.floor(zeile / ZELLE_PIXEL) * zellenBreit + Math.floor(spalte / ZELLE_PIXEL);
-      if (!sichtbar.has(zelle)) {
-        ergebnis[(zeile * gebiet.breitePixel + spalte) * KANAELE_PRO_PIXEL + DECKKRAFT_KANAL] = 0;
+      const start = (zeile * gebiet.breitePixel + spalte) * KANAELE_PRO_PIXEL;
+      if (ergebnis[start + DECKKRAFT_KANAL] === 0) {
+        continue;
+      }
+      const art = artJeZelle.get(Math.floor(zeile / ZELLE_PIXEL) * zellenBreit + Math.floor(spalte / ZELLE_PIXEL));
+      const [rot, gruen, blau] = art === undefined ? GRAU : FARBE_JE_ART[art];
+      ergebnis[start] = rot;
+      ergebnis[start + 1] = gruen;
+      ergebnis[start + 2] = blau;
+      if (art !== undefined) {
+        ergebnis[start + DECKKRAFT_KANAL] = BRENNPUNKT_DECKKRAFT;
       }
     }
   }

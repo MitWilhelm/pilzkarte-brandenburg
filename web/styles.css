@@ -165,10 +165,10 @@ p, h1, ol, dl, dd { margin: 0; }
 .ring-legende { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; font-size: 13px; color: var(--leise); }
 .ring-legende li { display: flex; align-items: center; gap: 8px; }
 /* Gleiche Farben wie die Umrisse auf der Karte (src/karte.ts), mit dunklem Rand für Kontrast. */
-.umrissfeld { flex: none; width: 14px; height: 14px; border-radius: 2px; border: 3px solid; box-shadow: 0 0 0 2px #0b0f14; }
-.umrissfeld-neu { border-color: #00e5ff; }
-.umrissfeld-alt { border-color: #ff2bd6; }
-/* Knopf "Nur Brennpunkte": gedrückt in der Umriss-Farbe, damit der Zustand ohne Text erkennbar ist. */
+.flaechenfeld { flex: none; width: 20px; height: 14px; border-radius: 3px; }
+.flaechenfeld-neu { background: #00e5ff; }
+.flaechenfeld-alt { background: #ff2bd6; }
+/* Knopf "Brennpunkte": gedrückt in der Brennpunkt-Farbe, damit der Zustand ohne Text erkennbar ist. */
 .maplibregl-ctrl-group .knopf-brennpunkte { display: grid; place-items: center; color: var(--text); }
 .maplibregl-ctrl-group .knopf-brennpunkte[aria-pressed="true"] { background: #00e5ff; color: #0b0f14; }
 .brennpunktfeld { flex: none; width: 14px; height: 14px; border-radius: 3px; background: #00e5ff; box-shadow: 0 0 0 2px #0b0f14; }

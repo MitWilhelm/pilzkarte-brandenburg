@@ -2,7 +2,7 @@
 // OSM-Kacheln: Nutzungsrichtlinie verlangt Namensnennung und geringe Last (private Nutzung).
 import maplibregl from "maplibre-gl";
 import { faerbeOverlay, standortAusGpsEreignis, type Gebiet, type Pilzkanal, type Standort } from "./geo.ts";
-import { nurInBrennpunkten, type Hotspot, type MarkierterHotspot } from "./hotspots.ts";
+import { faerbeBrennpunkte, type MarkierterHotspot } from "./hotspots.ts";
 
 const OSM_KACHELN = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_HINWEIS = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap-Mitwirkende</a>';
@@ -12,12 +12,6 @@ const MAX_ZOOM = 19;
 const START_ZOOM = 13;
 const HEATMAP_DECKKRAFT = 0.6; // etwas durchsichtiger, damit Wege darunter lesbar bleiben
 const BODEN_LINIENBREITE = 0.6;
-const HOTSPOT_QUELLE = "hotspots";
-// Ansicht "Nur Brennpunkte": Hintergrund grau und dunkler, damit die Umrisse herausstechen.
-const GEDIMMT_HELLIGKEIT = 0.6;
-const GEDIMMT_SAETTIGUNG = -1;
-const UMRISS_RAND_BREITE: readonly [number, number, number, number] = [12, 7, 16, 12];
-const UMRISS_BREITE: readonly [number, number, number, number] = [12, 4, 16, 7];
 
 // Dunkelmodus: OSM-Kacheln gibt es nur hell; Helligkeit umkehren und Farbton drehen ergibt eine dunkle Karte
 // mit ungefähr gleichen Farben (Wasser bleibt bläulich, Wald grünlich).
@@ -71,7 +65,7 @@ export interface Kartenebene {
 
 export interface Heatmapansicht {
   readonly kanal: Pilzkanal;
-  readonly brennpunkte: readonly Hotspot[] | null; // null: ganze Heatmap; sonst nur innerhalb dieser Flächen
+  readonly brennpunkte: readonly MarkierterHotspot[] | null; // null: normale Heatmap; sonst Flächen farbig, Rest grau
 }
 
 function bildUrl(ebene: Kartenebene, ansicht: Heatmapansicht): string {
@@ -84,7 +78,7 @@ function bildUrl(ebene: Kartenebene, ansicht: Heatmapansicht): string {
     throw new Error("Invariante verletzt: kein 2D-Zeichenkontext verfügbar");
   }
   const farben = faerbeOverlay(daten.data, ansicht.kanal);
-  const sichtbar = ansicht.brennpunkte === null ? farben : nurInBrennpunkten(farben, gebiet, ansicht.brennpunkte);
+  const sichtbar = ansicht.brennpunkte === null ? farben : faerbeBrennpunkte(farben, gebiet, ansicht.brennpunkte);
   zeichnung.putImageData(new ImageData(sichtbar, daten.width, daten.height), 0, 0);
   return leinwand.toDataURL("image/png");
 }
@@ -93,19 +87,17 @@ function farbschema(): Farbschema {
   return window.matchMedia(DUNKEL_ABFRAGE).matches ? DUNKEL : HELL;
 }
 
-function rasterFarben(schema: Farbschema, isGedimmt: boolean): NonNullable<maplibregl.RasterLayerSpecification["paint"]> {
-  const helligkeit = isGedimmt ? GEDIMMT_HELLIGKEIT : 1;
+function rasterFarben(schema: Farbschema): NonNullable<maplibregl.RasterLayerSpecification["paint"]> {
   return {
-    "raster-brightness-min": schema.rasterHellMin * helligkeit,
-    "raster-brightness-max": schema.rasterHellMax * helligkeit,
+    "raster-brightness-min": schema.rasterHellMin,
+    "raster-brightness-max": schema.rasterHellMax,
     "raster-hue-rotate": schema.rasterFarbton,
-    "raster-saturation": isGedimmt ? GEDIMMT_SAETTIGUNG : schema.rasterSaettigung,
+    "raster-saturation": schema.rasterSaettigung,
   };
 }
 
-/** Hintergrundkarte grau und dunkler (Ansicht "Nur Brennpunkte") oder normal; beachtet Hell/Dunkel. */
-export function dimmeHintergrund(karte: maplibregl.Map, isGedimmt: boolean): void {
-  const farben = rasterFarben(farbschema(), isGedimmt);
+function faerbeHintergrund(karte: maplibregl.Map): void {
+  const farben = rasterFarben(farbschema());
   karte.setPaintProperty("osm", "raster-brightness-min", farben["raster-brightness-min"]);
   karte.setPaintProperty("osm", "raster-brightness-max", farben["raster-brightness-max"]);
   karte.setPaintProperty("osm", "raster-hue-rotate", farben["raster-hue-rotate"]);
@@ -117,10 +109,10 @@ function breite(stufen: readonly [number, number, number, number]): maplibregl.E
 }
 
 /** Folgt dem Hell/Dunkel-Modus des Geräts: Hintergrundkarte und Wegfarben. */
-export function folgeFarbschema(karte: maplibregl.Map, ebenen: readonly Kartenebene[], isGedimmt: () => boolean): void {
+export function folgeFarbschema(karte: maplibregl.Map, ebenen: readonly Kartenebene[]): void {
   const anwenden = (): void => {
     const schema = farbschema();
-    dimmeHintergrund(karte, isGedimmt());
+    faerbeHintergrund(karte);
     for (const { gebiet } of ebenen) {
       karte.setPaintProperty(`wege-rand-${gebiet.name}`, "line-color", schema.wegRand);
       karte.setPaintProperty(`wege-${gebiet.name}`, "line-color", schema.weg);
@@ -147,7 +139,7 @@ export function erzeugeKarte(
       sources: {
         osm: { type: "raster", tiles: [OSM_KACHELN], tileSize: KACHEL_PIXEL, attribution: OSM_HINWEIS, maxzoom: MAX_ZOOM },
       },
-      layers: [{ id: "osm", type: "raster", source: "osm", paint: rasterFarben(farbschema(), false) }],
+      layers: [{ id: "osm", type: "raster", source: "osm", paint: rasterFarben(farbschema()) }],
     },
   });
   karte.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
@@ -303,41 +295,3 @@ export function bodenAnPunkt(karte: maplibregl.Map, punkt: maplibregl.Point, geb
   return typeof boden === "string" ? boden : null;
 }
 
-/** Umriss-Ebene für Brennpunkte; liegt über der Heatmap, die Daten kommen mit zeigeHotspots. */
-export function fuegeHotspotEbeneHinzu(karte: maplibregl.Map): void {
-  karte.addSource(HOTSPOT_QUELLE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-  // Zwei Linien: dunkler Rand für Kontrast auf Rot und Gelb, farbige Linie darüber.
-  karte.addLayer({
-    id: "hotspot-rand",
-    type: "line",
-    source: HOTSPOT_QUELLE,
-    layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": "#0b0f14", "line-opacity": 0.9, "line-width": breite(UMRISS_RAND_BREITE) },
-  });
-  karte.addLayer({
-    id: "hotspot-umriss",
-    type: "line",
-    source: HOTSPOT_QUELLE,
-    layout: { "line-cap": "round", "line-join": "round" },
-    paint: {
-      // cyan: heute günstig; magenta: nur in den letzten Tagen günstig (Signalfarben, sonst nirgends auf der Karte)
-      "line-color": ["match", ["get", "art"], "letzte-tage", "#ff2bd6", "#00e5ff"],
-      "line-width": breite(UMRISS_BREITE),
-    },
-  });
-}
-
-export function zeigeHotspots(karte: maplibregl.Map, hotspots: readonly MarkierterHotspot[]): void {
-  const quelle = karte.getSource(HOTSPOT_QUELLE);
-  if (!(quelle instanceof maplibregl.GeoJSONSource)) {
-    throw new Error("Invariante verletzt: Hotspot-Quelle fehlt");
-  }
-  quelle.setData({
-    type: "FeatureCollection",
-    features: hotspots.map((hotspot) => ({
-      type: "Feature",
-      properties: { flaecheHektar: hotspot.flaecheHektar, art: hotspot.art },
-      geometry: { type: "MultiLineString", coordinates: hotspot.umriss.map(([von, bis]) => [[...von], [...bis]]) },
-    })),
-  });
-}

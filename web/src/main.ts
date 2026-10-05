@@ -5,13 +5,10 @@ import {
   erzeugeKarte,
   fuegeEbenenHinzu,
   folgeFarbschema,
-  fuegeHotspotEbeneHinzu,
   zeigeBodengrenzen,
-  dimmeHintergrund,
   fuegeKnopfHinzu,
   beiGpsStandort,
   zeigeHeatmap,
-  zeigeHotspots,
   type Kartenebene,
 } from "./karte.ts";
 import { findeHotspots, hotspotart, type Hotspot, type Hotspotart, type MarkierterHotspot } from "./hotspots.ts";
@@ -46,7 +43,7 @@ interface Zustand {
   gebiet: Gebiet;
   markierung: maplibregl.Marker | null;
   letzterTipp: maplibregl.MapMouseEvent | null; // für Neubewertung beim Wechsel der Pilzart
-  isNurBrennpunkte: boolean;
+  isBrennpunkteAn: boolean; // Knopf: Brennpunkt-Flächen türkis/pink, übrige Heatmap grau
   brennpunkte: readonly MarkierterHotspot[]; // zuletzt markierte Flächen der gewählten Pilzart
 }
 
@@ -82,7 +79,7 @@ async function aktualisiereGebietsindex(zustand: Zustand): Promise<void> {
   }
 }
 
-/** Art des Umrisses für eine Fläche aus ihrem eigenen Wetter (heute bzw. letzte TAGE_RUECKBLICK Tage) oder null. */
+/** Art (Farbe) eines Brennpunkts aus ihrem eigenen Wetter (heute bzw. letzte TAGE_RUECKBLICK Tage) oder null. */
 async function ringart(hotspot: Hotspot, pilz: Pilzart): Promise<Hotspotart | null> {
   const reihe = await wetterFuer(hotspot.breite, hotspot.laenge);
   const indizes: number[] = [];
@@ -101,12 +98,11 @@ async function indexHeuteAn(breite: number, laenge: number, pilz: Pilzart): Prom
   return tagesindex(reihe.tage, reihe.heute, pilz).index;
 }
 
-/** Umrisse mit dem Wetter je Fläche (statt Gebietsmitte); nahe Stellen teilen sich einen Abruf (WETTER_RASTER_GRAD). */
 function zeigeAnsicht(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zustand: Zustand): void {
-  zeigeHeatmap(karte, ebenen, { kanal: KANAL_JE_PILZ[zustand.pilz], brennpunkte: zustand.isNurBrennpunkte ? zustand.brennpunkte : null });
-  dimmeHintergrund(karte, zustand.isNurBrennpunkte);
+  zeigeHeatmap(karte, ebenen, { kanal: KANAL_JE_PILZ[zustand.pilz], brennpunkte: zustand.isBrennpunkteAn ? zustand.brennpunkte : null });
 }
 
+/** Brennpunkte mit dem Wetter je Fläche (statt Gebietsmitte); nahe Stellen teilen sich einen Abruf (WETTER_RASTER_GRAD). */
 async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zustand: Zustand): Promise<void> {
   const pilz = zustand.pilz;
   const kandidaten = ebenen.flatMap(({ gebiet, daten }) => findeHotspots({ daten: daten.data, kanal: KANAL_JE_PILZ[pilz], gebiet }));
@@ -116,7 +112,7 @@ async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kart
         const art = await ringart(hotspot, pilz);
         return art === null ? null : { ...hotspot, art };
       } catch {
-        // Ohne Wetter kein Index und kein Umriss an dieser Stelle; den Fehler zeigt aktualisiereGebietsindex schon an.
+        // Ohne Wetter kein Index und keine Brennpunkt-Farbe an dieser Stelle; den Fehler zeigt aktualisiereGebietsindex schon an.
         return null;
       }
     }),
@@ -125,8 +121,7 @@ async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kart
     return; // inzwischen andere Pilzart gewählt; deren Suche zeichnet selbst
   }
   zustand.brennpunkte = markiert.filter((eintrag): eintrag is MarkierterHotspot => eintrag !== null);
-  zeigeHotspots(karte, zustand.brennpunkte);
-  if (zustand.isNurBrennpunkte) {
+  if (zustand.isBrennpunkteAn) {
     zeigeAnsicht(karte, ebenen, zustand);
   }
 }
@@ -179,7 +174,7 @@ async function start(): Promise<void> {
     gebiet: erstes,
     markierung: null,
     letzterTipp: null,
-    isNurBrennpunkte: false,
+    isBrennpunkteAn: false,
     brennpunkte: [],
   };
   zeigeSchutzhinweis(SCHUTZHINWEISE[erstes.name] ?? null);
@@ -195,8 +190,7 @@ async function start(): Promise<void> {
   );
   await stilGeladen;
   fuegeEbenenHinzu(karte, ebenen, KANAL_JE_PILZ[zustand.pilz]);
-  fuegeHotspotEbeneHinzu(karte);
-  folgeFarbschema(karte, ebenen, () => zustand.isNurBrennpunkte);
+  folgeFarbschema(karte, ebenen);
   beiGpsStandort(
     standortSteuerung,
     richteMeldenEin({
@@ -211,8 +205,8 @@ async function start(): Promise<void> {
   const knopf = element("nur-brennpunkte", HTMLButtonElement);
   fuegeKnopfHinzu(karte, knopf);
   knopf.addEventListener("click", () => {
-    zustand.isNurBrennpunkte = !zustand.isNurBrennpunkte;
-    knopf.setAttribute("aria-pressed", String(zustand.isNurBrennpunkte));
+    zustand.isBrennpunkteAn = !zustand.isBrennpunkteAn;
+    knopf.setAttribute("aria-pressed", String(zustand.isBrennpunkteAn));
     zeigeAnsicht(karte, ebenen, zustand);
   });
 

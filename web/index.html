@@ -28,7 +28,7 @@
 
 <main id="karte" class="karte" aria-label="Karte mit Habitat-Heatmap"></main>
 <!-- Wird von src/karte.ts als Kartenschalter unter Zoom und GPS eingesetzt. -->
-<button type="button" id="nur-brennpunkte" class="knopf-brennpunkte" aria-pressed="false" aria-label="Nur Brennpunkte zeigen, Rest der Karte abdunkeln" title="Nur Brennpunkte" hidden>
+<button type="button" id="nur-brennpunkte" class="knopf-brennpunkte" aria-pressed="false" aria-label="Brennpunkte farbig zeigen, übrige Flächen grau" title="Brennpunkte" hidden>
   <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/></svg>
 </button>
 
@@ -79,16 +79,16 @@
     <li><span class="strassefeld" role="img" aria-label="Straße"></span>Straße für Autos</li>
     <li><span class="wegfeld" role="img" aria-label="Forstweg"></span>Forstweg (meist für Autos gesperrt)</li>
     <li><span class="pfadfeld" role="img" aria-label="Pfad"></span>Pfad, Rückegasse, Waldspur</li>
-    <li><span class="umrissfeld umrissfeld-neu" role="img" aria-label="türkiser Umriss"></span>Türkiser Umriss: gute Fläche (ab Stufe 85), Wachstumsindex heute günstig</li>
-    <li><span class="umrissfeld umrissfeld-alt" role="img" aria-label="pinker Umriss"></span>Pinker Umriss: gute Fläche, nur in den letzten 7 Tagen günstig (ältere, große Pilze)</li>
-    <li><span class="brennpunktfeld" role="img" aria-label="Knopf Nur Brennpunkte"></span>Knopf rechts: nur Brennpunkte zeigen, Rest grau</li>
+    <li><span class="brennpunktfeld" role="img" aria-label="Knopf Brennpunkte"></span>Knopf rechts: Brennpunkte farbig zeigen, übrige Flächen grau</li>
+    <li><span class="flaechenfeld flaechenfeld-neu" role="img" aria-label="türkise Fläche"></span>Türkis: gute Fläche (ab Stufe 85), Wachstumsindex heute günstig</li>
+    <li><span class="flaechenfeld flaechenfeld-alt" role="img" aria-label="pinke Fläche"></span>Pink: gute Fläche, nur in den letzten 7 Tagen günstig (ältere, große Pilze)</li>
   </ul>
   <p class="hinweis hinweis-warnung" id="schutz-hinweis" hidden></p>
 
   <details class="legende">
     <summary>Legende, Ebenen und Quellen</summary>
     <ul class="legende-liste" id="legende"></ul>
-    <p class="legende-text">Die Farbe zeigt, wie gut eine Stelle <em>im Vergleich zum übrigen Gebiet</em> zu Baumart, Boden und Mischung der Bäume passt. Der Wachstumsindex schätzt aus Regen, Lufttemperatur, Bodenfeuchte und Jahreszeit, ob gerade Pilze wachsen. Ein <strong>Umriss</strong> zeigt zusammenhängende Flächen ab Stufe 85 („Gut“ bis „Sehr gut“, ab 3 ha, in 100-m-Feldern): <strong>türkis</strong>, wenn der Wachstumsindex dort heute mindestens 60 beträgt, <strong>pink</strong>, wenn er nur in den letzten 7 Tagen mindestens 60 erreichte (dort sind ältere, große Pilze möglich). Regen der letzten drei Wochen zählt stufenlos, am stärksten ein bis zwei Wochen danach. Feuchter Boden bei 11–15 °C (Mittel der letzten 5 Tage) ergibt auch ohne Regen einen mittleren Index; Kälte und Wärme senken ihn, warm und trocken (über 17,5 °C) stark. Jede Fläche nutzt das Wetter an ihrer eigenen Stelle. Ränder von Forstwegen und Pfaden bis etwa 25 m sind leicht aufgewertet.</p>
+    <p class="legende-text">Die Farbe zeigt, wie gut eine Stelle <em>im Vergleich zum übrigen Gebiet</em> zu Baumart, Boden und Mischung der Bäume passt. Der Wachstumsindex schätzt aus Regen, Lufttemperatur, Bodenfeuchte und Jahreszeit, ob gerade Pilze wachsen. Der Knopf <strong>Brennpunkte</strong> färbt zusammenhängende Flächen ab Stufe 85 („Gut“ bis „Sehr gut“, ab 3 ha, in 100-m-Feldern) und macht den Rest grau: <strong>türkis</strong>, wenn der Wachstumsindex dort heute mindestens 60 beträgt, <strong>pink</strong>, wenn er nur in den letzten 7 Tagen mindestens 60 erreichte (dort sind ältere, große Pilze möglich). Regen der letzten drei Wochen zählt stufenlos, am stärksten ein bis zwei Wochen danach. Feuchter Boden bei 11–15 °C (Mittel der letzten 5 Tage) ergibt auch ohne Regen einen mittleren Index; Kälte und Wärme senken ihn, warm und trocken (über 17,5 °C) stark. Jede Fläche nutzt das Wetter an ihrer eigenen Stelle. Ränder von Forstwegen und Pfaden bis etwa 25 m sind leicht aufgewertet.</p>
     <label class="schalter"><input type="checkbox" id="bodengrenzen"> Grenzen der Bodenflächen zeigen</label>
     <p class="legende-text klein">Baumarten 2022: © DLR, CC-BY-4.0 · Standortskarte und Waldflächen: Landesbetrieb Forst Brandenburg, dl-de/by-2-0 · Wetter: Open-Meteo.com, CC-BY-4.0 · Karte: © OpenStreetMap-Mitwirkende, ODbL</p>
     <p class="legende-text klein">Die Karte ersetzt keine Pilzbestimmung. Funde vor dem Verzehr von einer Pilzberatungsstelle prüfen lassen.</p>

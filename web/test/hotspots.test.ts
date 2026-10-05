@@ -1,7 +1,7 @@
 // Tests für die Brennpunkt-Suche in src/hotspots.ts (synthetische Daten-Bilder, kein Netzwerk).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findeHotspots, flaecheAnStelle, hotspotart, koordinateAnPixel, MIN_STUFE, nurInBrennpunkten } from "../src/hotspots.ts";
+import { faerbeBrennpunkte, findeHotspots, flaecheAnStelle, hotspotart, koordinateAnPixel, MIN_STUFE } from "../src/hotspots.ts";
 import { pixelAnStelle, type Gebiet } from "../src/geo.ts";
 
 const BREITE = 60;
@@ -116,18 +116,25 @@ test("bei einer L-förmigen Fläche liegt der Ankerpunkt auf der Fläche, nicht 
   assert.ok(pixel.zeile < 10 || pixel.spalte < 10, `Anker bei ${String(pixel.spalte)}/${String(pixel.zeile)} liegt außerhalb der Fläche`);
 });
 
-test("in der Ansicht Nur Brennpunkte bleiben nur Pixel in den Flächen des eigenen Gebiets sichtbar", () => {
+test("mit Brennpunkten an wird die Fläche türkis bzw. pink, alles übrige grau und Durchsichtiges bleibt durchsichtig", () => {
   const gebiet = kleinesGebiet();
-  const brennpunkte = findeHotspots({ daten: bildMitBlock(95, { von: 10, bis: 40 }), kanal: 1, gebiet });
-  const fremdes = brennpunkte.map((punkt) => ({ ...punkt, gebietName: "anderes" }));
-  const farben = new Uint8ClampedArray(BREITE * HOEHE * 4).fill(255);
-  const deckkraft = (bild: Uint8ClampedArray, spalte: number, zeile: number): number | undefined => bild[(zeile * BREITE + spalte) * 4 + 3];
-  const eigene = nurInBrennpunkten(farben, gebiet, brennpunkte);
-  assert.equal(deckkraft(eigene, 25, 25), 255);
-  assert.equal(deckkraft(eigene, 5, 5), 0);
-  assert.equal(deckkraft(eigene, 45, 25), 0);
-  assert.equal(deckkraft(nurInBrennpunkten(farben, gebiet, fremdes), 25, 25), 0);
-  assert.equal(deckkraft(farben, 5, 5), 255, "das Eingangsbild bleibt unverändert");
+  const flaechen = findeHotspots({ daten: bildMitBlock(95, { von: 10, bis: 40 }), kanal: 1, gebiet });
+  const heute = flaechen.map((punkt) => ({ ...punkt, art: "heute" as const }));
+  const letzteTage = flaechen.map((punkt) => ({ ...punkt, art: "letzte-tage" as const }));
+  const fremdes = heute.map((punkt) => ({ ...punkt, gebietName: "anderes" }));
+  const farben = new Uint8ClampedArray(BREITE * HOEHE * 4).fill(200);
+  const durchsichtig = (0 * BREITE + 0) * 4 + 3;
+  farben[durchsichtig] = 0;
+  const pixel = (bild: Uint8ClampedArray, spalte: number, zeile: number): number[] => {
+    const start = (zeile * BREITE + spalte) * 4;
+    return Array.from(bild.slice(start, start + 4));
+  };
+  assert.deepEqual(pixel(faerbeBrennpunkte(farben, gebiet, heute), 25, 25), [0, 229, 255, 235]);
+  assert.deepEqual(pixel(faerbeBrennpunkte(farben, gebiet, letzteTage), 25, 25), [255, 43, 214, 235]);
+  assert.deepEqual(pixel(faerbeBrennpunkte(farben, gebiet, heute), 45, 25), [150, 155, 150, 200]);
+  assert.deepEqual(pixel(faerbeBrennpunkte(farben, gebiet, fremdes), 25, 25), [150, 155, 150, 200]);
+  assert.equal(faerbeBrennpunkte(farben, gebiet, heute)[durchsichtig], 0);
+  assert.deepEqual(pixel(farben, 25, 25), [200, 200, 200, 200], "das Eingangsbild bleibt unverändert");
 });
 
 test("die Fläche an einer Stelle wird über die 100-m-Zelle gefunden, daneben und in einem anderen Gebiet nicht", () => {
