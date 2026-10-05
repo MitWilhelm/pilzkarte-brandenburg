@@ -1,5 +1,6 @@
 # Baut die Webseite (web/) und veröffentlicht sie auf GitHub Pages.
 # Prüft vorher Typen, Lint und Tests – eine fehlerhafte Version wird nicht veröffentlicht.
+# Täglich morgens neu, damit tageswerte.json (Brennpunkte mit Wetter, Tipps) aktuell ist.
 name: Webseite veröffentlichen
 
 on:
@@ -7,6 +8,9 @@ on:
     branches: [webseite, main]
     paths: [web/**, .github/workflows/pages.yml]
   workflow_dispatch:
+  schedule:
+    # 04:00 UTC = 06:00 Sommerzeit / 05:00 Winterzeit. GitHub startet geplante Läufe oft einige Minuten später.
+    - cron: "0 4 * * *"
 
 permissions:
   contents: read
@@ -35,6 +39,10 @@ jobs:
       - run: npx eslint .
       - run: npm test
       - run: npm run build
+      # Fällt Open-Meteo aus, wird trotzdem veröffentlicht; die Seite bewertet die Brennpunkte dann live.
+      - name: Tageswerte (Brennpunkte mit Wetter) vorberechnen
+        run: node scripts/tageswerte.ts dist/daten/barnim/tageswerte.json
+        continue-on-error: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist

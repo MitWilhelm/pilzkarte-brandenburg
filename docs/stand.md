@@ -17,7 +17,8 @@ Die mobile Karte „Pilzkarte Barnim“ ist live (GitHub Pages, gebaut von `main
 | Wege | `pipeline/io_waldwege.py` → `web/public/daten/barnim/*_wege.geojson` | OSM: Straße (gelb), Forstweg (weiß), Pfad (gestrichelt); nur im Wald (+50 m), Rohantwort lokal in `rohdaten/barnim_wege/` |
 | Brennpunkte | `web/src/hotspots.ts`, `karte.ts` | Knopf rechts: Flächen ab Stufe 85 ganz türkis (Index heute günstig) bzw. pink (letzte 7 Tage), übrige Heatmap grau |
 | Stellen-Box | `web/src/ansicht.ts`, `index.html` | Kompakte Vorschau (Kennziffer, Bewertung, Index, Route/Komoot/Details), Details klappen nach oben auf |
-| Index oben, Sprungliste | `web/src/main.ts` | Index für GPS-Standort, sonst Kartenmitte; Sprungliste Joachimsthal, Schwärzesee |
+| Index oben | `web/src/main.ts` | Index für GPS-Standort, sonst Kartenmitte; Schutzhinweis Schwärzesee nach Nähe (2 km) |
+| Tageswerte, Tipps | `web/scripts/tageswerte.ts`, `src/tageswerte.ts`, `pages.yml` (täglich 04:00 UTC) | Brennpunkte mit Wetter vorberechnet; Top 5 Steinpilz als Pilz-Markierung; Legende über Kartenknopf, Tafel startet eingeklappt |
 | Melden | `web/src/meldung.ts`, `melden.ts`, `clients/meldespeicher.ts` | Fund oder „Nichts gefunden“ + Waldbeschreibung, nur mit GPS ≤ 30 m, im Handy gespeichert, „Senden“ öffnet GitHub-Issue (Label `meldung`) |
 | Barnim-Bodenwerte | `daten/barnim_stok_antworten_1.jsonl`, `_2.jsonl`, `_nachholen.jsonl` | Alle 21.763 Standortflächen abgefragt, alle mit Bodenangaben (34 Nachholer) |
 

@@ -10,11 +10,13 @@ import {
   fuegeKnopfHinzu,
   beiGpsStandort,
   zeigeHeatmap,
+  zeigeTipps,
   type Kartenebene,
 } from "./karte.ts";
-import { findeHotspots, hotspotart, type Hotspot, type Hotspotart, type MarkierterHotspot } from "./hotspots.ts";
+import { findeHotspots, type Brennpunktflaeche, type Hotspot, type Hotspotart, type MarkierterHotspot } from "./hotspots.ts";
+import { brennpunktArt, topSammelplaetze, wetterSchluessel, type Tagesbrennpunkt, type Tageswerte } from "./tageswerte.ts";
 import { abstandMeter, baumartName, gebieteImAusschnitt, KANAL_JE_PILZ, pixelAnStelle, stufeninfo, type Gebiet } from "./geo.ts";
-import { ladeDatenbild, ladeGebiete } from "./clients/daten.ts";
+import { ladeDatenbild, ladeGebiete, ladeTageswerte } from "./clients/daten.ts";
 import { richteMeldenEin } from "./melden.ts";
 import { ladeWetter, type Wetterreihe } from "./clients/openmeteo.ts";
 import { indexverlauf, tagesindex, type Pilzart } from "./wachstum.ts";
@@ -37,8 +39,8 @@ import {
 } from "./ansicht.ts";
 
 const KANAELE_PRO_PIXEL = 4;
-const WETTER_RASTER_GRAD = 0.02; // ~2 km: nahe Punkte teilen sich einen Wetterabruf
-const TAGE_RUECKBLICK = 7; // so weit zurück zählt ein günstiger Index für ältere, große Pilze
+const ANZAHL_TIPPS = 5;
+const STAND_FORMAT = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
 const PILZNAMEN: Readonly<Record<Pilzart, string>> = { steinpilz: "Steinpilz", pfifferling: "Pfifferling" };
 const KACHEL_ORDNER = "daten/barnim";
 const KACHEL_UEBERSICHT = "kacheln.json";
@@ -69,14 +71,14 @@ interface Zustand {
   markierung: maplibregl.Marker | null;
   letzterTipp: maplibregl.MapMouseEvent | null; // für Neubewertung beim Wechsel der Pilzart
   isBrennpunkteAn: boolean; // Knopf: Brennpunkt-Flächen türkis/pink, übrige Heatmap grau
-  brennpunkte: readonly MarkierterHotspot[]; // zuletzt markierte Flächen der gewählten Pilzart
+  brennpunkte: readonly Brennpunktflaeche[]; // zuletzt markierte Flächen der gewählten Pilzart
+  tageswerte: Tageswerte | null; // morgens vorberechnet; null: Brennpunkte werden live mit Wetter bewertet
 }
 
 const wetterSpeicher = new Map<string, Promise<Wetterreihe>>();
 
 function wetterFuer(breite: number, laenge: number): Promise<Wetterreihe> {
-  const runden = (wert: number): string => (Math.round(wert / WETTER_RASTER_GRAD) * WETTER_RASTER_GRAD).toFixed(2);
-  const schluessel = `${runden(breite)},${runden(laenge)}`;
+  const schluessel = wetterSchluessel(breite, laenge);
   const vorhanden = wetterSpeicher.get(schluessel);
   if (vorhanden !== undefined) {
     return vorhanden;
@@ -110,18 +112,10 @@ async function aktualisiereIndex(zustand: Zustand): Promise<void> {
   }
 }
 
-/** Art (Farbe) eines Brennpunkts aus ihrem eigenen Wetter (heute bzw. letzte TAGE_RUECKBLICK Tage) oder null. */
+/** Art (Farbe) eines Brennpunkts aus dem Wetter an seiner Stelle (heute bzw. letzte 7 Tage) oder null. */
 async function ringart(hotspot: Hotspot, pilz: Pilzart): Promise<Hotspotart | null> {
   const reihe = await wetterFuer(hotspot.breite, hotspot.laenge);
-  const indizes: number[] = [];
-  for (let position = Math.max(0, reihe.heute - TAGE_RUECKBLICK); position <= reihe.heute; position += 1) {
-    indizes.push(tagesindex(reihe.tage, position, pilz).index);
-  }
-  const indexHeute = indizes[indizes.length - 1];
-  if (indexHeute === undefined) {
-    throw new Error("Invariante verletzt: keine Indexwerte für den Rückblick");
-  }
-  return hotspotart(indexHeute, Math.max(...indizes));
+  return brennpunktArt(reihe.tage, reihe.heute, pilz).art;
 }
 
 async function indexHeuteAn(breite: number, laenge: number, pilz: Pilzart): Promise<number> {
@@ -133,9 +127,20 @@ function zeigeAnsicht(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zus
   zeigeHeatmap(karte, ebenen, { kanal: KANAL_JE_PILZ[zustand.pilz], brennpunkte: zustand.isBrennpunkteAn ? zustand.brennpunkte : null });
 }
 
-/** Brennpunkte mit dem Wetter je Fläche (statt Gebietsmitte); nahe Stellen teilen sich einen Abruf (WETTER_RASTER_GRAD). */
+/**
+ * Brennpunkte der geladenen Kacheln: aus tageswerte.json (morgens vorberechnet, keine Wetterabrufe) oder, wenn die
+ * Datei fehlt, live mit dem Wetter je Fläche; nahe Stellen teilen sich dann einen Abruf (wetterSchluessel).
+ */
 async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zustand: Zustand): Promise<void> {
   const pilz = zustand.pilz;
+  if (zustand.tageswerte !== null) {
+    const geladen = new Set(ebenen.map((ebene) => ebene.gebiet.name));
+    zustand.brennpunkte = zustand.tageswerte[pilz].filter((punkt) => geladen.has(punkt.gebietName));
+    if (zustand.isBrennpunkteAn) {
+      zeigeAnsicht(karte, ebenen, zustand);
+    }
+    return;
+  }
   const kandidaten = ebenen.flatMap(({ gebiet, daten }) => findeHotspots({ daten: daten.data, kanal: KANAL_JE_PILZ[pilz], gebiet }));
   const markiert = await Promise.all(
     kandidaten.map(async (hotspot): Promise<MarkierterHotspot | null> => {
@@ -143,7 +148,7 @@ async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kart
         const art = await ringart(hotspot, pilz);
         return art === null ? null : { ...hotspot, art };
       } catch {
-        // Ohne Wetter kein Index und keine Brennpunkt-Farbe an dieser Stelle; den Fehler zeigt aktualisiereGebietsindex schon an.
+        // Ohne Wetter kein Index und keine Brennpunkt-Farbe an dieser Stelle; den Fehler zeigt aktualisiereIndex schon an.
         return null;
       }
     }),
@@ -239,9 +244,29 @@ async function ladeSichtbare(lader: Kachellader, zustand: Zustand): Promise<void
   await aktualisiereHotspots(karte, ebenen, zustand);
 }
 
+function tippZeilen(punkt: Tagesbrennpunkt, stand: string): string[] {
+  const wachstum = punkt.art === "heute" ? "wächst heute" : "günstig in den letzten 7 Tagen";
+  return [
+    "Steinpilz-Tipp",
+    `${String(punkt.flaecheHektar)} ha zusammenhängend, ${wachstum}`,
+    `Wachstumsindex heute: ${String(punkt.indexHeute)}`,
+    `Stand: ${stand}`,
+  ];
+}
+
+/** Lädt tageswerte.json; fehlt sie (z. B. lokal ohne Vorberechnung), rechnet die Seite live wie bisher. */
+async function ladeTageswerteOderNull(): Promise<Tageswerte | null> {
+  try {
+    return await ladeTageswerte(KACHEL_ORDNER);
+  } catch (fehler) {
+    console.warn(`Tageswerte nicht geladen, Brennpunkte werden live bewertet: ${fehlertext(fehler)}`);
+    return null;
+  }
+}
+
 async function start(): Promise<void> {
   fuelleLegende();
-  const kacheln = await ladeGebiete(KACHEL_ORDNER, KACHEL_UEBERSICHT);
+  const [kacheln, tageswerte] = await Promise.all([ladeGebiete(KACHEL_ORDNER, KACHEL_UEBERSICHT), ladeTageswerteOderNull()]);
   const zustand: Zustand = {
     pilz: "steinpilz",
     indexOrt: { name: "Kartenmitte", breite: START_MITTE[1], laenge: START_MITTE[0] },
@@ -250,6 +275,7 @@ async function start(): Promise<void> {
     letzterTipp: null,
     isBrennpunkteAn: false,
     brennpunkte: [],
+    tageswerte,
   };
   void aktualisiereIndex(zustand);
 
@@ -260,6 +286,18 @@ async function start(): Promise<void> {
   const ebenen: Kartenebene[] = [];
   const lader: Kachellader = { karte, alle: kacheln, ebenen, angefragt: new Set<string>() };
   folgeFarbschema(karte, ebenen);
+  if (tageswerte !== null) {
+    const stand = STAND_FORMAT.format(new Date(tageswerte.erstellt));
+    zeigeTipps(
+      karte,
+      topSammelplaetze(tageswerte.steinpilz, ANZAHL_TIPPS).map((punkt, nummer) => ({
+        nummer: nummer + 1,
+        laenge: punkt.laenge,
+        breite: punkt.breite,
+        zeilen: tippZeilen(punkt, stand),
+      })),
+    );
+  }
   const meldeStandort = richteMeldenEin({
     ebenen,
     aktuellePilzart: () => zustand.pilz,

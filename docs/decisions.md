@@ -242,3 +242,23 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   Verwerfen von Hang und Kronenhöhe ohnehin ungenutzt. Die Sprungliste der Webseite nennt die beiden Orte weiter.
 - **Prüfung:** Alle Barnim-Ausgaben nach dem Umbau Byte für Byte gleich (Wege, Heatmap, Kacheln).
 - **Verworfen:** Nur die Dateien löschen und den Code stehen lassen – die Testgebiet-Läufe wären ins Leere gelaufen.
+
+## 2026-10-05 — Tageswerte morgens vorberechnet, Top-5-Steinpilz-Tipps auf der Karte
+
+- **Kontext:** Jedes Handy holte das Wetter je Brennpunkt selbst (47 Abrufe für 2 Kacheln, für ganz Barnim mehrere
+  hundert je Aufruf; Open-Meteo antwortete zeitweise mit 429/503). Der Nutzer wünscht einen Abruf täglich morgens und
+  Tipps für die besten Steinpilz-Plätze als Markierung auf der Karte (keine Rangliste als Text).
+- **Entscheidung:**
+  - Der Workflow `pages.yml` läuft zusätzlich täglich um 04:00 UTC. `web/scripts/tageswerte.ts` sucht in allen
+    25 Kacheln die Brennpunkte (dieselbe Funktion `findeHotspots` wie im Browser), holt je ~2-km-Rasterzelle einmal das
+    Wetter (heute 346 Abrufe, 16 s) und schreibt `daten/barnim/tageswerte.json` (nur ins Pages-Artefakt, kein Commit).
+    Die Seite liest diese Datei; live bleiben nur Index oben und angetippte Stelle. Fehlt die Datei, bewertet die Seite
+    wie bisher live.
+  - Top 5 (`topSammelplaetze`): zuerst türkis (wächst heute), dann pink; innerhalb davon größte zusammenhängende Fläche,
+    bei Gleichstand höherer Index. Tipps näher als 3 km an einem besseren gelten als derselbe Ort (große Flächen werden an
+    Kachelgrenzen geteilt). Markierung: Steinpilz im weißen Kreis mit Nummer; Antippen zeigt Größe, Wachstum, Index, Stand.
+  - Neue Entwicklungs-Abhängigkeit `pngjs` (7.0.0, keine weiteren Abhängigkeiten, 650 KB entpackt), nur für das Lesen der
+    Kachel-PNGs im Vorberechnungs-Lauf, nicht in der Webseite.
+- **Grenzen:** Wetter bis zu einem Tag alt. Die Markierung sitzt auf dem Anker der Fläche (Zelle nächst dem Schwerpunkt);
+  bei 200–580 ha großen Flächen ist das ein Einstieg, kein Punkt. Pfifferling-Tipps gibt es nicht (Wunsch: Steinpilz).
+- **Verworfen:** Brennpunkt-Suche zusätzlich in Python – zwei Fassungen derselben Regel könnten auseinanderlaufen.

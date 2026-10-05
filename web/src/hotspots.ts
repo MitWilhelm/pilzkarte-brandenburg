@@ -21,6 +21,13 @@ export interface MarkierterHotspot extends Hotspot {
   readonly art: Hotspotart;
 }
 
+/** Was das Einfärben braucht; erfüllt von MarkierterHotspot (live) und Tagesbrennpunkt (tageswerte.json). */
+export interface Brennpunktflaeche {
+  readonly gebietName: string;
+  readonly zellen: readonly number[];
+  readonly art: Hotspotart;
+}
+
 export interface Hotspotsuche {
   readonly daten: Uint8ClampedArray; // RGBA wie im Daten-PNG: R Baumart, G Steinpilz, B Pfifferling
   readonly kanal: Pilzkanal;
@@ -192,7 +199,7 @@ export function findeHotspots(suche: Hotspotsuche): Hotspot[] {
 export function faerbeBrennpunkte(
   farben: Uint8ClampedArray<ArrayBuffer>,
   gebiet: Gebiet,
-  brennpunkte: readonly MarkierterHotspot[],
+  brennpunkte: readonly Brennpunktflaeche[],
 ): Uint8ClampedArray<ArrayBuffer> {
   if (farben.length !== gebiet.breitePixel * gebiet.hoehePixel * KANAELE_PRO_PIXEL) {
     throw new Error(`Invariante verletzt: ${String(farben.length)} Bytes passen nicht zum Gebiet ${gebiet.name}`);

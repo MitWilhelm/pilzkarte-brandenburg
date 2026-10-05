@@ -2,7 +2,7 @@
 // OSM-Kacheln: Nutzungsrichtlinie verlangt Namensnennung und geringe Last (private Nutzung).
 import maplibregl from "maplibre-gl";
 import { faerbeOverlay, standortAusGpsEreignis, type Gebiet, type Pilzkanal, type Standort } from "./geo.ts";
-import { faerbeBrennpunkte, type MarkierterHotspot } from "./hotspots.ts";
+import { faerbeBrennpunkte, type Brennpunktflaeche } from "./hotspots.ts";
 
 const OSM_KACHELN = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_HINWEIS = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap-Mitwirkende</a>';
@@ -57,6 +57,7 @@ const PFAD_BREITE: readonly [number, number, number, number] = [12, 1, 16, 3.5];
 const STRASSE_BREITE: readonly [number, number, number, number] = [12, 2.5, 16, 9];
 const STRASSE_RAND_BREITE: readonly [number, number, number, number] = [12, 4, 16, 12];
 const PFAD_STRICHE: readonly [number, number] = [2, 1.5];
+const TIPP_FENSTER_ABSTAND = 26; // Pixel vom Mittelpunkt der runden Tipp-Markierung
 
 export interface Kartenebene {
   readonly gebiet: Gebiet;
@@ -65,7 +66,7 @@ export interface Kartenebene {
 
 export interface Heatmapansicht {
   readonly kanal: Pilzkanal;
-  readonly brennpunkte: readonly MarkierterHotspot[] | null; // null: normale Heatmap; sonst Flächen farbig, Rest grau
+  readonly brennpunkte: readonly Brennpunktflaeche[] | null; // null: normale Heatmap; sonst Flächen farbig, Rest grau
 }
 
 function bildUrl(ebene: Kartenebene, ansicht: Heatmapansicht): string {
@@ -295,3 +296,54 @@ export function bodenAnPunkt(karte: maplibregl.Map, punkt: maplibregl.Point, geb
   return typeof boden === "string" ? boden : null;
 }
 
+
+/** Eine Tipp-Markierung: Nummer, Stelle und die Zeilen für das Fenster beim Antippen. */
+export interface Tippmarke {
+  readonly nummer: number;
+  readonly laenge: number;
+  readonly breite: number;
+  readonly zeilen: readonly string[];
+}
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function pfad(d: string, klasse: string): SVGPathElement {
+  const element = document.createElementNS(SVG_NS, "path");
+  element.setAttribute("d", d);
+  element.setAttribute("class", klasse);
+  return element;
+}
+
+function pilzSymbol(): SVGSVGElement {
+  const symbol = document.createElementNS(SVG_NS, "svg");
+  symbol.setAttribute("viewBox", "0 0 24 24");
+  symbol.setAttribute("width", "24");
+  symbol.setAttribute("height", "24");
+  symbol.setAttribute("aria-hidden", "true");
+  // Steinpilz: breiter brauner Hut, dicker heller Stiel
+  symbol.append(pfad("M9 12.5h6l.8 6.2a3.8 3.8 0 0 1-7.6 0z", "tipp-stiel"), pfad("M2.5 12.5C3.2 6.8 7.2 4 12 4s8.8 2.8 9.5 8.5z", "tipp-hut"));
+  return symbol;
+}
+
+/** Setzt die Tipp-Markierungen (Pilz-Symbol mit Nummer); Antippen öffnet ein Fenster mit den Zeilen. */
+export function zeigeTipps(karte: maplibregl.Map, tipps: readonly Tippmarke[]): void {
+  for (const tipp of tipps) {
+    const knopf = document.createElement("button");
+    knopf.type = "button";
+    knopf.className = "tipp-marke";
+    knopf.setAttribute("aria-label", `Tipp ${String(tipp.nummer)}: ${tipp.zeilen.join(", ")}`);
+    const nummer = document.createElement("span");
+    nummer.className = "tipp-nummer";
+    nummer.textContent = String(tipp.nummer);
+    knopf.append(pilzSymbol(), nummer);
+    const inhalt = document.createElement("div");
+    inhalt.className = "tipp-fenster";
+    for (const zeile of tipp.zeilen) {
+      const absatz = document.createElement("p");
+      absatz.textContent = zeile;
+      inhalt.append(absatz);
+    }
+    const fenster = new maplibregl.Popup({ offset: TIPP_FENSTER_ABSTAND, maxWidth: "260px" }).setDOMContent(inhalt);
+    new maplibregl.Marker({ element: knopf, anchor: "center" }).setLngLat([tipp.laenge, tipp.breite]).setPopup(fenster).addTo(karte);
+  }
+}

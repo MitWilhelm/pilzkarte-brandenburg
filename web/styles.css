@@ -177,6 +177,25 @@ p, h1, ol, dl, dd { margin: 0; }
 .hinweis { font-size: 13.5px; color: var(--leise); }
 .hinweis-warnung { color: var(--warnung-text); background: var(--warnung-grund); padding: 9px 11px; border-radius: 14px; }
 
+/* Tipp-Markierung: Pilz im weißen Kreis mit türkisem Rand (Signalfarbe "wächst heute"), Nummer als Plakette.
+   Keine Drehung: MapLibre setzt am Markierungs-Element selbst ein transform zum Positionieren. */
+.tipp-marke {
+  position: relative; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; cursor: pointer;
+  border: 3px solid #00b8cc; border-radius: 50%; background: #ffffff; box-shadow: 0 4px 12px rgb(0 0 0 / 0.35);
+}
+.tipp-marke .tipp-hut { fill: #7a3b12; }
+.tipp-marke .tipp-stiel { fill: #e9d8b4; stroke: #8a6a3a; stroke-width: 0.8; }
+.tipp-nummer {
+  position: absolute; top: -7px; right: -7px;
+  min-width: 20px; height: 20px; border-radius: 10px; display: grid; place-items: center;
+  font: 800 12px/1 var(--schrift); color: #ffffff; background: #0b0f14;
+}
+.tipp-marke:focus-visible { outline: 3px solid #0b0f14; outline-offset: 2px; }
+.tipp-fenster { display: grid; gap: 2px; font: 13.5px/1.35 var(--schrift); color: #1c2a20; }
+.tipp-fenster p:first-child { font-weight: 800; font-size: 15px; }
+.tipp-fenster p:last-child { color: #5d6b60; font-size: 12px; }
+.tippfeld { flex: none; width: 22px; height: 22px; border: 3px solid #00b8cc; border-radius: 50%; background: #ffffff; }
+
 /* Legende als eigenes Fenster unter den Kartenknöpfen */
 .legende-fenster {
   position: absolute; z-index: 4; left: 10px; right: 10px; top: calc(env(safe-area-inset-top, 0px) + 66px);

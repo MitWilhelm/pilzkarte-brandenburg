@@ -1,6 +1,7 @@
 // Lädt die exportierten Gebietsdaten (Übersicht wie barnim/kacheln.json, Daten-PNG) vom eigenen Webserver und prüft sie.
 // Kein Rate-Limit (eigene Dateien); Fehler werden mit Ursache weitergereicht.
 import type { Ecke, Gebiet } from "../geo.ts";
+import { tageswerteAusJson, type Tageswerte } from "../tageswerte.ts";
 
 function zahl(wert: unknown, name: string): number {
   if (typeof wert !== "number" || !Number.isFinite(wert)) {
@@ -71,6 +72,12 @@ async function hole(url: string): Promise<Response> {
 export async function ladeGebiete(ordner: string, datei: string): Promise<Gebiet[]> {
   const inhalt: unknown = await (await hole(`${ordner}/${datei}`)).json();
   return gebieteAusJson(inhalt, ordner);
+}
+
+/** Lädt die morgens vorberechneten Brennpunkte samt Wetter (scripts/tageswerte.ts). */
+export async function ladeTageswerte(ordner: string): Promise<Tageswerte> {
+  const inhalt: unknown = await (await hole(`${ordner}/tageswerte.json`)).json();
+  return tageswerteAusJson(inhalt);
 }
 
 /** Lädt das Daten-PNG verlustfrei: ohne Farbraum-Umrechnung, damit Codes und Stufen exakt bleiben. */
