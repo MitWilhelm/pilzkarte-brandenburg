@@ -65,9 +65,15 @@ def test_in_einem_lueckigen_bestand_zaehlt_die_hoehe_der_baeume_nicht_der_boden_
     assert oberhoehe(mittel)[50, 50] == 27
 
 
-def test_unter_zehn_prozent_kronenflaeche_gilt_das_fenster_als_offen() -> None:
+def test_wenige_kronenpunkte_genuegen_ab_einem_prozent_flaeche_als_bestand() -> None:
     mittel = np.zeros((KACHEL_METER, KACHEL_METER), dtype=np.float32)
-    mittel[::6, ::6] = 27.0  # nur etwa 3 % Kronen: einzelne Solitärbäume, keine Waldfläche
+    mittel[::6, ::6] = 27.0  # etwa 3 % Kronen, wie dünnes Laubdach im Winter
+    assert oberhoehe(mittel)[50, 50] == 27
+
+
+def test_unter_einem_prozent_kronenflaeche_gilt_das_fenster_als_offen() -> None:
+    mittel = np.zeros((KACHEL_METER, KACHEL_METER), dtype=np.float32)
+    mittel[::12, ::12] = 27.0  # etwa 0,7 % Kronen: einzelne Solitärbäume, keine Waldfläche
     assert oberhoehe(mittel)[50, 50] == 0
 
 

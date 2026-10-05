@@ -1,9 +1,11 @@
 """Oberhöhe aus nDOM-Punkten (LGB, Höhe über Grund): reine Berechnungen ohne Datei- oder Netzzugriff.
 
 Eine Kachel ist 1 × 1 km (EPSG:25833). Die Punkte werden auf 1-m-Zellen gemittelt, daraus wird je 10-m-Pixel die
-Oberhöhe bestimmt: das obere Zehntel der 1-m-Zellen in einem 51 × 51 m großen Fenster um das Pixel. Ein Zellmittel
-oder Viertelwert wäre irreführend: Winterbefliegungen (ohne Laub) liefern bei Laubwald viele Bodenzellen zwischen
-einzelnen Kronen, die Oberhöhe bleibt dort trotzdem die der Bäume.
+Oberhöhe bestimmt: das oberste Prozent der 1-m-Zellen in einem 51 × 51 m großen Fenster um das Pixel. Ein Zellmittel,
+Viertelwert oder auch das obere Zehntel wäre irreführend: Die Befliegung ist im Winter, ohne Laub. Bei Laubwald sieht
+das Laserbild dann viele Bodenzellen zwischen dünnen Kronen; mit dem oberen Zehntel galten 11,9 % der Buchen- und
+4,3 % der Eichenpixel in den ersten fünf Kacheln als offen, mit dem obersten Prozent 4,2 % bzw. 0,8 % (Kiefer jeweils
+unter 0,1 %). Das oberste Prozent genügt, damit schon wenige Kronenpunkte (ab 1 % Fläche) den Bestand zeigen.
 """
 
 from dataclasses import dataclass
@@ -29,7 +31,7 @@ PIXEL_METER = 10
 PIXEL_JE_KACHEL = KACHEL_METER // PIXEL_METER
 FENSTER_RADIUS_METER = 25
 FENSTER_KANTE = 2 * FENSTER_RADIUS_METER + 1
-OBERHOEHE_PERZENTIL = 90.0
+OBERHOEHE_PERZENTIL = 99.0
 # Höchste Bäume in Brandenburg: rund 45 m. Darüber sind es Masten, Kräne oder Fehlpunkte.
 MAX_OBERHOEHE_METER = 60.0
 OHNE_WERT = 255  # Pixel ohne einen einzigen Punkt im Fenster
