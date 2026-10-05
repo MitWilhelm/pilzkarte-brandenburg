@@ -1,7 +1,7 @@
 // Karten-Rand: MapLibre mit OpenStreetMap-Hintergrund, Heatmap-Bildern je Gebiet und Bodenflächen.
 // OSM-Kacheln: Nutzungsrichtlinie verlangt Namensnennung und geringe Last (private Nutzung).
 import maplibregl from "maplibre-gl";
-import { faerbeOverlay, type Gebiet, type Pilzkanal } from "./geo.ts";
+import { faerbeOverlay, standortAusGpsEreignis, type Gebiet, type Pilzkanal, type Standort } from "./geo.ts";
 import { nurInBrennpunkten, type Hotspot, type MarkierterHotspot } from "./hotspots.ts";
 
 const OSM_KACHELN = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -132,7 +132,10 @@ export function folgeFarbschema(karte: maplibregl.Map, ebenen: readonly Karteneb
   window.matchMedia(DUNKEL_ABFRAGE).addEventListener("change", anwenden);
 }
 
-export function erzeugeKarte(container: HTMLElement, mitte: readonly [number, number]): maplibregl.Map {
+export function erzeugeKarte(
+  container: HTMLElement,
+  mitte: readonly [number, number],
+): { readonly karte: maplibregl.Map; readonly standortSteuerung: maplibregl.GeolocateControl } {
   const karte = new maplibregl.Map({
     container,
     center: [mitte[0], mitte[1]],
@@ -148,20 +151,25 @@ export function erzeugeKarte(container: HTMLElement, mitte: readonly [number, nu
     },
   });
   karte.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-  karte.addControl(
-    new maplibregl.GeolocateControl({
+  const standortSteuerung = new maplibregl.GeolocateControl({
       positionOptions: { enableHighAccuracy: true },
       trackUserLocation: true,
       showAccuracyCircle: true,
-    }),
-    "top-right",
-  );
+  });
+  karte.addControl(standortSteuerung, "top-right");
   karte.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
   // MapLibre klappt den kompakten Quellenhinweis beim Start auf; auf dem Handy verdeckt er dann die Karte.
   karte.on("load", () => {
     container.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
   });
-  return karte;
+  return { karte, standortSteuerung };
+}
+
+/** Meldet jeden GPS-Standort der Karte; das Ereignis von MapLibre ist untypisiert und wird hier geprüft. */
+export function beiGpsStandort(steuerung: maplibregl.GeolocateControl, aufruf: (standort: Standort) => void): void {
+  steuerung.on("geolocate", (ereignis: unknown) => {
+    aufruf(standortAusGpsEreignis(ereignis));
+  });
 }
 
 export function fuegeEbenenHinzu(karte: maplibregl.Map, ebenen: readonly Kartenebene[], kanal: Pilzkanal): void {

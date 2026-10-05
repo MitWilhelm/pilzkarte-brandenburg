@@ -188,6 +188,26 @@ p, h1, ol, dl, dd { margin: 0; }
 .legende-text.klein { font-size: 12px; }
 .schalter { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
 
+/* Meldungen: Block in der Tafel, Dialog mit Formular (Tippflächen mindestens 44 px). */
+.melde-status { font-size: 13.5px; color: var(--leise); }
+.melde-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.melde-eintrag { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--linie); border-radius: 14px; font-size: 13px; }
+.melde-text { flex: 1 1 100%; color: var(--text); }
+.melde-defekt { color: var(--warnung-text); background: var(--warnung-grund); border-color: transparent; }
+.knopf-klein { min-height: 40px; padding: 0 14px; font-size: 13.5px; }
+.melde-dialog { width: min(520px, calc(100% - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 16px; color: var(--text); border-radius: 22px; }
+.melde-dialog::backdrop { background: rgb(10 20 14 / 0.55); }
+.melde-formular { display: grid; gap: 14px; }
+.melde-titel { font-size: 19px; font-weight: 800; }
+.melde-standort { font-size: 13.5px; color: var(--leise); }
+.melde-gruppe { display: grid; gap: 4px; border: 1px solid var(--linie); border-radius: 14px; padding: 8px 12px 10px; margin: 0; min-width: 0; }
+.melde-gruppe legend, .melde-legende { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--leise); padding: 0 4px; }
+.wahl { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; cursor: pointer; }
+.wahl input { width: 22px; height: 22px; accent-color: var(--akzent); flex: none; }
+.melde-formular textarea { width: 100%; font: inherit; color: var(--text); background: var(--grund); border: 1px solid var(--linie); border-radius: 12px; padding: 10px; resize: vertical; }
+.melde-fehler { color: var(--warnung-text); font-size: 13.5px; }
+.melde-fehler:not(:empty) { background: var(--warnung-grund); padding: 9px 11px; border-radius: 14px; }
+
 @media (min-width: 900px) {
   .leiste { right: auto; width: min(560px, calc(100% - 420px)); }
   .tafel { left: auto; right: 10px; top: calc(env(safe-area-inset-top, 0px) + 10px); width: 380px; max-height: none; }

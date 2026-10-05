@@ -1,7 +1,7 @@
 // Tests für die Brennpunkt-Suche in src/hotspots.ts (synthetische Daten-Bilder, kein Netzwerk).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findeHotspots, hotspotart, koordinateAnPixel, MIN_STUFE, nurInBrennpunkten } from "../src/hotspots.ts";
+import { findeHotspots, flaecheAnStelle, hotspotart, koordinateAnPixel, MIN_STUFE, nurInBrennpunkten } from "../src/hotspots.ts";
 import { pixelAnStelle, type Gebiet } from "../src/geo.ts";
 
 const BREITE = 60;
@@ -128,4 +128,12 @@ test("in der Ansicht Nur Brennpunkte bleiben nur Pixel in den Flächen des eigen
   assert.equal(deckkraft(eigene, 45, 25), 0);
   assert.equal(deckkraft(nurInBrennpunkten(farben, gebiet, fremdes), 25, 25), 0);
   assert.equal(deckkraft(farben, 5, 5), 255, "das Eingangsbild bleibt unverändert");
+});
+
+test("die Fläche an einer Stelle wird über die 100-m-Zelle gefunden, daneben und in einem anderen Gebiet nicht", () => {
+  const gebiet = kleinesGebiet();
+  const flaechen = findeHotspots({ daten: bildMitBlock(95, { von: 10, bis: 40 }), kanal: 1, gebiet });
+  assert.equal(flaecheAnStelle(gebiet, { spalte: 25, zeile: 25 }, flaechen), flaechen[0]);
+  assert.equal(flaecheAnStelle(gebiet, { spalte: 5, zeile: 5 }, flaechen), null);
+  assert.equal(flaecheAnStelle({ ...gebiet, name: "anderes" }, { spalte: 25, zeile: 25 }, flaechen), null);
 });

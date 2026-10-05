@@ -67,6 +67,13 @@
     </div>
   </article>
 
+  <article class="block" id="block-meldung">
+    <p class="ueberzeile">Fund oder Fehlanzeige melden</p>
+    <p class="melde-status" id="melde-status">GPS ist aus. Tippen Sie auf den Standort-Knopf rechts oben, dann kann gemeldet werden.</p>
+    <button type="button" class="knopf knopf-haupt" id="melde-knopf" disabled>Fund oder „Nichts gefunden“ melden</button>
+    <ul class="melde-liste" id="melde-liste" aria-label="Gespeicherte Meldungen"></ul>
+  </article>
+
   <p class="hinweis" id="hinweis">Tippen Sie auf eine farbige Stelle im Wald, um Details zu sehen.</p>
   <ul class="ring-legende" aria-label="Zeichen auf der Karte">
     <li><span class="strassefeld" role="img" aria-label="Straße"></span>Straße für Autos</li>
@@ -87,6 +94,87 @@
     <p class="legende-text klein">Die Karte ersetzt keine Pilzbestimmung. Funde vor dem Verzehr von einer Pilzberatungsstelle prüfen lassen.</p>
   </details>
 </section>
+
+<dialog class="melde-dialog glas" id="meldedialog" aria-labelledby="melde-titel">
+  <form id="meldeformular" class="melde-formular" method="dialog">
+    <h2 id="melde-titel" class="melde-titel">Meldung an dieser Stelle</h2>
+    <p class="melde-standort">Standort: <span id="melde-standort" class="mono">–</span></p>
+
+    <fieldset class="melde-gruppe">
+      <legend>Ergebnis</legend>
+        <label class="wahl"><input type="radio" name="ergebnis" value="fund" required> Fund</label>
+        <label class="wahl"><input type="radio" name="ergebnis" value="nichts"> Nichts gefunden (hier gesucht)</label>
+    </fieldset>
+
+    <fieldset class="melde-gruppe">
+      <legend>Pilzart</legend>
+        <label class="wahl"><input type="radio" name="pilz" value="steinpilz" required> Steinpilz</label>
+        <label class="wahl"><input type="radio" name="pilz" value="pfifferling"> Pfifferling</label>
+    </fieldset>
+
+    <fieldset class="melde-gruppe" id="melde-groesse" hidden disabled>
+      <legend>Größe der Pilze</legend>
+        <label class="wahl"><input type="radio" name="groesse" value="jung" required> Jung (klein, fest)</label>
+        <label class="wahl"><input type="radio" name="groesse" value="mittel"> Mittel (bis ca. 10 cm)</label>
+        <label class="wahl"><input type="radio" name="groesse" value="alt"> Alt (groß, weich oder madig)</label>
+        <label class="wahl"><input type="radio" name="groesse" value="gemischt"> Gemischt</label>
+    </fieldset>
+
+    <fieldset class="melde-gruppe">
+      <legend>Wald: Bäume im Kronendach (oben)</legend>
+        <label class="wahl"><input type="checkbox" name="kronendach" value="Kiefer"> Kiefer</label>
+        <label class="wahl"><input type="checkbox" name="kronendach" value="Fichte"> Fichte</label>
+        <label class="wahl"><input type="checkbox" name="kronendach" value="Douglasie"> Douglasie</label>
+        <label class="wahl"><input type="checkbox" name="kronendach" value="Lärche"> Lärche</label>
+        <label class="wahl"><input type="checkbox" name="kronendach" value="Buche"> Buche</label>
+        <label class="wahl"><input type="checkbox" name="kronendach" value="Eiche"> Eiche</label>
+        <label class="wahl"><input type="checkbox" name="kronendach" value="Birke"> Birke</label>
+        <label class="wahl"><input type="checkbox" name="kronendach" value="Erle"> Erle</label>
+        <label class="wahl"><input type="checkbox" name="kronendach" value="Sonstige"> Sonstige</label>
+    </fieldset>
+
+    <fieldset class="melde-gruppe">
+      <legend>Unterstand (kleiner, darunter)</legend>
+        <label class="wahl"><input type="checkbox" name="unterstand" value="Kiefer"> Kiefer</label>
+        <label class="wahl"><input type="checkbox" name="unterstand" value="Fichte"> Fichte</label>
+        <label class="wahl"><input type="checkbox" name="unterstand" value="Douglasie"> Douglasie</label>
+        <label class="wahl"><input type="checkbox" name="unterstand" value="Lärche"> Lärche</label>
+        <label class="wahl"><input type="checkbox" name="unterstand" value="Buche"> Buche</label>
+        <label class="wahl"><input type="checkbox" name="unterstand" value="Eiche"> Eiche</label>
+        <label class="wahl"><input type="checkbox" name="unterstand" value="Birke"> Birke</label>
+        <label class="wahl"><input type="checkbox" name="unterstand" value="Erle"> Erle</label>
+        <label class="wahl"><input type="checkbox" name="unterstand" value="Sonstige"> Sonstige</label>
+        <label class="wahl"><input type="checkbox" name="unterstand" value="Sträucher"> Sträucher</label>
+        <label class="wahl"><input type="checkbox" name="unterstand" value="Kein Unterstand"> Kein Unterstand</label>
+    </fieldset>
+
+    <fieldset class="melde-gruppe">
+      <legend>Alter des Bestands</legend>
+        <label class="wahl"><input type="radio" name="bestandsalter" value="jung" required> Jung (unter ca. 30 Jahre)</label>
+        <label class="wahl"><input type="radio" name="bestandsalter" value="mittel"> Mittel (ca. 30–80 Jahre)</label>
+        <label class="wahl"><input type="radio" name="bestandsalter" value="alt"> Alt (über ca. 80 Jahre)</label>
+        <label class="wahl"><input type="radio" name="bestandsalter" value="unbekannt"> Weiß nicht</label>
+    </fieldset>
+
+    <fieldset class="melde-gruppe">
+      <legend>Dichte des Kronendachs</legend>
+        <label class="wahl"><input type="radio" name="dichte" value="licht" required> Licht (viel Himmel)</label>
+        <label class="wahl"><input type="radio" name="dichte" value="mittel"> Mittel</label>
+        <label class="wahl"><input type="radio" name="dichte" value="dicht"> Dicht (dunkel)</label>
+    </fieldset>
+
+    <div class="melde-gruppe">
+      <label for="melde-notiz" class="melde-legende">Notiz (optional)</label>
+      <textarea id="melde-notiz" name="notiz" rows="3" maxlength="500"></textarea>
+    </div>
+
+    <p class="melde-fehler" id="melde-fehler" role="alert"></p>
+    <div class="aktionen">
+      <button type="submit" class="knopf knopf-haupt" id="melde-speichern">Im Handy speichern</button>
+      <button type="button" class="knopf" id="melde-abbrechen">Abbrechen</button>
+    </div>
+  </form>
+</dialog>
 
 <script src="app.js" type="module"></script>
 </body>

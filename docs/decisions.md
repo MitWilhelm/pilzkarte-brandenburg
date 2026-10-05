@@ -155,3 +155,21 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   über Zufall. Reine Kiefernflächen auf Z2 trennt das Modell nicht; Unterstand (Buche/Eiche unter Kiefer) ist von
   keiner Karte sichtbar. Ein Fund (53.00103/13.71483) lag bei Stufe 67; die Koordinate ist unsicher.
 - **Verworfen:** Mischungsabzug abschwächen (0,8 oder 1,0): hilft dem schwachen Fund nicht und flacht die Karte ab.
+
+## 2026-10-05 — Meldungen (Funde und Fehlanzeigen) per GitHub-Issue
+
+- **Kontext:** Das Modell trennt reine Kiefernflächen schwach (6 Funde, mittlerer Rang ~53 %). Gute Daten kommen nur aus
+  der Praxis: Funde, Fehlanzeigen und Waldbeschreibung (Kronendach, Unterstand, Alter, Dichte) mit genauer Stelle.
+  Ein Fund hatte eine unsichere Koordinate.
+- **Entscheidung:** Der Knopf „Fund oder Nichts gefunden melden“ ist nur mit GPS-Standort bedienbar (Genauigkeit
+  höchstens ±30 m, Standort nicht älter als 60 s). Das Formular fragt Ergebnis, Pilzart, Größe (nur bei Fund),
+  Kronendach, Unterstand, Bestandsalter, Dichte, Notiz. Die Meldung wird sofort im Handy gespeichert (localStorage, je
+  Meldung ein Schlüssel; geht ohne Netz) und zusätzlich mit dem Modellstand an der Stelle (Habitat-Stufe, Lage zu den
+  Umrissen, Wachstumsindex am Tag). „Senden“ öffnet ein vorausgefülltes GitHub-Issue (Label `meldung`, Rohdaten als
+  JSON im Text); der Nutzer bestätigt dort nur. Issues sind öffentlich, das ist mit dem Nutzer abgestimmt.
+- **Warum Fehlanzeigen:** Nur mit „hier gesucht, nichts gefunden“ lässt sich prüfen, wo das Modell zu optimistisch
+  ist (Hotspot-Umriss ohne Fund), nicht nur, wo es Funde trifft.
+- **Verworfen:** Externer Formulardienst (neue Abhängigkeit, Daten bei Dritten); Schreib-Token in der Seite (Secret im
+  Browser); nur Export als Datei (mehr Handarbeit, nichts im Wald prüfbar).
+- **Grenzen:** „Issue geöffnet“ heißt nicht „abgeschickt“ (GitHub meldet nichts zurück). Die Auswertung der Issues
+  (Abgleich mit der Heatmap) ist noch nicht gebaut.

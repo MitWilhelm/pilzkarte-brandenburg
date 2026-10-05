@@ -9,13 +9,15 @@ import {
   zeigeBodengrenzen,
   dimmeHintergrund,
   fuegeKnopfHinzu,
+  beiGpsStandort,
   zeigeHeatmap,
   zeigeHotspots,
   type Kartenebene,
 } from "./karte.ts";
 import { findeHotspots, hotspotart, type Hotspot, type Hotspotart, type MarkierterHotspot } from "./hotspots.ts";
-import { baumartName, pixelAnStelle, stufeninfo, type Gebiet, type Pilzkanal } from "./geo.ts";
+import { baumartName, KANAL_JE_PILZ, pixelAnStelle, stufeninfo, type Gebiet } from "./geo.ts";
 import { ladeDatenbild, ladeGebiete } from "./clients/daten.ts";
+import { richteMeldenEin } from "./melden.ts";
 import { ladeWetter, type Wetterreihe } from "./clients/openmeteo.ts";
 import { indexverlauf, tagesindex, type Pilzart } from "./wachstum.ts";
 import {
@@ -30,7 +32,6 @@ import {
   zeigeSchutzhinweis,
 } from "./ansicht.ts";
 
-const KANAL: Readonly<Record<Pilzart, Pilzkanal>> = { steinpilz: 1, pfifferling: 2 };
 const KANAELE_PRO_PIXEL = 4;
 const WETTER_RASTER_GRAD = 0.02; // ~2 km: nahe Punkte teilen sich einen Wetterabruf
 const FLUG_ZOOM = 13;
@@ -95,15 +96,20 @@ async function ringart(hotspot: Hotspot, pilz: Pilzart): Promise<Hotspotart | nu
   return hotspotart(indexHeute, Math.max(...indizes));
 }
 
+async function indexHeuteAn(breite: number, laenge: number, pilz: Pilzart): Promise<number> {
+  const reihe = await wetterFuer(breite, laenge);
+  return tagesindex(reihe.tage, reihe.heute, pilz).index;
+}
+
 /** Umrisse mit dem Wetter je Fläche (statt Gebietsmitte); nahe Stellen teilen sich einen Abruf (WETTER_RASTER_GRAD). */
 function zeigeAnsicht(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zustand: Zustand): void {
-  zeigeHeatmap(karte, ebenen, { kanal: KANAL[zustand.pilz], brennpunkte: zustand.isNurBrennpunkte ? zustand.brennpunkte : null });
+  zeigeHeatmap(karte, ebenen, { kanal: KANAL_JE_PILZ[zustand.pilz], brennpunkte: zustand.isNurBrennpunkte ? zustand.brennpunkte : null });
   dimmeHintergrund(karte, zustand.isNurBrennpunkte);
 }
 
 async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zustand: Zustand): Promise<void> {
   const pilz = zustand.pilz;
-  const kandidaten = ebenen.flatMap(({ gebiet, daten }) => findeHotspots({ daten: daten.data, kanal: KANAL[pilz], gebiet }));
+  const kandidaten = ebenen.flatMap(({ gebiet, daten }) => findeHotspots({ daten: daten.data, kanal: KANAL_JE_PILZ[pilz], gebiet }));
   const markiert = await Promise.all(
     kandidaten.map(async (hotspot): Promise<MarkierterHotspot | null> => {
       try {
@@ -136,7 +142,7 @@ async function zeigeStelle(karte: maplibregl.Map, ebenen: readonly Kartenebene[]
   const { ebene, pixel } = treffer;
   const start = (pixel.zeile * ebene.daten.width + pixel.spalte) * KANAELE_PRO_PIXEL;
   const baumIndex = ebene.daten.data[start];
-  const stufe = ebene.daten.data[start + KANAL[zustand.pilz]];
+  const stufe = ebene.daten.data[start + KANAL_JE_PILZ[zustand.pilz]];
   if (baumIndex === undefined || stufe === undefined) {
     throw new Error(`Invariante verletzt: Pixel ${String(pixel.spalte)}/${String(pixel.zeile)} außerhalb der Daten`);
   }
@@ -179,7 +185,7 @@ async function start(): Promise<void> {
   zeigeSchutzhinweis(SCHUTZHINWEISE[erstes.name] ?? null);
   void aktualisiereGebietsindex(zustand);
 
-  const karte = erzeugeKarte(element("karte", HTMLElement), erstes.mitte);
+  const { karte, standortSteuerung } = erzeugeKarte(element("karte", HTMLElement), erstes.mitte);
   // "style.load" statt "load": "load" wartet auf die OSM-Kacheln, und bei schwachem Netz im Wald
   // würde die Heatmap sonst erst mit dem Hintergrund erscheinen. Der Listener steht vor dem await,
   // damit das einmalige Ereignis nicht verpasst wird.
@@ -188,9 +194,19 @@ async function start(): Promise<void> {
     gebiete.map(async (gebiet) => ({ gebiet, daten: await ladeDatenbild(gebiet) })),
   );
   await stilGeladen;
-  fuegeEbenenHinzu(karte, ebenen, KANAL[zustand.pilz]);
+  fuegeEbenenHinzu(karte, ebenen, KANAL_JE_PILZ[zustand.pilz]);
   fuegeHotspotEbeneHinzu(karte);
   folgeFarbschema(karte, ebenen, () => zustand.isNurBrennpunkte);
+  beiGpsStandort(
+    standortSteuerung,
+    richteMeldenEin({
+      ebenen,
+      aktuellePilzart: () => zustand.pilz,
+      ringart,
+      indexHeute: (stelle, pilz) => indexHeuteAn(stelle.breite, stelle.laenge, pilz),
+      speicher: window.localStorage,
+    }),
+  );
   void aktualisiereHotspots(karte, ebenen, zustand);
   const knopf = element("nur-brennpunkte", HTMLButtonElement);
   fuegeKnopfHinzu(karte, knopf);

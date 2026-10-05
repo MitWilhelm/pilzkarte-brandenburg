@@ -1,5 +1,14 @@
 // Reine Geo- und Anzeige-Hilfen für die Karte: Pixel unter einer Koordinate, Farben, Navigationslinks.
 // Das Daten-PNG liegt in Web-Mercator vor; seine Pixel sind daher linear in Mercator-Koordinaten.
+import type { Pilzart } from "./wachstum.ts";
+
+/** Ein GPS-Standort des Geräts. */
+export interface Standort {
+  readonly breite: number;
+  readonly laenge: number;
+  readonly genauigkeitMeter: number;
+  readonly zeitpunktMs: number;
+}
 
 export interface Gebiet {
   readonly name: string;
@@ -94,6 +103,9 @@ export function komootPlaner(breite: number, laenge: number): string {
 }
 
 export type Pilzkanal = 1 | 2; // Kanal im Daten-Bild: 1 = Steinpilz (Grün), 2 = Pfifferling (Blau)
+
+/** Kanal im Daten-Bild je Pilzart (Steinpilz Grün, Pfifferling Blau). */
+export const KANAL_JE_PILZ: Readonly<Record<Pilzart, Pilzkanal>> = { steinpilz: 1, pfifferling: 2 };
 const KANAELE_PRO_PIXEL = 4;
 const DECKKRAFT = 255;
 
@@ -114,4 +126,36 @@ export function faerbeOverlay(daten: Uint8ClampedArray, kanal: Pilzkanal): Uint8
     farbig[start + 3] = DECKKRAFT;
   }
   return farbig;
+}
+
+function gpsZahl(wert: unknown, name: string): number {
+  if (typeof wert !== "number" || !Number.isFinite(wert)) {
+    throw new Error(`Invariante verletzt: GPS-Ereignis, ${name} ist keine Zahl: ${JSON.stringify(wert)}`);
+  }
+  return wert;
+}
+
+/**
+ * Prüft das untypisierte GPS-Ereignis von MapLibre (ein GeolocationPosition des Browsers).
+ * Die Werte des Browsers sind Getter am Prototyp und keine eigenen Eigenschaften: "in" findet sie, Object.entries nicht.
+ */
+export function standortAusGpsEreignis(ereignis: unknown): Standort {
+  if (typeof ereignis === "object" && ereignis !== null && "coords" in ereignis && "timestamp" in ereignis) {
+    const koordinaten = ereignis.coords;
+    if (
+      typeof koordinaten === "object" &&
+      koordinaten !== null &&
+      "latitude" in koordinaten &&
+      "longitude" in koordinaten &&
+      "accuracy" in koordinaten
+    ) {
+      return {
+        breite: gpsZahl(koordinaten.latitude, "latitude"),
+        laenge: gpsZahl(koordinaten.longitude, "longitude"),
+        genauigkeitMeter: gpsZahl(koordinaten.accuracy, "accuracy"),
+        zeitpunktMs: gpsZahl(ereignis.timestamp, "timestamp"),
+      };
+    }
+  }
+  throw new Error("Invariante verletzt: GPS-Ereignis ohne coords (latitude, longitude, accuracy) und timestamp");
 }

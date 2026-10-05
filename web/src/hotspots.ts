@@ -1,6 +1,6 @@
 // Findet Brennpunkte: zusammenhängende Stellen mit sehr hoher Habitat-Stufe, die auf der Karte
 // mit einem Umriss markiert werden. Reine Funktion (kein I/O), arbeitet auf dem Daten-PNG eines Gebiets.
-import { mercatorY, type Gebiet, type Pilzkanal } from "./geo.ts";
+import { mercatorY, type Gebiet, type Pilzkanal, type Pixel } from "./geo.ts";
 
 export type Hotspotart = "heute" | "letzte-tage";
 
@@ -199,4 +199,11 @@ export function nurInBrennpunkten(
     }
   }
   return ergebnis;
+}
+
+/** Die Fläche, die dieses Daten-Pixel eines Gebiets enthält, oder null. */
+export function flaecheAnStelle(gebiet: Gebiet, pixel: Pixel, flaechen: readonly Hotspot[]): Hotspot | null {
+  const zellenBreit = Math.ceil(gebiet.breitePixel / ZELLE_PIXEL);
+  const zelle = Math.floor(pixel.zeile / ZELLE_PIXEL) * zellenBreit + Math.floor(pixel.spalte / ZELLE_PIXEL);
+  return flaechen.find((flaeche) => flaeche.gebietName === gebiet.name && flaeche.zellen.includes(zelle)) ?? null;
 }
