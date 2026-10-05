@@ -1,17 +1,15 @@
 """Holt Wege und Pfade aus OpenStreetMap (Overpass) und schreibt GeoJSON für die Webseite.
 
-Aufruf: python -m pipeline.io_waldwege          Testgebiete -> web/public/daten/<gebiet>_wege.geojson
-        python -m pipeline.io_waldwege barnim   10-km-Kacheln -> web/public/daten/barnim/<kachel>_wege.geojson
-"art" = "strasse" (für Autos), "weg" (Forstweg) oder "pfad". Barnim: Die volle Overpass-Antwort liegt in
+Aufruf: python -m pipeline.io_waldwege   10-km-Kacheln -> web/public/daten/barnim/<kachel>_wege.geojson
+"art" = "strasse" (für Autos), "weg" (Forstweg) oder "pfad". Die volle Overpass-Antwort liegt in
 rohdaten/barnim_wege/ (nicht im Git, vorhandene Kacheln werden nicht neu abgefragt); fürs Web nur Wege im Wald.
-Overpass-Nutzungsregeln: höchstens etwa 10.000 Abfragen/Tag und 1 Abfrage gleichzeitig; wir stellen eine je Gebiet
-bzw. Kachel, mit 5 s Pause. Retry: bis zu 6 Versuche bei Überlast (HTTP 429/504) oder Netzwerkfehler; die Pause
+Overpass-Nutzungsregeln: höchstens etwa 10.000 Abfragen/Tag und 1 Abfrage gleichzeitig; wir stellen eine je Kachel,
+mit 5 s Pause. Retry: bis zu 6 Versuche bei Überlast (HTTP 429/504) oder Netzwerkfehler; die Pause
 verdoppelt sich ab 60 s (60, 120, 240, 480, 960 s, zusammen höchstens ~31 min je Abfrage), danach bricht der Lauf mit
 Ursache ab. Daten: © OpenStreetMap-Mitwirkende, ODbL.
 """
 
 import json
-import sys
 import time
 import urllib.error
 import urllib.parse
@@ -28,7 +26,6 @@ from pipeline.waldwege import nur_im_wald, waldmaske
 __all__ = ["Weg", "art_von", "main", "wartezeit"]
 
 DIENST_URL = "https://overpass-api.de/api/interpreter"
-GEBIETE = Path("web/public/daten/gebiete.json")
 ZIELORDNER = Path("web/public/daten")
 BARNIM_ORDNER = ZIELORDNER / "barnim"
 BARNIM_ROH = Path("rohdaten/barnim_wege")
@@ -139,19 +136,6 @@ def _schreibe(ziel: Path, wege: list[Weg]) -> None:
     print(f"{ziel.name}: {len(wege)} Linien {anzahl}, {ziel.stat().st_size // 1024} KB")
 
 
-def _testgebiete() -> None:
-    gebiete = json.loads(GEBIETE.read_text(encoding="utf-8"))
-    for nummer, gebiet in enumerate(gebiete):
-        if nummer > 0:
-            time.sleep(PAUSE_SEKUNDEN)
-        west, nord = gebiet["ecken"][0]
-        ost, sued = gebiet["ecken"][2]
-        wege = _wege_aus(_hole_mit_wiederholung(_abfrage(sued, west, nord, ost)))
-        if len(wege) == 0:
-            raise ValueError(f"Invariante verletzt: keine Wege für {gebiet['name']} gefunden")
-        _schreibe(ZIELORDNER / f"{gebiet['name']}_wege.geojson", wege)
-
-
 def _hole_fehlende(kacheln: tuple[Kachel, ...]) -> None:
     BARNIM_ROH.mkdir(parents=True, exist_ok=True)
     offen = [kachel for kachel in kacheln if not (BARNIM_ROH / f"{kachel.name}_wege.geojson").exists()]
@@ -198,12 +182,7 @@ def _barnim() -> None:
 
 
 def main() -> None:
-    if sys.argv[1:] == ["barnim"]:
-        _barnim()
-    elif sys.argv[1:] == []:
-        _testgebiete()
-    else:
-        raise SystemExit("Aufruf: python -m pipeline.io_waldwege [barnim]")
+    _barnim()
 
 
 if __name__ == "__main__":

@@ -10,8 +10,8 @@ lohnt (Wachstumsindex aus dem Wetter der letzten und kommenden Tage).
 
 ## Stand
 
-Phase 1 (Daten). Testgebiete: Joachimsthal und Schwärzesee
-(zwischen Eberswalde und Melchow).
+Live für den Landkreis Barnim: https://mitwilhelm.github.io/pilzkarte-brandenburg/ (25 Kacheln à 10 km,
+geladen, wenn sie ins Bild kommen). Die früheren Testgebiete Joachimsthal und Schwärzesee gehen darin auf.
 
 ## Datenquellen
 
@@ -29,14 +29,14 @@ Im Repository (`daten/`):
 | Datei | Inhalt | Quelle | Lizenz |
 |---|---|---|---|
 | `barnim_grenze_25833.geojson` | Grenze des Landkreises Barnim (AGS 12060), EPSG:25833 | [BKG VG250](https://sgx.geodatenzentrum.de/wfs_vg250), abgerufen am 04.10.2026 | Datenlizenz Deutschland – Namensnennung 2.0, „© GeoBasis-DE / BKG (2026)“ |
-| `funde.csv` | Eigene Funde des Eigentümers (Nutzer) und einzelne GBIF-Funde in den Testgebieten, EPSG:4326 | Eigentümer; [GBIF](https://www.gbif.org) | Eigene Funde: eigene Daten. GBIF: Lizenz je Datensatz (CC0 oder CC BY) |
+| `funde.csv` | Eigene Funde des Eigentümers (Nutzer) und einzelne GBIF-Funde im Barnim, EPSG:4326 | Eigentümer; [GBIF](https://www.gbif.org) | Eigene Funde: eigene Daten. GBIF: Lizenz je Datensatz (CC0 oder CC BY) |
 
-Zur Laufzeit (geplant):
+Zur Laufzeit:
 
 | Daten | Quelle | Lizenz |
 |---|---|---|
 | Wetter, Bodentemperatur, Bodenfeuchte | [Open-Meteo](https://open-meteo.com) | CC-BY-4.0, nur nicht-kommerziell kostenlos |
-| Hintergrundkarte, Wege und Pfade (`web/public/daten/*_wege.geojson`, per Overpass) | [OpenStreetMap](https://www.openstreetmap.org) | ODbL |
+| Hintergrundkarte, Wege und Pfade (`web/public/daten/barnim/*_wege.geojson`, per Overpass) | [OpenStreetMap](https://www.openstreetmap.org) | ODbL |
 
 Quellenvermerke: „© DLR, CC-BY-4.0“ · „Landesbetrieb Forst Brandenburg,
 dl-de/by-2-0“ · „Wetterdaten: Open-Meteo.com“ · „© OpenStreetMap-Mitwirkende“ · „© GeoBasis-DE / BKG (2026)“

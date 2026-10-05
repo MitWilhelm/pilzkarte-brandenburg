@@ -1,13 +1,11 @@
-"""Exportiert die Daten für die Webseite nach web/public/daten/.
+"""Exportiert die Barnim-Daten je 10-km-Kachel für die Webseite nach web/public/daten/barnim/.
 
-Aufruf: python -m pipeline.io_webdaten          je Testgebiet; Übersicht in gebiete.json
-        python -m pipeline.io_webdaten barnim   je 10-km-Kachel nach barnim/; Übersicht in barnim/kacheln.json
+Aufruf: python -m pipeline.io_webdaten   (Übersicht in barnim/kacheln.json)
 <name>.png: Daten-Bild in Web-Mercator (EPSG:3857), R = Baumart-Index, G = Steinpilz-Stufe,
 B = Pfifferling-Stufe, A = 255. Dazu <name>_boden.geojson; die Übersicht nennt Ecken (WGS84) und Pixelgröße.
 """
 
 import json
-import sys
 from pathlib import Path
 
 import geopandas as gpd
@@ -19,7 +17,7 @@ from rasterio.warp import Resampling, calculate_default_transform, reproject
 from rasterio.windows import from_bounds
 from shapely.geometry import box, shape
 
-from pipeline.gebiete import CODE_KEIN_WERT, TESTGEBIETE, Untersuchungsgebiet
+from pipeline.gebiete import CODE_KEIN_WERT
 from pipeline.habitat import beschreibe_standort
 from pipeline.io_heatmap import BARNIM_ANTWORTEN, lies_anteile
 from pipeline.kacheln import KANTE_METER, Kachel, kacheln_fuer
@@ -36,30 +34,12 @@ INDEX_KEIN_WERT = 255
 UNDURCHSICHTIG = 255
 VEREINFACHUNG_METER = 3.0  # Bodenflächen: 3 m Toleranz reicht für die Karte und spart Platz
 NACHKOMMASTELLEN_GRAD = 6
-ANZEIGENAMEN = {"joachimsthal": "Joachimsthal", "schwaerzesee": "Schwärzesee"}
 EPSG_LFB = 25833
 BARNIM_ZIEL = ZIEL / "barnim"
 BARNIM_GRENZE = DATEN / "barnim_grenze_25833.geojson"
 LESERAND_METER = 500.0
 PIXEL_METER = 10.0
 NACHKOMMASTELLEN_KACHEL = 5  # ~1 m wie bei den Wegen; spart bei 26 Kacheln rund ein Fünftel der Boden-Dateien
-
-
-def _nach_mercator(
-    quelle_pfad: Path, ziel_form: tuple[int, int], ziel_transform: rasterio.Affine
-) -> npt.NDArray[np.uint16]:
-    with rasterio.open(quelle_pfad) as quelle:
-        ziel = np.full(ziel_form, CODE_KEIN_WERT, dtype=np.uint16)
-        # Nearest, weil Baumart-Codes und Stufen Klassen sind und nicht gemittelt werden dürfen.
-        reproject(
-            source=rasterio.band(quelle, 1),
-            destination=ziel,
-            dst_transform=ziel_transform,
-            dst_crs=f"EPSG:{EPSG_WEB}",
-            resampling=Resampling.nearest,
-            dst_nodata=CODE_KEIN_WERT,
-        )
-    return ziel
 
 
 def _baumart_index(codes: npt.NDArray[np.uint16]) -> npt.NDArray[np.uint8]:
@@ -72,39 +52,6 @@ def _baumart_index(codes: npt.NDArray[np.uint16]) -> npt.NDArray[np.uint8]:
 
 def _stufe(werte: npt.NDArray[np.uint16]) -> npt.NDArray[np.uint8]:
     return np.where(werte == CODE_KEIN_WERT, 0, werte).astype(np.uint8)
-
-
-def _exportiere_raster(gebiet: Untersuchungsgebiet) -> dict[str, object]:
-    with rasterio.open(DATEN / f"{gebiet.name}_baumarten.tif") as quelle:
-        transform, breite, hoehe = calculate_default_transform(
-            quelle.crs, f"EPSG:{EPSG_WEB}", quelle.width, quelle.height, *quelle.bounds
-        )
-    form = (hoehe, breite)
-    baum = _baumart_index(_nach_mercator(DATEN / f"{gebiet.name}_baumarten.tif", form, transform))
-    stein = _stufe(_nach_mercator(DATEN / f"{gebiet.name}_steinpilz_habitat.tif", form, transform))
-    pfiff = _stufe(_nach_mercator(DATEN / f"{gebiet.name}_pfifferling_habitat.tif", form, transform))
-    deckend = np.full(form, UNDURCHSICHTIG, dtype=np.uint8)
-    profil = {"driver": "PNG", "width": breite, "height": hoehe, "count": 4, "dtype": "uint8"}
-    with rasterio.open(ZIEL / f"{gebiet.name}.png", "w", **profil) as ziel:
-        ziel.write(np.stack([baum, stein, pfiff, deckend]))
-    return {
-        "name": gebiet.name,
-        "anzeigename": ANZEIGENAMEN[gebiet.name],
-        "mitte": [gebiet.laenge, gebiet.breite],
-        "breitePixel": breite,
-        "hoehePixel": hoehe,
-        "ecken": _ecken_wgs84(transform, breite, hoehe),
-    }
-
-
-def _exportiere_boden(gebiet: Untersuchungsgebiet, beschreibungen: dict[str, str]) -> int:
-    flaechen = gpd.read_file(DATEN / f"{gebiet.name}_stok_25833.gpkg")
-    flaechen["boden"] = [beschreibungen[f"{gebiet.name}-{nummer}"] for nummer in range(len(flaechen))]
-    flaechen["geometry"] = flaechen.geometry.simplify(VEREINFACHUNG_METER)
-    flaechen.to_crs(EPSG_WGS84).to_file(
-        ZIEL / f"{gebiet.name}_boden.geojson", driver="GeoJSON", COORDINATE_PRECISION=NACHKOMMASTELLEN_GRAD
-    )
-    return len(flaechen)
 
 
 def _ecken_wgs84(transform: rasterio.Affine, breite: int, hoehe: int) -> list[list[float]]:
@@ -215,26 +162,8 @@ def _barnim() -> None:
     (BARNIM_ZIEL / "kacheln.json").write_text(json.dumps(uebersicht, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
-def _testgebiete() -> None:
-    ZIEL.mkdir(parents=True, exist_ok=True)
-    anteile = lies_anteile((DATEN / "stok_antworten.jsonl",))
-    beschreibungen = {schluessel: beschreibe_standort(werte) for schluessel, werte in anteile.items()}
-    uebersicht = []
-    for gebiet in TESTGEBIETE:
-        meta = _exportiere_raster(gebiet)
-        anzahl = _exportiere_boden(gebiet, beschreibungen)
-        uebersicht.append(meta)
-        print(f"{gebiet.name}: {meta['breitePixel']}x{meta['hoehePixel']} Pixel, {anzahl} Bodenflächen")
-    (ZIEL / "gebiete.json").write_text(json.dumps(uebersicht, ensure_ascii=False, indent=1), encoding="utf-8")
-
-
 def main() -> None:
-    if sys.argv[1:] == ["barnim"]:
-        _barnim()
-    elif sys.argv[1:] == []:
-        _testgebiete()
-    else:
-        raise SystemExit("Aufruf: python -m pipeline.io_webdaten [barnim]")
+    _barnim()
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ Brandenburg wachsen können (vorberechnete Habitat-Heatmap) und **wann** sich
 die Suche lohnt (täglicher Wachstumsindex aus Wetterdaten). Dazu GPS-Standort
 und ein Link zur Navigation (Google Maps / Komoot). Nutzer: nur der Eigentümer.
 
-Testgebiete: Joachimsthal und Schwärzesee (zwischen Eberswalde und Melchow).
+Gebiet: Landkreis Barnim (die früheren Testgebiete Joachimsthal und Schwärzesee liegen darin).
 
 ## Phasenplan
 

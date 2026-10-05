@@ -1,4 +1,4 @@
-"""Fragt für Punkte aus daten/stok_punkte.csv die Standortskarte beim LFB-Kartendienst ab.
+"""Fragt für Punkte aus daten/barnim_stok_punkte.csv die Standortskarte beim LFB-Kartendienst ab.
 
 Läuft auf GitHub Actions (dort ist der Server erreichbar), nur Python-Standardbibliothek.
 Rate-Limit: keines dokumentiert; wir drosseln selbst auf 1 Abfrage/Sekunde. Kein Retry:
@@ -27,8 +27,8 @@ ZEITLIMIT_SEKUNDEN = 30
 MAX_ANTWORT_ZEICHEN = 20_000
 FORMAT_STANDARD = "application/json"
 FORMATE_DIAGNOSE = ("application/json", "text/plain", "application/vnd.ogc.gml")
-QUELLDATEI = Path("daten/stok_punkte.csv")
-ZIELDATEI = Path("daten/stok_antworten.jsonl")
+QUELLDATEI = Path("daten/barnim_stok_punkte.csv")
+ZIELDATEI = Path("daten/barnim_stok_antworten.jsonl")
 KENNUNG = "pilzkarte-brandenburg (private Nutzung, github.com/MitWilhelm/pilzkarte-brandenburg)"
 
 

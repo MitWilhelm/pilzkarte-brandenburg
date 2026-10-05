@@ -11,10 +11,10 @@ Die mobile Karte „Pilzkarte Barnim“ ist live (GitHub Pages, gebaut von `main
 
 | Bereich | Wo | Stand |
 |---|---|---|
-| Habitat-Heatmap | `pipeline/habitat.py`, `nachbarschaft.py`, `io_heatmap.py barnim` | Baum × Boden × Mischung, Stufen 50–100 relativ zu ganz Barnim; Wegrand +15 % nur an Forstwegen und Pfaden; ohne Höhendaten, ohne Hang |
-| Kacheln | `pipeline/kacheln.py`, `io_barnim_zuschnitt.py`, `io_webdaten.py barnim` → `web/public/daten/barnim/` | Je 10-km-Kachel Daten-PNG, Boden- und Wege-GeoJSON; Übersicht `kacheln.json`; Webseite lädt nur Kacheln im Bild |
+| Habitat-Heatmap | `pipeline/habitat.py`, `nachbarschaft.py`, `io_heatmap.py` | Baum × Boden × Mischung, Stufen 50–100 relativ zu ganz Barnim; Wegrand +15 % nur an Forstwegen und Pfaden; ohne Höhendaten, ohne Hang |
+| Kacheln | `pipeline/kacheln.py`, `io_barnim_zuschnitt.py`, `io_webdaten.py` → `web/public/daten/barnim/` | Je 10-km-Kachel Daten-PNG, Boden- und Wege-GeoJSON; Übersicht `kacheln.json`; Webseite lädt nur Kacheln im Bild |
 | Wachstumsindex | `web/src/wachstum.ts` | Regen stufenlos (voll ab 20 mm, Annahme), Lufttemperatur 11–15,5 °C optimal, Hitze-Bremse, Feuchte, Saison, Frost |
-| Wege | `pipeline/io_waldwege.py barnim` → `web/public/daten/barnim/*_wege.geojson` | OSM: Straße (gelb), Forstweg (weiß), Pfad (gestrichelt); nur im Wald (+50 m), Rohantwort lokal in `rohdaten/barnim_wege/` |
+| Wege | `pipeline/io_waldwege.py` → `web/public/daten/barnim/*_wege.geojson` | OSM: Straße (gelb), Forstweg (weiß), Pfad (gestrichelt); nur im Wald (+50 m), Rohantwort lokal in `rohdaten/barnim_wege/` |
 | Brennpunkte | `web/src/hotspots.ts`, `karte.ts` | Knopf rechts: Flächen ab Stufe 85 ganz türkis (Index heute günstig) bzw. pink (letzte 7 Tage), übrige Heatmap grau |
 | Stellen-Box | `web/src/ansicht.ts`, `index.html` | Kompakte Vorschau (Kennziffer, Bewertung, Index, Route/Komoot/Details), Details klappen nach oben auf |
 | Index oben, Sprungliste | `web/src/main.ts` | Index für GPS-Standort, sonst Kartenmitte; Sprungliste Joachimsthal, Schwärzesee |
@@ -23,9 +23,8 @@ Die mobile Karte „Pilzkarte Barnim“ ist live (GitHub Pages, gebaut von `main
 
 ## Offen (in dieser Reihenfolge sinnvoll)
 
-1. **Barnim-Karte, Rest:** Schritte 1–6 sind umgesetzt (siehe Plan unten). Offen: Schritt 7 (alte Testgebiet-Dateien
-   `daten/joachimsthal_*`, `daten/schwaerzesee_*`, `web/public/daten/gebiete.json`, `joachimsthal*`/`schwaerzesee*` entfernen;
-   die Webseite nutzt sie nicht mehr; vorher Nutzer fragen), weitere Orte für die Sprungliste (Nutzer fragen),
+1. **Barnim-Karte, Rest:** Schritte 1–7 sind umgesetzt (siehe Plan unten; Testgebiete am 05.10. auf Wunsch des
+   Nutzers entfernt, die Pipeline-Läufe brauchen keinen Zusatz `barnim` mehr). Offen: weitere Orte für die Sprungliste (Nutzer fragen),
    Komoot-Knopf soll die App öffnen (vom Nutzer zurückgestellt; Recherche: `/discover/<Name>/@lat,lng` wird von der
    iPhone-App übernommen, `/plan/` nicht). Standort-Endung „v“ (0,35 %) ist eine Annahme (decisions.md).
 2. **Meldungen auswerten:** Issues mit Label `meldung` einsammeln und mit der Heatmap abgleichen (Hotspot ohne Fund,
@@ -34,8 +33,7 @@ Die mobile Karte „Pilzkarte Barnim“ ist live (GitHub Pages, gebaut von `main
    Melde-Funktion als Issues; sie in die CSV übernehmen und gegen die Heatmap prüfen.
 4. **Handy-Test der Live-Seite** (nie auf echtem Handy geprüft): GPS, Melden, Knopf Brennpunkte, Kacheln nachladen im
    Wald mit schwachem Netz, Dunkelmodus.
-5. **Aufräumen:** `pipeline/io_hoehe.py` und `.github/workflows/hoehendaten.yml` sind ohne Verwendung (Hang und Kronenhöhe
-   verworfen); `Hotspot.umriss` wird nicht mehr angezeigt (nur noch berechnet und getestet); Recherche-ZIP liegt öffentlich im Release; alte Branches
+5. **Aufräumen:** `Hotspot.umriss` wird nicht mehr angezeigt (nur noch berechnet und getestet); Recherche-ZIP liegt öffentlich im Release; alte Branches
    (`webseite`, `habitat-v2`, `habitat-heatmap`, `boden-abfrage`, `daten-zuschnitt`) löschen.
 6. **Ungeklärt:** Unterstand (Buche/Eiche unter Kiefer) ist von keiner Karte sichtbar; reine Kiefernflächen trennt das Modell
    schwach (6 Funde, mittlerer Rang 62 %). Dafür sind die Meldungen gedacht.
@@ -84,7 +82,7 @@ git clone https://github.com/MitWilhelm/pilzkarte-brandenburg.git && cd pilzkart
 pip install -e ".[dev]"          # Python 3.12 oder neuer (pyproject.toml)
 ruff check pipeline tests && ruff format --check pipeline tests && mypy && pytest
 cd web && npm ci && npx tsc --noEmit && npx eslint . && node --test && node build.mjs   # Ergebnis: web/dist
-python -m pipeline.io_heatmap && python -m pipeline.io_webdaten                         # Heatmap neu, Export nach web/public/daten
+python -m pipeline.io_waldwege && python -m pipeline.io_heatmap && python -m pipeline.io_webdaten   # Barnim: Wege, Heatmap, Kacheln
 ```
 
 Recherche und Notizen liegen in `docs/recherche/` (Bericht: `wachstum-modell-bericht.md`, Quellenlisten: `notizen/`).

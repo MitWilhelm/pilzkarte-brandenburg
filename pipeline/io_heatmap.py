@@ -1,13 +1,11 @@
-"""Berechnet die Habitat-Heatmaps je Pilzart und schreibt daten/<gebiet>_<pilz>_habitat.tif.
+"""Berechnet die Habitat-Heatmaps für den Landkreis Barnim und schreibt daten/barnim_<pilz>_habitat.tif.
 
-Aufruf: python -m pipeline.io_heatmap          Testgebiete (Baumarten in EPSG:3035)
-        python -m pipeline.io_heatmap barnim   ganzer Landkreis (EPSG:25833), Stufen relativ zu ganz Barnim
-Liest Baumarten, Standortflächen (EPSG:25833) und LFB-Antworten; die Flächen werden auf das 10-m-Raster
-gebrannt, mit dem Mischfaktor verrechnet und relativ zum Gebiet gestuft.
+Aufruf: python -m pipeline.io_heatmap
+Liest Baumarten und Standortflächen (EPSG:25833) und die LFB-Antworten; die Flächen werden auf das 10-m-Raster
+gebrannt, mit dem Mischfaktor verrechnet und relativ zu ganz Barnim gestuft.
 """
 
 import json
-import sys
 from pathlib import Path
 
 import geopandas as gpd
@@ -17,7 +15,7 @@ import rasterio
 from affine import Affine
 from rasterio.features import rasterize
 
-from pipeline.gebiete import CODE_KEIN_WERT, TESTGEBIETE
+from pipeline.gebiete import CODE_KEIN_WERT
 from pipeline.habitat import (
     ANTEILE_GESAMT,
     PILZARTEN,
@@ -38,7 +36,6 @@ DATEN = Path("daten")
 OHNE_BODEN = -1.0
 PIXEL_IN_HEKTAR = 0.01
 STUFEN_GRENZEN = (60, 70, 80, 90)
-WEGE = Path("web/public/daten")  # OSM-Wege aus pipeline/io_waldwege.py (EPSG:4326)
 EPSG_WGS84 = 4326
 WEGRAND_RADIUS_PIXEL = 2  # 5 x 5 Pixel: bis etwa 20–25 m neben dem Weg
 # Nur Forstwege und Pfade: Die Belege (dünnere Streu, mehr Licht) betreffen Waldwege; an Autostraßen kommen
@@ -49,7 +46,7 @@ BARNIM_ANTWORTEN = (
     DATEN / "barnim_stok_antworten_2.jsonl",
     DATEN / "barnim_stok_antworten_nachholen.jsonl",
 )
-BARNIM_WEGE = WEGE / "barnim"  # je 10-km-Kachel, nur Wege im Wald (pipeline/io_waldwege.py barnim)
+BARNIM_WEGE = Path("web/public/daten/barnim")  # je 10-km-Kachel, nur Wege im Wald (pipeline/io_waldwege.py, EPSG:4326)
 EPSG_LFB = 25833
 OHNE_FLAECHE = -1
 
@@ -99,41 +96,6 @@ def lies_anteile(dateien: tuple[Path, ...]) -> dict[str, list[Standortanteil]]:
             f"z. B. {beispiel} mit Status {fehlgeschlagen[beispiel]}"
         )
     return anteile
-
-
-def _boden_raster(gebiet_name: str, pilz: Pilzart, anteile: dict[str, list[Standortanteil]]) -> npt.NDArray[np.float32]:
-    with rasterio.open(DATEN / f"{gebiet_name}_baumarten.tif") as quelle:
-        form, transform, crs = (quelle.height, quelle.width), quelle.transform, quelle.crs
-    flaechen = gpd.read_file(DATEN / f"{gebiet_name}_stok_25833.gpkg").to_crs(crs)
-    werte = [boden_punkte(pilz, anteile[f"{gebiet_name}-{nummer}"]) for nummer in range(len(flaechen))]
-    gebrannt = rasterize(
-        zip(flaechen.geometry, werte, strict=True),
-        out_shape=form,
-        transform=transform,
-        fill=OHNE_BODEN,
-        dtype="float32",
-    )
-    return np.asarray(gebrannt, dtype=np.float32)
-
-
-def _wege_maske(gebiet_name: str) -> npt.NDArray[np.bool_]:
-    with rasterio.open(DATEN / f"{gebiet_name}_baumarten.tif") as quelle:
-        form, transform, crs = (quelle.height, quelle.width), quelle.transform, quelle.crs
-    wege = gpd.read_file(WEGE / f"{gebiet_name}_wege.geojson")
-    if wege.crs is None or wege.crs.to_epsg() != EPSG_WGS84:
-        raise ValueError(f"Invariante verletzt: Wege {gebiet_name} haben CRS {wege.crs}, erwartet EPSG {EPSG_WGS84}")
-    if "art" not in wege.columns:
-        raise ValueError(f"Invariante verletzt: Wege {gebiet_name} ohne Spalte 'art': {list(wege.columns)}")
-    waldwege = wege.loc[wege["art"].isin(WEGRAND_ARTEN)]
-    gebrannt = rasterize(
-        ((geometrie, 1) for geometrie in waldwege.to_crs(crs).geometry),
-        out_shape=form,
-        transform=transform,
-        fill=0,
-        all_touched=True,
-        dtype="uint8",
-    )
-    return in_der_naehe(np.asarray(gebrannt) == 1, WEGRAND_RADIUS_PIXEL)
 
 
 def _baum_raster(baumarten: npt.NDArray[np.uint16], pilz: Pilzart) -> npt.NDArray[np.float32]:
@@ -229,28 +191,8 @@ def _melde_stufen(gebiet_name: str, pilz: Pilzart, stufen: npt.NDArray[np.uint8]
     print(f"{gebiet_name:<13} {pilz:<12} ha je Stufe 50-59|60-69|70-79|80-89|90-100: {' |'.join(hektar)}")
 
 
-def _testgebiete() -> None:
-    anteile = lies_anteile((DATEN / "stok_antworten.jsonl",))
-    for gebiet in TESTGEBIETE:
-        with rasterio.open(DATEN / f"{gebiet.name}_baumarten.tif") as quelle:
-            baumarten = quelle.read(1)
-            profil = quelle.profile.copy()
-        profil.update(dtype="uint8", nodata=0)
-        is_nahe_weg = _wege_maske(gebiet.name)
-        for pilz in PILZARTEN:
-            stufen = _heatmap(baumarten, _boden_raster(gebiet.name, pilz, anteile), (pilz, is_nahe_weg))
-            with rasterio.open(DATEN / f"{gebiet.name}_{pilz}_habitat.tif", "w", **profil) as ziel:
-                ziel.write(stufen, 1)
-            _melde_stufen(gebiet.name, pilz, stufen)
-
-
 def main() -> None:
-    if sys.argv[1:] == ["barnim"]:
-        _barnim()
-    elif sys.argv[1:] == []:
-        _testgebiete()
-    else:
-        raise SystemExit("Aufruf: python -m pipeline.io_heatmap [barnim]")
+    _barnim()
 
 
 if __name__ == "__main__":

@@ -230,3 +230,15 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
 - **Prüfung:** Laufzeit 12 s, 2,7 GB Arbeitsspeicher, je Pilzart 2 MB. Testgebiete Byte für Byte unverändert. Funde
   f01–f07 (alle im Barnim): Stufe Barnim 91/83/79/88/83/68/99, vorher im Testgebiet 93/85/91/90/84/64/100.
 - **Verworfen:** Rang je 10-km-Kachel – Stufen wären an Kachelgrenzen nicht vergleichbar.
+
+## 2026-10-05 — Testgebiete Joachimsthal und Schwärzesee entfernt
+
+- **Kontext:** Beide liegen im Barnim und gehen in der Barnim-Karte auf; die Webseite nutzt nur noch die 10-km-Kacheln.
+- **Entscheidung (Nutzer: „lösche das alte Testgebiet“):** Testgebiet-Daten (`daten/joachimsthal_*`, `schwaerzesee_*`,
+  `stok_antworten.jsonl`, `stok_punkte.csv`, `web/public/daten/gebiete.json` und die Web-Dateien beider Gebiete) und der
+  nur dafür genutzte Code (`io_zuschnitt.py`, `io_stok_punkte.py`, Testgebiet-Teile in `io_heatmap.py`, `io_webdaten.py`,
+  `io_waldwege.py`, `gebiete.py`, Workflow `boden-abfrage.yml`) sind entfernt. Die Läufe brauchen keinen Zusatz `barnim`
+  mehr. `io_hoehe.py` samt Test und Workflow `hoehendaten.yml` fiel mit weg: Es hing an den Testgebieten und war seit dem
+  Verwerfen von Hang und Kronenhöhe ohnehin ungenutzt. Die Sprungliste der Webseite nennt die beiden Orte weiter.
+- **Prüfung:** Alle Barnim-Ausgaben nach dem Umbau Byte für Byte gleich (Wege, Heatmap, Kacheln).
+- **Verworfen:** Nur die Dateien löschen und den Code stehen lassen – die Testgebiet-Läufe wären ins Leere gelaufen.
