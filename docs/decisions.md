@@ -212,3 +212,21 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   beide unter 25 MB und damit im Git.
 - **Verworfen:** Raster in EPSG:3035 lassen – dann müssten Kacheln, Grenze und Flächen bei jedem Schritt umgerechnet
   werden, und 10-km-Kacheln in 25833 schnitten das 3035-Raster schief.
+
+## 2026-10-05 — Barnim-Heatmap: eine Rangfolge für den Kreis, Datenfehler der Standortskarte
+
+- **Kontext:** Schritt 4 des Plans Barnim-Karte (`python -m pipeline.io_heatmap barnim`). Die LFB-Antworten für den
+  ganzen Kreis enthalten Fälle, die in den Testgebieten nicht vorkamen.
+- **Entscheidungen:**
+  - Stufen 50–100 nach mittlerem Rang über **ganz Barnim** (vom Nutzer so festgelegt), nicht je Kachel.
+  - Standort-Endung **v** (z. B. `K2v`, 0,35 % der Anteile) wird gelesen wie g und w, aber nicht bewertet. Die
+    Bedeutung steht in keiner gefundenen Legende (LfU-Textkarten nennen nur g = schwach grundfrisch, w = wechselfrisch);
+    **Annahme**, bei Klärung prüfen.
+  - 15 Flächen nennen denselben Code dreifach mit falscher Summe (`M2` 10/10/10, `K2` 4/4/4): als ein Standort mit
+    vollem Anteil gelesen. Andere falsche Summen bleiben eine verletzte Invariante.
+  - 14 Flächen haben nur Sonderangaben ohne Bodengruppe (z. B. `Sol_bn`, `TrB_sh`): wie Pixel ohne Standortfläche,
+    also kein Habitat.
+  - Wegstückchen unter ~1 m an der Waldgrenze (nach dem Runden ein Punkt) werden nicht geschrieben.
+- **Prüfung:** Laufzeit 12 s, 2,7 GB Arbeitsspeicher, je Pilzart 2 MB. Testgebiete Byte für Byte unverändert. Funde
+  f01–f07 (alle im Barnim): Stufe Barnim 91/83/79/88/83/68/99, vorher im Testgebiet 93/85/91/90/84/64/100.
+- **Verworfen:** Rang je 10-km-Kachel – Stufen wären an Kachelgrenzen nicht vergleichbar.

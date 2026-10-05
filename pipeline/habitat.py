@@ -84,7 +84,9 @@ _NAEHRKRAFT: dict[Pilzart, dict[str, float]] = {
 # Feuchte 3 fehlt in der LFB-Legende; vermutlich "trocken" -> nur mittel bewertet.
 _FEUCHTE: dict[int, float] = {1: GUT, 2: GUT, 3: MITTEL}
 
-_MUSTER = re.compile(r"^(?P<nass>[NOÜ]?)(?P<naehrkraft>[AZMKR])(?P<zusatz>[+C]?)(?P<feuchte>\d)(?P<grund>[gw]?)$")
+# Endung g = schwach grundfrisch, w = wechselfrisch/-feucht (LFB-Legende); v kommt im Barnim vor (0,35 % der Anteile)
+# und ist in den gefundenen Legenden nicht erklärt. Alle drei werden gelesen, aber nicht bewertet (Annahme für v).
+_MUSTER = re.compile(r"^(?P<nass>[NOÜ]?)(?P<naehrkraft>[AZMKR])(?P<zusatz>[+C]?)(?P<feuchte>\d)(?P<grund>[gwv]?)$")
 
 
 @dataclass(frozen=True)

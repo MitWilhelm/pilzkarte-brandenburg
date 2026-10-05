@@ -29,6 +29,7 @@ from pipeline.habitat import (
         ("M+2", Standort(naehrkraft="M", feuchte=2, is_nass=False)),
         ("RC1", Standort(naehrkraft="R", feuchte=1, is_nass=False)),
         ("K1w", Standort(naehrkraft="K", feuchte=1, is_nass=False)),
+        ("K2v", Standort(naehrkraft="K", feuchte=2, is_nass=False)),
         ("NK1", Standort(naehrkraft="K", feuchte=1, is_nass=True)),
         ("OZ4", Standort(naehrkraft="Z", feuchte=4, is_nass=True)),
         ("ÜR1", Standort(naehrkraft="R", feuchte=1, is_nass=True)),

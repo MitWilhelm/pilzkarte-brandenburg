@@ -50,3 +50,23 @@ def test_zwei_erfolgreiche_antworten_fuer_dieselbe_id_brechen_ab(tmp_path: Path)
     zweite.write_text(_antwort("b-0", 200), encoding="utf-8")
     with pytest.raises(ValueError, match="b-0 hat mehr als eine erfolgreiche Antwort"):
         lies_anteile((erste, zweite))
+
+
+def _antwort_mit(kennung: str, merkmale: dict[str, object]) -> str:
+    return (
+        json.dumps({"id": kennung, "status": 200, "text": json.dumps({"features": [{"properties": merkmale}]})}) + "\n"
+    )
+
+
+def test_ein_dreifach_wiederholter_code_mit_falscher_summe_wird_zu_einem_vollen_anteil(tmp_path: Path) -> None:
+    datei = tmp_path / "a.jsonl"
+    merkmale = {"nfgr1": "K2", "az1": 4, "nfgr2": "K2", "az2": 4, "nfgr3": "K2", "az3": 4, "nfgr4": ""}
+    datei.write_text(_antwort_mit("b-0", merkmale), encoding="utf-8")
+    assert lies_anteile((datei,)) == {"b-0": [Standortanteil(code="K2", anteil=10)]}
+
+
+def test_verschiedene_codes_mit_falscher_summe_bleiben_unveraendert_fuer_die_invariante(tmp_path: Path) -> None:
+    datei = tmp_path / "a.jsonl"
+    merkmale = {"nfgr1": "K2", "az1": 4, "nfgr2": "M2", "az2": 4, "nfgr3": "", "az3": None, "nfgr4": ""}
+    datei.write_text(_antwort_mit("b-0", merkmale), encoding="utf-8")
+    assert lies_anteile((datei,)) == {"b-0": [Standortanteil(code="K2", anteil=4), Standortanteil(code="M2", anteil=4)]}

@@ -48,6 +48,7 @@ VERSUCHE = 6
 WARTEN_NACH_FEHLER_SEKUNDEN = 60.0
 UEBERLAST_CODES = {429, 504}
 NACHKOMMASTELLEN = 5  # ~1 m, hält die Datei klein
+MIN_PUNKTE_JE_LINIE = 2
 KENNUNG = "pilzkarte-brandenburg (private Nutzung, github.com/MitWilhelm/pilzkarte-brandenburg)"
 WEGE_TYPEN = (
     "track|path|footway|bridleway|cycleway|unclassified|service|residential|living_street|tertiary|secondary|primary"
@@ -167,10 +168,13 @@ def _hole_fehlende(kacheln: tuple[Kachel, ...]) -> None:
 def _wege_aus_tabelle(tabelle: gpd.GeoDataFrame) -> list[Weg]:
     if "art" not in tabelle.columns:
         raise ValueError(f"Invariante verletzt: Wege ohne Spalte 'art': {list(tabelle.columns)}")
-    return [
-        Weg(art=art, punkte=tuple((round(x, NACHKOMMASTELLEN), round(y, NACHKOMMASTELLEN)) for x, y in linie.coords))
-        for art, linie in zip(tabelle["art"], tabelle.geometry, strict=True)
-    ]
+    wege: list[Weg] = []
+    for art, linie in zip(tabelle["art"], tabelle.geometry, strict=True):
+        punkte = tuple((round(x, NACHKOMMASTELLEN), round(y, NACHKOMMASTELLEN)) for x, y in linie.coords)
+        # Stückchen unter ~1 m an der Waldgrenze fallen nach dem Runden auf einen Punkt zusammen: keine Linie mehr.
+        if len(set(punkte)) >= MIN_PUNKTE_JE_LINIE:
+            wege.append(Weg(art=art, punkte=punkte))
+    return wege
 
 
 def _barnim() -> None:
