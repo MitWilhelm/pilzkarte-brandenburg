@@ -136,6 +136,25 @@ p, h1, ol, dl, dd { margin: 0; }
 .stufe-chip[data-klasse="Mäßig"] { background: #f4ba48; color: #2a1d04; border-color: transparent; }
 .stufe-chip[data-klasse="Möglich"] { background: #fae496; color: #2a2304; border-color: transparent; }
 .punkt-index { color: var(--leise); font-size: 14px; }
+/* Gewählte Stelle: kompakte Vorschau; die übrige Tafel ist solange ausgeblendet (data-auswahl, gesetzt in src/ansicht.ts). */
+.tafel[data-auswahl="ja"] > :not(.tafel-griff, #block-punkt, #schutz-hinweis) { display: none; }
+.punkt-vorschau { display: flex; align-items: center; gap: 12px; }
+.kennziffer {
+  flex: none; width: 52px; height: 52px; padding: 0; border-radius: 16px; display: grid; place-items: center;
+  font: 800 22px/1 var(--schrift); font-variant-numeric: tabular-nums;
+}
+.punkt-text { flex: 1 1 auto; min-width: 0; }
+.punkt-bewertung { font-size: 17px; font-weight: 800; }
+.knopf-schliessen {
+  flex: none; width: 44px; height: 44px; border: 0; border-radius: 50%; display: grid; place-items: center;
+  background: var(--glas-innen); color: var(--leise); cursor: pointer;
+}
+.knopf-schliessen:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+.aktionen-kompakt { flex-wrap: nowrap; }
+.aktionen-kompakt .knopf { flex: 1 1 0; padding: 0 8px; }
+.aktionen-kompakt .knopf-details { gap: 6px; font: inherit; font-weight: 800; color: var(--text); background: var(--glas-innen); border-color: transparent; cursor: pointer; }
+.knopf-details[aria-expanded="true"] svg { transform: rotate(180deg); }
+.punkt-details { display: grid; gap: 10px; padding: 12px; border-radius: 20px; background: var(--glas-innen); }
 .werte { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; font-size: 14px; }
 .werte dt { color: var(--leise); }
 .werte dd { min-width: 0; overflow-wrap: anywhere; }

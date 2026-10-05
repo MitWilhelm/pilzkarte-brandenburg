@@ -32,7 +32,7 @@
   <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/></svg>
 </button>
 
-<section class="tafel glas" aria-live="polite">
+<section class="tafel glas" id="tafel" aria-live="polite">
   <div class="tafel-griff" aria-hidden="true"></div>
 
   <article class="block" id="block-index">
@@ -47,23 +47,34 @@
     <ol class="trend" id="trend" aria-label="Wachstumsindex der nächsten 7 Tage"></ol>
   </article>
 
-  <article class="block" id="block-punkt" hidden>
-    <p class="ueberzeile">Gewählte Stelle</p>
-    <div class="punkt-kopf">
-      <p class="stufe-chip" id="punkt-stufe">–</p>
-      <p class="punkt-index" id="punkt-index"></p>
+  <!-- Gewählte Stelle: kompakte Vorschau unten, Details klappen darüber auf (Reihenfolge im DOM = oben nach unten). -->
+  <article class="block" id="block-punkt" aria-label="Gewählte Stelle" hidden>
+    <div class="punkt-details" id="punkt-details" hidden>
+      <dl class="werte">
+        <dt>Baumart</dt><dd id="punkt-baumart">–</dd>
+        <dt>Boden</dt><dd id="punkt-boden">–</dd>
+        <dt>Regen 7 Tage</dt><dd id="punkt-regen">–</dd>
+        <dt>Boden&shy;temperatur</dt><dd id="punkt-bodentemp">–</dd>
+        <dt>Boden&shy;feuchte</dt><dd id="punkt-feuchte">–</dd>
+        <dt>Koordinaten</dt><dd id="punkt-koordinaten" class="mono">–</dd>
+      </dl>
     </div>
-    <dl class="werte">
-      <dt>Baumart</dt><dd id="punkt-baumart">–</dd>
-      <dt>Boden</dt><dd id="punkt-boden">–</dd>
-      <dt>Regen 7 Tage</dt><dd id="punkt-regen">–</dd>
-      <dt>Boden&shy;temperatur</dt><dd id="punkt-bodentemp">–</dd>
-      <dt>Boden&shy;feuchte</dt><dd id="punkt-feuchte">–</dd>
-      <dt>Koordinaten</dt><dd id="punkt-koordinaten" class="mono">–</dd>
-    </dl>
-    <div class="aktionen">
-      <a class="knopf knopf-haupt" id="link-google" href="#" target="_blank" rel="noopener">Route in Google Maps</a>
-      <a class="knopf" id="link-komoot" href="#" target="_blank" rel="noopener">In Komoot öffnen</a>
+    <div class="punkt-vorschau">
+      <p class="stufe-chip kennziffer" id="punkt-stufe" aria-label="Habitat-Stufe">–</p>
+      <div class="punkt-text">
+        <p class="punkt-bewertung" id="punkt-bewertung">–</p>
+        <p class="punkt-index" id="punkt-index"></p>
+      </div>
+      <button type="button" class="knopf-schliessen" id="punkt-schliessen" aria-label="Auswahl schließen">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="aktionen aktionen-kompakt">
+      <a class="knopf knopf-haupt" id="link-google" href="#" target="_blank" rel="noopener">Route</a>
+      <a class="knopf" id="link-komoot" href="#" target="_blank" rel="noopener">Komoot</a>
+      <button type="button" class="knopf knopf-details" id="punkt-details-knopf" aria-expanded="false" aria-controls="punkt-details">Details
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
     </div>
   </article>
 

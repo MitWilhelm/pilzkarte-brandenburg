@@ -21,6 +21,9 @@ import {
   element,
   fuelleGebiete,
   fuelleLegende,
+  schalteDetails,
+  schliessePunkt,
+  sindDetailsOffen,
   zeigeIndex,
   zeigeIndexFehler,
   zeigePunkt,
@@ -33,6 +36,7 @@ const KANAELE_PRO_PIXEL = 4;
 const WETTER_RASTER_GRAD = 0.02; // ~2 km: nahe Punkte teilen sich einen Wetterabruf
 const FLUG_ZOOM = 13;
 const TAGE_RUECKBLICK = 7; // so weit zurück zählt ein günstiger Index für ältere, große Pilze
+const PILZNAMEN: Readonly<Record<Pilzart, string>> = { steinpilz: "Steinpilz", pfifferling: "Pfifferling" };
 const SCHUTZHINWEISE: Readonly<Record<string, string>> = {
   schwaerzesee:
     "Der Schwärzesee und das Schwärzetal liegen im Naturschutzgebiet „Nonnenfließ-Schwärzetal“. Dort kann das Sammeln verboten sein. Bitte Schilder vor Ort beachten.",
@@ -152,6 +156,7 @@ async function zeigeStelle(karte: maplibregl.Map, ebenen: readonly Kartenebene[]
     baumart: baumartName(baumIndex),
     // Bildschirmpunkt neu berechnen: die Karte kann seit dem Tipp ihre Größe geändert haben.
     boden: bodenAnPunkt(karte, karte.project([lng, lat]), ebene.gebiet),
+    pilzName: PILZNAMEN[zustand.pilz],
   });
   try {
     const reihe = await wetterFuer(lat, lng);
@@ -208,6 +213,16 @@ async function start(): Promise<void> {
     zustand.isBrennpunkteAn = !zustand.isBrennpunkteAn;
     knopf.setAttribute("aria-pressed", String(zustand.isBrennpunkteAn));
     zeigeAnsicht(karte, ebenen, zustand);
+  });
+
+  element("punkt-schliessen", HTMLButtonElement).addEventListener("click", () => {
+    zustand.markierung?.remove();
+    zustand.markierung = null;
+    zustand.letzterTipp = null;
+    schliessePunkt();
+  });
+  element("punkt-details-knopf", HTMLButtonElement).addEventListener("click", () => {
+    schalteDetails(!sindDetailsOffen());
   });
 
   // Erst nach dem Einfügen der Ebenen: bodenAnPunkt fragt die Boden-Ebene ab.

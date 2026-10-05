@@ -13,6 +13,7 @@ export interface Punktinfo {
   readonly stufenname: string | null;
   readonly baumart: string | null;
   readonly boden: string | null;
+  readonly pilzName: string; // "Steinpilz" oder "Pfifferling", für die Bewertungszeile
 }
 
 export function element<T extends HTMLElement>(id: string, klasse: new () => T): T {
@@ -87,11 +88,15 @@ export function zeigeIndexFehler(meldung: string): void {
 }
 
 export function zeigePunkt(info: Punktinfo): void {
+  element("tafel", HTMLElement).dataset["auswahl"] = "ja";
   element("block-punkt", HTMLElement).hidden = false;
   element("hinweis", HTMLElement).hidden = true;
-  const chip = element("punkt-stufe", HTMLElement);
-  chip.textContent = info.stufenname === null ? "Kein Habitat" : `${info.stufenname} · ${String(info.stufe)}`;
-  chip.dataset["klasse"] = info.stufenname ?? "";
+  schalteDetails(false);
+  const kennziffer = element("punkt-stufe", HTMLElement);
+  kennziffer.textContent = info.stufenname === null ? "–" : String(info.stufe);
+  kennziffer.dataset["klasse"] = info.stufenname ?? "";
+  element("punkt-bewertung", HTMLElement).textContent =
+    info.stufenname === null ? "Kein Habitat" : `${info.stufenname} für ${info.pilzName}`;
   element("punkt-baumart", HTMLElement).textContent = info.baumart ?? "Kein Wald laut Baumartenkarte";
   element("punkt-boden", HTMLElement).textContent = info.boden ?? "Keine Standortkartierung";
   element("punkt-koordinaten", HTMLElement).textContent = `${info.breite.toFixed(5)}, ${info.laenge.toFixed(5)}`;
@@ -102,13 +107,31 @@ export function zeigePunkt(info: Punktinfo): void {
   }
 }
 
+/** Schließt die Stellen-Box; die Tafel zeigt wieder Index, Melden und Hinweise. */
+export function schliessePunkt(): void {
+  delete element("tafel", HTMLElement).dataset["auswahl"];
+  element("block-punkt", HTMLElement).hidden = true;
+  element("hinweis", HTMLElement).hidden = false;
+  schalteDetails(false);
+}
+
+/** Klappt die Details über der Vorschau auf oder zu. */
+export function schalteDetails(isOffen: boolean): void {
+  element("punkt-details", HTMLElement).hidden = !isOffen;
+  element("punkt-details-knopf", HTMLButtonElement).setAttribute("aria-expanded", String(isOffen));
+}
+
+export function sindDetailsOffen(): boolean {
+  return !element("punkt-details", HTMLElement).hidden;
+}
+
 export function zeigePunktwetter(tage: readonly Tageswetter[], heute: number, index: Tagesindex): void {
   const tag = tage[heute];
   if (tag === undefined) {
     throw new Error("Invariante verletzt: heutiger Wettertag fehlt");
   }
   const regen = tage.slice(Math.max(0, heute - TAGE_REGEN_SUMME + 1), heute + 1).reduce((s, t) => s + t.regenMm, 0);
-  element("punkt-index", HTMLElement).textContent = `Wachstumsindex hier: ${String(index.index)} (${indexWort(index.index)})`;
+  element("punkt-index", HTMLElement).textContent = `Index hier heute: ${String(index.index)} · ${indexWort(index.index)}`;
   element("punkt-regen", HTMLElement).textContent = `${regen.toFixed(1)} mm`;
   element("punkt-bodentemp", HTMLElement).textContent = `${tag.bodentempC.toFixed(1)} °C`;
   element("punkt-feuchte", HTMLElement).textContent = `${String(Math.round(tag.bodenfeuchte * 100))} Vol.-%`;
