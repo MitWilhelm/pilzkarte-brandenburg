@@ -1,0 +1,8 @@
+id,pilz,datum,breite,laenge,genauigkeit,quelle,bemerkung
+f01,steinpilz,2026-10-04,52.99554,13.70809,Nutzer (Koordinate aus der Karte),Nutzer,Sehr alte und mittelgroße Pilze bis 10 cm; Kiefer mit Buche oder Eiche (Unterstand darunter)
+f02,steinpilz,2026-10-04,52.996222,13.710528,Nutzer (korrigierte Koordinate 52°59'46.4"N 13°42'37.9"E),Nutzer,Sehr alte und mittelgroße Pilze bis 10 cm; ersetzt die erste Angabe 53.00103/13.71483 (falsch)
+f03,steinpilz,2026,52.998585,13.715428,Nutzer (Koordinate aus der Karte),Nutzer,Datum nicht erfasst (Fund 2026)
+f04,steinpilz,2026,52.99889,13.71798,Nutzer (Koordinate aus der Karte),Nutzer,Datum nicht erfasst (Fund 2026)
+f05,steinpilz,2025,52.821296,13.741174,GBIF (Koordinate wie veröffentlicht),GBIF,Einzelfund; Lizenz je Datensatz (CC0 oder CC BY)
+f06,steinpilz,2024,52.792864,13.735903,GBIF (Koordinate wie veröffentlicht),GBIF,Einzelfund; Lizenz je Datensatz (CC0 oder CC BY)
+f07,pfifferling,2024,52.792831,13.684692,GBIF (Koordinate wie veröffentlicht),GBIF,Einzelfund; Lizenz je Datensatz (CC0 oder CC BY)

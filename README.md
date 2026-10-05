@@ -29,6 +29,7 @@ Im Repository (`daten/`):
 | Datei | Inhalt | Quelle | Lizenz |
 |---|---|---|---|
 | `barnim_grenze_25833.geojson` | Grenze des Landkreises Barnim (AGS 12060), EPSG:25833 | [BKG VG250](https://sgx.geodatenzentrum.de/wfs_vg250), abgerufen am 04.10.2026 | Datenlizenz Deutschland – Namensnennung 2.0, „© GeoBasis-DE / BKG (2026)“ |
+| `funde.csv` | Eigene Funde des Eigentümers (Nutzer) und einzelne GBIF-Funde in den Testgebieten, EPSG:4326 | Eigentümer; [GBIF](https://www.gbif.org) | Eigene Funde: eigene Daten. GBIF: Lizenz je Datensatz (CC0 oder CC BY) |
 
 Zur Laufzeit (geplant):
 

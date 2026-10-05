@@ -24,14 +24,14 @@ Schwärzesee. Fokus ist der Landkreis Barnim; ganz Brandenburg ist zurückgestel
    Wege aus OSM holen, Heatmap aus den Barnim-Antworten rechnen, Webexport und Gebietsliste erweitern. Noch kein Code dafür.
 2. **Meldungen auswerten:** Issues mit Label `meldung` einsammeln und mit der Heatmap abgleichen (Hotspot ohne Fund,
    Fund ohne Hotspot). Das Label `meldung` im Repository anlegen. Auswertungsskript fehlt.
-3. **Funde festhalten:** 6 Funde (4 Joachimsthal, 2 GBIF Schwärzesee) stehen nur in `docs/decisions.md` als Ergebnis, nicht als
-   Datei. Nutzer hat öffentliche Ablage erlaubt. Fund A (53.00103, 13.71483) hat eine unsichere Koordinate.
+3. **Funde auswerten:** Die Funde liegen in `daten/funde.csv` (öffentlich, vom Nutzer erlaubt). Neue Funde kommen über die
+   Melde-Funktion als Issues; sie in die CSV übernehmen und gegen die Heatmap prüfen.
 4. **Handy-Test der Live-Seite** (nie auf echtem Handy geprüft): GPS, Melden, Knopf „Nur Brennpunkte“, Umrisse, Dunkelmodus.
 5. **Aufräumen:** `pipeline/io_hoehe.py` und `.github/workflows/hoehendaten.yml` sind ohne Verwendung (Hang und Kronenhöhe
    verworfen); mypy-Fehler `pipeline/nachbarschaft.py:31`; Recherche-ZIP liegt öffentlich im Release; alte Branches
    (`webseite`, `habitat-v2`, `habitat-heatmap`, `boden-abfrage`, `daten-zuschnitt`) löschen.
 6. **Ungeklärt:** Unterstand (Buche/Eiche unter Kiefer) ist von keiner Karte sichtbar; reine Kiefernflächen trennt das Modell
-   schwach (6 Funde, mittlerer Rang ~53 %). Dafür sind die Meldungen gedacht.
+   schwach (6 Funde, mittlerer Rang 62 %). Dafür sind die Meldungen gedacht.
 
 ## Lokal arbeiten
 
@@ -43,6 +43,7 @@ cd web && npm ci && npx tsc --noEmit && npx eslint . && node --test && node buil
 python -m pipeline.io_heatmap && python -m pipeline.io_webdaten                         # Heatmap neu, Export nach web/public/daten
 ```
 
+Recherche und Notizen liegen in `docs/recherche/` (Bericht: `wachstum-modell-bericht.md`, Quellenlisten: `notizen/`).
 Rohdaten (nicht im Git) aus dem Release `daten-v1` nach `rohdaten/` laden: `treespecies_de_2022.tif` (ganz Deutschland, 550 MB),
 `stok_25833.gml` (Standortskarte Brandenburg), `ifgk_wld_25833.gml` (Waldflächen). Dort liegen außerdem drei LGB-Kachelpaare
 (bDOM/DGM) und das Recherche-ZIP. Pushen auf `main` löst den Webseiten-Build aus; nur nach Rückfrage (siehe `CLAUDE.md`).

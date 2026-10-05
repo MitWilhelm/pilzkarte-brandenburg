@@ -151,16 +151,20 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
 - **Freie Kronenhöhenkarten:** ETH-Weltkarte 2020 (10 m) taugt nicht: in beiden Testgebieten 21–29 m für fast alle
   Waldpixel, auch auf Kahlschlägen. Meta/WRI (1 m, CC-BY-4.0) streut plausibel (Kiefer Median 17–18 m, P10 10–11 m),
   ist aber nicht gegen LGB-Messwerte geprüft. An den Fundstellen (15 m, gleichmäßiges Dach) trennt sie nicht.
-- **Funde und Modell:** 6 Funde (4 Joachimsthal, 2 GBIF Schwärzesee) liegen im Mittel bei Rang ~53 % im Gebiet, kaum
-  über Zufall. Reine Kiefernflächen auf Z2 trennt das Modell nicht; Unterstand (Buche/Eiche unter Kiefer) ist von
-  keiner Karte sichtbar. Ein Fund (53.00103/13.71483) lag bei Stufe 67; die Koordinate ist unsicher.
-- **Verworfen:** Mischungsabzug abschwächen (0,8 oder 1,0): hilft dem schwachen Fund nicht und flacht die Karte ab.
+- **Funde und Modell:** 6 Steinpilz-Funde (4 Joachimsthal, 2 GBIF Schwärzesee) liegen im Mittel bei Rang 62 % im Gebiet;
+  alle 4 in Joachimsthal in Stufe 85 oder höher (Rang 64–85 %). Schwärzesee: GBIF 2025 Stufe 84 (Rang 57 %), GBIF 2024
+  Stufe 64 (Rang 5 %). Ein erster Wert für den Fund vom 04.10. (53.00103/13.71483, Stufe 67) beruhte auf einer falschen
+  Koordinate; der Nutzer hat sie korrigiert (52°59'46.4"N 13°42'37.9"E = 52.99622/13.71053, Stufe 85). Das wurde zunächst
+  fälschlich als zweiter Fund gezählt. Reine Kiefernflächen auf Z2 trennt das Modell trotzdem schwach; Unterstand
+  (Buche/Eiche unter Kiefer) ist von keiner Karte sichtbar.
+- **Verworfen:** Mischungsabzug abschwächen (0,8 oder 1,0): flacht die Karte ab (bei 1,0 gibt es keine Fläche ab Stufe 85
+  mehr); der Anlass (Stufe 67 an einer falschen Koordinate) entfiel.
 
 ## 2026-10-05 — Meldungen (Funde und Fehlanzeigen) per GitHub-Issue
 
-- **Kontext:** Das Modell trennt reine Kiefernflächen schwach (6 Funde, mittlerer Rang ~53 %). Gute Daten kommen nur aus
+- **Kontext:** Das Modell trennt reine Kiefernflächen schwach (6 Funde, mittlerer Rang 62 %). Gute Daten kommen nur aus
   der Praxis: Funde, Fehlanzeigen und Waldbeschreibung (Kronendach, Unterstand, Alter, Dichte) mit genauer Stelle.
-  Ein Fund hatte eine unsichere Koordinate.
+  Ein Fund hatte zunächst eine falsche Koordinate; deshalb prüft die Seite die GPS-Genauigkeit.
 - **Entscheidung:** Der Knopf „Fund oder Nichts gefunden melden“ ist nur mit GPS-Standort bedienbar (Genauigkeit
   höchstens ±30 m, Standort nicht älter als 60 s). Das Formular fragt Ergebnis, Pilzart, Größe (nur bei Fund),
   Kronendach, Unterstand, Bestandsalter, Dichte, Notiz. Die Meldung wird sofort im Handy gespeichert (localStorage, je
@@ -184,11 +188,12 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
     bei Meta im Median bei 13 m, solche mit 25–40 m bei 16 m. Kahlschlag und Altbestand sind kaum zu trennen.
   - ETH (10 m, 2020): r = 0,12, Bias +4,8 m; fast alle Zellen 22–29 m, unabhängig von der LGB-Höhe.
   - Beide sind für ein Habitat-Modell nach Bestandesalter **nicht brauchbar**.
-- **Funde gegen LGB (nur Hinweis, 4 Funde in einer Kachel, räumlich nicht unabhängig):** Die vier verlässlichen Funde
+- **Funde gegen LGB (nur Hinweis, 4 Funde in einer Kachel, räumlich nicht unabhängig):** Die vier Funde in Joachimsthal
   stehen in hohem Bestand (P75-Kronenhöhe 25–27 m, Rang 61–84 % im Gebiet) mit überdurchschnittlich ungleichmäßigem
-  Kronendach (Streuung der Höhe Rang 58–95 %, Lücken bis 0 m im 50-m-Fenster). Der unsichere Fund A liegt dagegen in
-  einem gleichmäßigen, geschlossenen Dach (Streuung Rang 18 %, Schluss 100 %); das passt nicht zu „Kiefer/Buche“ und
-  stützt die Vermutung, dass seine Koordinate nicht stimmt. Ungleichmäßigkeit kann auch nur Wegnähe widerspiegeln.
+  Kronendach (Streuung der Höhe Rang 58–95 %, Lücken bis 0 m im 50-m-Fenster). Die ursprüngliche, falsche Koordinate
+  des Fundes vom 04.10. lag dagegen in einem gleichmäßigen, geschlossenen Dach (Streuung Rang 18 %, Schluss 100 %), das
+  nicht zu „Kiefer/Buche“ passte; die korrigierte Koordinate passt (P75 27 m, Streuung Rang 58 %). Ungleichmäßigkeit
+  kann auch nur Wegnähe widerspiegeln.
 - **Entscheidung:** Das Modell bleibt unverändert (Nutzer: „Verändere erstmal nichts“). Eine Kronenhöhen-Ebene gäbe es
   nur aus LGB-bDOM; für den Landkreis Barnim (~1.480 km²) wären das ~1.500 Kacheln à 38 MB (~56 GB), bei ~80 KB/s nicht
   vertretbar. Besser: die Meldungen (Waldbeschreibung, Fehlanzeigen) sammeln und daran die Hotspots prüfen.
