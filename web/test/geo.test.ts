@@ -1,7 +1,7 @@
 // Tests für die reinen Geo-Hilfen in src/geo.ts.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { abstandMeter, baumartName, gebieteImAusschnitt, googleMapsRoute, pixelAnStelle, standortAusGpsEreignis, stufeninfo, type Gebiet } from "../src/geo.ts";
+import { abstandMeter, baumartName, kreisPolygon, gebieteImAusschnitt, googleMapsRoute, pixelAnStelle, standortAusGpsEreignis, stufeninfo, type Gebiet } from "../src/geo.ts";
 
 // Werte wie in web/public/daten/gebiete.json (Export vom 03.10.2026).
 function joachimsthal(): Gebiet {
@@ -35,6 +35,15 @@ test("der Abstand zwischen Joachimsthal und Schwärzesee beträgt rund 18 km, zu
   const joachimsthalMitte: [number, number] = [13.745, 52.979];
   assert.ok(Math.abs(abstandMeter(joachimsthalMitte, [13.712, 52.815]) - 18_400) < 300);
   assert.equal(abstandMeter(joachimsthalMitte, joachimsthalMitte), 0);
+});
+
+test("der Genauigkeitskreis ist geschlossen und alle Ecken liegen im Radius vom Mittelpunkt", () => {
+  const mitte: [number, number] = [13.8228, 52.8092];
+  const kreis = kreisPolygon(mitte, 30);
+  assert.deepEqual(kreis[0], kreis[kreis.length - 1]);
+  for (const ecke of kreis) {
+    assert.ok(Math.abs(abstandMeter(mitte, ecke) - 30) < 0.5);
+  }
 });
 
 test("ein Ausschnitt fern aller Kacheln ergibt keine Kachel", () => {

@@ -1,7 +1,7 @@
 // Karten-Rand: MapLibre mit OpenStreetMap-Hintergrund, Heatmap-Bildern je Gebiet und Bodenflächen.
 // OSM-Kacheln: Nutzungsrichtlinie verlangt Namensnennung und geringe Last (private Nutzung).
 import maplibregl from "maplibre-gl";
-import { faerbeOverlay, standortAusGpsEreignis, type Gebiet, type Pilzkanal, type Standort } from "./geo.ts";
+import { faerbeOverlay, kreisPolygon, standortAusGpsEreignis, type Gebiet, type Pilzkanal, type Standort } from "./geo.ts";
 import { faerbeBrennpunkte, type Brennpunktflaeche } from "./hotspots.ts";
 
 const OSM_KACHELN = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -131,7 +131,7 @@ export function folgeFarbschema(karte: maplibregl.Map, ebenen: readonly Karteneb
 export function erzeugeKarte(
   container: HTMLElement,
   mitte: readonly [number, number],
-): { readonly karte: maplibregl.Map; readonly standortSteuerung: maplibregl.GeolocateControl } {
+): maplibregl.Map {
   const karte = new maplibregl.Map({
     container,
     center: [mitte[0], mitte[1]],
@@ -147,59 +147,99 @@ export function erzeugeKarte(
     },
   });
   karte.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-  const standortSteuerung = new maplibregl.GeolocateControl({
-      positionOptions: { enableHighAccuracy: true },
-      trackUserLocation: true,
-      showAccuracyCircle: true,
-  });
-  karte.addControl(standortSteuerung, "top-right");
   karte.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
   // MapLibre klappt den kompakten Quellenhinweis beim Start auf; auf dem Handy verdeckt er dann die Karte.
   karte.on("load", () => {
     container.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
   });
-  return { karte, standortSteuerung };
+  return karte;
 }
 
 const GPS_FEHLER_VERWEIGERT = 1; // GeolocationPositionError.PERMISSION_DENIED
 const HINWEIS_GPS_BLOCKIERT =
-  "Der Standort ist für diese Seite blockiert, deshalb sind GPS und Melden aus. iPhone: Einstellungen › Datenschutz & Sicherheit › Ortungsdienste einschalten, dort „Safari-Websites“ auf „Beim Verwenden der App“; dann in Safari „aA“ › Website-Einstellungen › Standort › Erlauben. Android (Chrome): Schloss-Symbol neben der Adresse › Berechtigungen › Standort › Zulassen. Danach die Seite neu laden.";
+  "Der Standort ist für diese Seite nicht freigegeben, deshalb sind GPS und Melden aus. Android: Einstellungen › Apps › Ihr Browser (z. B. Opera, Chrome) › Berechtigungen › Standort › Zulassen, und im Browser für diese Seite den Standort erlauben. iPhone: Einstellungen › Datenschutz & Sicherheit › Ortungsdienste einschalten, dort „Safari-Websites“ auf „Beim Verwenden der App“. Danach den Standort-Knopf erneut tippen.";
 const HINWEIS_GPS_KEIN_SIGNAL = "Kein GPS-Standort gefunden. Kurz unter freiem Himmel warten und den Standort-Knopf erneut tippen.";
+const HINWEIS_GPS_FEHLT = "Dieser Browser kann keinen Standort liefern.";
+const GPS_OPTIONEN: PositionOptions = { enableHighAccuracy: true, maximumAge: 10_000, timeout: 30_000 };
+const GPS_ZOOM = 15;
+const GPS_QUELLE = "gps-genauigkeit";
 
-/**
- * Meldet, warum es keinen GPS-Standort gibt (null: kein Problem). MapLibre schaltet den Knopf bei verweigerter
- * Erlaubnis still ab (durchgestrichen); ohne diesen Hinweis wirkt GPS dann einfach kaputt.
- */
-export function beiGpsProblem(steuerung: maplibregl.GeolocateControl, aufruf: (hinweis: string | null) => void): void {
-  steuerung.on("error", (fehler: unknown) => {
-    const isVerweigert = typeof fehler === "object" && fehler !== null && "code" in fehler && fehler.code === GPS_FEHLER_VERWEIGERT;
-    aufruf(isVerweigert ? HINWEIS_GPS_BLOCKIERT : HINWEIS_GPS_KEIN_SIGNAL);
-  });
-  steuerung.on("geolocate", () => {
-    aufruf(null);
-  });
-  // Erlaubnis-Abfrage gibt es nicht in jedem Browser (älteres Safari); dann bleibt es beim Fehler-Ereignis oben.
-  if (!("permissions" in navigator)) {
-    return;
-  }
-  void navigator.permissions.query({ name: "geolocation" }).then(
-    (erlaubnis) => {
-      const pruefe = (): void => {
-        aufruf(erlaubnis.state === "denied" ? HINWEIS_GPS_BLOCKIERT : null);
-      };
-      pruefe();
-      erlaubnis.addEventListener("change", pruefe);
-    },
-    (fehler: unknown) => {
-      console.warn("Standort-Erlaubnis nicht abfragbar", fehler);
-    },
-  );
+/** Was der GPS-Knopf meldet: jeden neuen Standort und ein Problem (null: keins). */
+export interface Gpsmeldungen {
+  readonly beiStandort: (standort: Standort) => void;
+  readonly beiProblem: (hinweis: string | null) => void;
 }
 
-/** Meldet jeden GPS-Standort der Karte; das Ereignis von MapLibre ist untypisiert und wird hier geprüft. */
-export function beiGpsStandort(steuerung: maplibregl.GeolocateControl, aufruf: (standort: Standort) => void): void {
-  steuerung.on("geolocate", (ereignis: unknown) => {
-    aufruf(standortAusGpsEreignis(ereignis));
+function zeigeGenauigkeit(karte: maplibregl.Map, standort: Standort): void {
+  const flaeche = {
+    type: "Feature" as const,
+    properties: {},
+    geometry: { type: "Polygon" as const, coordinates: [kreisPolygon([standort.laenge, standort.breite], standort.genauigkeitMeter).map(([x, y]) => [x, y])] },
+  };
+  const quelle = karte.getSource(GPS_QUELLE);
+  if (quelle instanceof maplibregl.GeoJSONSource) {
+    quelle.setData(flaeche);
+    return;
+  }
+  karte.addSource(GPS_QUELLE, { type: "geojson", data: flaeche });
+  karte.addLayer({ id: GPS_QUELLE, type: "fill", source: GPS_QUELLE, paint: { "fill-color": "#2f7bf6", "fill-opacity": 0.15 } });
+}
+
+/**
+ * Eigener GPS-Knopf statt MapLibres GeolocateControl: Jedes Antippen fragt den Standort aktiv ab (der Browser zeigt
+ * dabei seine Freigabe-Abfrage). MapLibre prüfte die Erlaubnis nur einmal beim Laden und schaltete den Knopf bei
+ * "verweigert" dauerhaft ab, auch wenn der Nutzer danach freigab (gemeldet mit Opera auf Android).
+ * Zweites Antippen beendet die Ortung.
+ */
+export function richteGpsEin(karte: maplibregl.Map, knopf: HTMLButtonElement, meldungen: Gpsmeldungen): void {
+  let beobachtung: number | null = null;
+  let isErsterStandort = true;
+  const punkt = document.createElement("div");
+  punkt.className = "gps-punkt";
+  const markierung = new maplibregl.Marker({ element: punkt });
+  const beende = (): void => {
+    if (beobachtung !== null) {
+      navigator.geolocation.clearWatch(beobachtung);
+    }
+    beobachtung = null;
+    knopf.setAttribute("aria-pressed", "false");
+    delete knopf.dataset["zustand"];
+  };
+  fuegeKnopfHinzu(karte, knopf);
+  knopf.addEventListener("click", () => {
+    if (beobachtung !== null) {
+      beende();
+      markierung.remove();
+      return;
+    }
+    if (!("geolocation" in navigator)) {
+      meldungen.beiProblem(HINWEIS_GPS_FEHLT);
+      return;
+    }
+    isErsterStandort = true;
+    knopf.setAttribute("aria-pressed", "true");
+    knopf.dataset["zustand"] = "sucht";
+    beobachtung = navigator.geolocation.watchPosition(
+      (position) => {
+        const standort = standortAusGpsEreignis(position);
+        knopf.dataset["zustand"] = "aktiv";
+        markierung.setLngLat([standort.laenge, standort.breite]).addTo(karte);
+        zeigeGenauigkeit(karte, standort);
+        if (isErsterStandort) {
+          isErsterStandort = false;
+          karte.easeTo({ center: [standort.laenge, standort.breite], zoom: Math.max(karte.getZoom(), GPS_ZOOM) });
+        }
+        meldungen.beiProblem(null);
+        meldungen.beiStandort(standort);
+      },
+      (fehler) => {
+        meldungen.beiProblem(fehler.code === GPS_FEHLER_VERWEIGERT ? HINWEIS_GPS_BLOCKIERT : HINWEIS_GPS_KEIN_SIGNAL);
+        if (fehler.code === GPS_FEHLER_VERWEIGERT) {
+          beende();
+        }
+      },
+      GPS_OPTIONEN,
+    );
   });
 }
 

@@ -26,6 +26,9 @@
 
 <main id="karte" class="karte" aria-label="Karte mit Habitat-Heatmap"></main>
 <!-- Werden von src/karte.ts als Kartenschalter unter Zoom und GPS eingesetzt. -->
+<button type="button" id="gps-knopf" class="knopf-gps" aria-pressed="false" aria-label="Meinen Standort zeigen" title="Standort" hidden>
+  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.2" fill="currentColor"/><circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+</button>
 <button type="button" id="legende-knopf" class="knopf-legende" aria-expanded="false" aria-controls="legende-fenster" aria-label="Legende und Quellen" title="Legende" hidden>
   <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M12 3l9 5-9 5-9-5 9-5z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M3 13l9 5 9-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
 </button>

@@ -32,6 +32,23 @@ export interface Kartenausschnitt {
 }
 
 const ERDRADIUS_METER = 6_371_000;
+const KREIS_ECKEN = 48;
+
+/** Kreis um [Länge, Breite] mit Radius in Metern als geschlossener Polygonzug (Genauigkeitskreis des GPS). */
+export function kreisPolygon(mitte: readonly [number, number], radiusMeter: number): (readonly [number, number])[] {
+  const breiteRad = mitte[1] * (Math.PI / 180);
+  const grad = radiusMeter / ((ERDRADIUS_METER * Math.PI) / 180);
+  const punkte: [number, number][] = [];
+  for (let nummer = 0; nummer < KREIS_ECKEN; nummer += 1) {
+    const winkel = (2 * Math.PI * nummer) / KREIS_ECKEN;
+    punkte.push([mitte[0] + (grad * Math.cos(winkel)) / Math.cos(breiteRad), mitte[1] + grad * Math.sin(winkel)]);
+  }
+  const erster = punkte[0];
+  if (erster === undefined) {
+    throw new Error("Invariante verletzt: Kreis ohne Ecken");
+  }
+  return [...punkte, erster];
+}
 const GRAD_IN_RAD = Math.PI / 180;
 
 /** Abstand zweier Punkte [Länge, Breite] in Metern (Großkreis); auf wenige Meter genau, reicht für Hinweise. */

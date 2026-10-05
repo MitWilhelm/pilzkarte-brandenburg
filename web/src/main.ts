@@ -8,8 +8,7 @@ import {
   folgeFarbschema,
   zeigeBodengrenzen,
   fuegeKnopfHinzu,
-  beiGpsProblem,
-  beiGpsStandort,
+  richteGpsEin,
   zeigeHeatmap,
   zeigeTipps,
   type Kartenebene,
@@ -282,7 +281,7 @@ async function start(): Promise<void> {
   };
   void aktualisiereIndex(zustand);
 
-  const { karte, standortSteuerung } = erzeugeKarte(element("karte", HTMLElement), START_MITTE);
+  const karte = erzeugeKarte(element("karte", HTMLElement), START_MITTE);
   // "style.load" statt "load": "load" wartet auf die OSM-Kacheln, und bei schwachem Netz im Wald
   // würde die Heatmap sonst erst mit dem Hintergrund erscheinen.
   await karte.once("style.load");
@@ -309,12 +308,14 @@ async function start(): Promise<void> {
     indexHeute: (stelle, pilz) => indexHeuteAn(stelle.breite, stelle.laenge, pilz),
     speicher: window.localStorage,
   });
-  beiGpsProblem(standortSteuerung, zeigeGpsHinweis);
-  beiGpsStandort(standortSteuerung, (standort) => {
-    meldeStandort(standort);
-    zustand.hasGps = true;
-    zustand.indexOrt = { name: "Dein Standort", breite: standort.breite, laenge: standort.laenge };
-    void aktualisiereIndex(zustand);
+  richteGpsEin(karte, element("gps-knopf", HTMLButtonElement), {
+    beiProblem: zeigeGpsHinweis,
+    beiStandort: (standort) => {
+      meldeStandort(standort);
+      zustand.hasGps = true;
+      zustand.indexOrt = { name: "Dein Standort", breite: standort.breite, laenge: standort.laenge };
+      void aktualisiereIndex(zustand);
+    },
   });
   karte.on("moveend", () => {
     void ladeSichtbare(lader, zustand);
