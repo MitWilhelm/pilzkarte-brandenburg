@@ -7,7 +7,7 @@ from email.message import Message
 import pytest
 
 from pipeline import io_waldwege
-from pipeline.io_waldwege import art_von
+from pipeline.io_waldwege import art_von, wartezeit
 
 
 @pytest.mark.parametrize(
@@ -64,3 +64,13 @@ def test_andere_http_fehler_brechen_sofort_ab(monkeypatch: pytest.MonkeyPatch) -
     with pytest.raises(urllib.error.HTTPError):
         io_waldwege._hole_mit_wiederholung("abfrage")
     assert len(versuche) == 1
+
+
+@pytest.mark.parametrize(("versuch", "sekunden"), [(1, 60.0), (2, 120.0), (3, 240.0), (5, 960.0)])
+def test_die_pause_nach_einem_fehlversuch_verdoppelt_sich_ab_einer_minute(versuch: int, sekunden: float) -> None:
+    assert wartezeit(versuch) == sekunden
+
+
+def test_eine_pause_vor_dem_ersten_versuch_ist_eine_verletzte_invariante() -> None:
+    with pytest.raises(ValueError, match="Invariante verletzt: Versuch muss mindestens 1 sein, ist 0"):
+        wartezeit(0)

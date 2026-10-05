@@ -197,3 +197,18 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
 - **Entscheidung:** Das Modell bleibt unverändert (Nutzer: „Verändere erstmal nichts“). Eine Kronenhöhen-Ebene gäbe es
   nur aus LGB-bDOM; für den Landkreis Barnim (~1.480 km²) wären das ~1.500 Kacheln à 38 MB (~56 GB), bei ~80 KB/s nicht
   vertretbar. Besser: die Meldungen (Waldbeschreibung, Fehlanzeigen) sammeln und daran die Hotspots prüfen.
+
+## 2026-10-05 — Barnim-Zuschnitt: Baumarten-Raster in EPSG:25833
+
+- **Kontext:** Für die Barnim-Karte (Plan in `docs/stand.md`) werden Baumarten und Standortflächen auf den Landkreis
+  geschnitten. Die Testgebiete behalten das DLR-Raster in EPSG:3035; Grenze, Standortflächen und die geplanten
+  10-km-Kacheln liegen aber in EPSG:25833.
+- **Entscheidung:** `pipeline/io_barnim_zuschnitt.py` projiziert das DLR-Raster einmal mit nächstem Nachbarn (Codes,
+  keine Mittelwerte) auf ein 10-m-Raster in EPSG:25833, an vollen 10 m ausgerichtet; außerhalb der Kreisgrenze 999.
+  Standortflächen zählen wie in `io_barnim_punkte.py`, wenn ihr Innenpunkt im Kreis liegt; ihre ID (`barnim-N`) kommt
+  über `localId` aus `daten/barnim_stok_punkte.csv`, nicht aus der Reihenfolge.
+- **Prüfung:** 70.758 ha Wald (55 % Kiefer), 21.763 Flächen (alle IDs zugeordnet). 5.000 Zufallspixel gegen das
+  DLR-Original: 99,74 % gleich (Rest: Mittelpunkte auf Zellgrenzen). Dateien 2,0 MB (Raster) und 16,6 MB (Flächen),
+  beide unter 25 MB und damit im Git.
+- **Verworfen:** Raster in EPSG:3035 lassen – dann müssten Kacheln, Grenze und Flächen bei jedem Schritt umgerechnet
+  werden, und 10-km-Kacheln in 25833 schnitten das 3035-Raster schief.

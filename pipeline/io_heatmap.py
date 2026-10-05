@@ -41,21 +41,39 @@ WEGRAND_RADIUS_PIXEL = 2  # 5 x 5 Pixel: bis etwa 20–25 m neben dem Weg
 WEGRAND_ARTEN = ("weg", "pfad")
 
 
-def lies_anteile() -> dict[str, list[Standortanteil]]:
+def lies_anteile(dateien: tuple[Path, ...]) -> dict[str, list[Standortanteil]]:
+    """Bodenanteile je Flächen-ID aus einer oder mehreren Antwortdateien der LFB-Abfrage.
+
+    Fehlgeschlagene Abfragen (Status ≠ 200) werden in späteren Dateien wiederholt (Nachholer); je ID zählt die
+    eine erfolgreiche Antwort. Eine ID ganz ohne Erfolg oder mit zwei Erfolgen ist ein Datenfehler.
+    """
     anteile: dict[str, list[Standortanteil]] = {}
-    with (DATEN / "stok_antworten.jsonl").open(encoding="utf-8") as datei:
-        for zeile in datei:
-            eintrag = json.loads(zeile)
-            if eintrag["status"] != 200:
-                raise ValueError(f"Invariante verletzt: {eintrag['id']} hat Status {eintrag['status']}")
-            merkmale = json.loads(eintrag["text"])["features"][0]["properties"]
-            # nfgr4 hat kein Anteilsfeld (az4) und die Anteile az1..az3 ergeben ohne ihn immer 10/10;
-            # er ist also kein vierter Flächenanteil, sondern eine Zusatzangabe und wird nicht bewertet.
-            anteile[eintrag["id"]] = [
-                Standortanteil(code=merkmale[f"nfgr{nummer}"], anteil=merkmale[f"az{nummer}"])
-                for nummer in (1, 2, 3)
-                if merkmale[f"nfgr{nummer}"] != ""
-            ]
+    fehlgeschlagen: dict[str, int] = {}
+    for pfad in dateien:
+        with pfad.open(encoding="utf-8") as datei:
+            for zeile in datei:
+                eintrag = json.loads(zeile)
+                kennung = eintrag["id"]
+                if eintrag["status"] != 200:
+                    fehlgeschlagen[kennung] = eintrag["status"]
+                    continue
+                if kennung in anteile:
+                    raise ValueError(f"Invariante verletzt: {kennung} hat mehr als eine erfolgreiche Antwort")
+                merkmale = json.loads(eintrag["text"])["features"][0]["properties"]
+                # nfgr4 hat kein Anteilsfeld (az4) und die Anteile az1..az3 ergeben ohne ihn immer 10/10;
+                # er ist also kein vierter Flächenanteil, sondern eine Zusatzangabe und wird nicht bewertet.
+                anteile[kennung] = [
+                    Standortanteil(code=merkmale[f"nfgr{nummer}"], anteil=merkmale[f"az{nummer}"])
+                    for nummer in (1, 2, 3)
+                    if merkmale[f"nfgr{nummer}"] != ""
+                ]
+    ohne_erfolg = sorted(set(fehlgeschlagen) - set(anteile))
+    if len(ohne_erfolg) > 0:
+        beispiel = ohne_erfolg[0]
+        raise ValueError(
+            f"Invariante verletzt: {len(ohne_erfolg)} IDs ohne erfolgreiche Antwort, "
+            f"z. B. {beispiel} mit Status {fehlgeschlagen[beispiel]}"
+        )
     return anteile
 
 
@@ -116,7 +134,7 @@ def _heatmap(
 
 
 def main() -> None:
-    anteile = lies_anteile()
+    anteile = lies_anteile((DATEN / "stok_antworten.jsonl",))
     for gebiet in TESTGEBIETE:
         with rasterio.open(DATEN / f"{gebiet.name}_baumarten.tif") as quelle:
             baumarten = quelle.read(1)

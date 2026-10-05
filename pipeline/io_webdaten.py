@@ -101,7 +101,8 @@ def _exportiere_boden(gebiet: Untersuchungsgebiet, beschreibungen: dict[str, str
 
 def main() -> None:
     ZIEL.mkdir(parents=True, exist_ok=True)
-    beschreibungen = {schluessel: beschreibe_standort(werte) for schluessel, werte in lies_anteile().items()}
+    anteile = lies_anteile((DATEN / "stok_antworten.jsonl",))
+    beschreibungen = {schluessel: beschreibe_standort(werte) for schluessel, werte in anteile.items()}
     uebersicht = []
     for gebiet in TESTGEBIETE:
         meta = _exportiere_raster(gebiet)
