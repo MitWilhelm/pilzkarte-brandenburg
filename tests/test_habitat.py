@@ -13,6 +13,7 @@ from pipeline.habitat import (
     boden_punkte,
     gesamtwert,
     hangfaktor,
+    hoehenfaktor,
     lies_standort,
     mit_wegrand,
     relative_stufen,
@@ -140,3 +141,17 @@ def test_nordhang_wird_aufgewertet_suedhang_abgewertet_ebene_bleibt_neutral() ->
     assert hangfaktor(nordhang, 10.0)[1, 0] == pytest.approx(1.15)
     assert hangfaktor(-nordhang, 10.0)[1, 0] == pytest.approx(0.85)
     assert hangfaktor(np.zeros((3, 3), dtype=np.float32), 10.0)[1, 1] == pytest.approx(1.0)
+
+
+def test_niedrige_bestaende_werden_abgewertet_und_ab_zehn_metern_gilt_der_volle_wert() -> None:
+    hoehen = np.array([0, 2, 3, 6, 10, 28, 60], dtype=np.uint8)
+    assert hoehenfaktor(hoehen).tolist() == pytest.approx([0.0, 0.0, 0.0, 3 / 7, 1.0, 1.0, 1.0])
+
+
+def test_pixel_ohne_hoehendaten_bleiben_neutral_statt_als_kahlflaeche_zu_gelten() -> None:
+    assert hoehenfaktor(np.array([255], dtype=np.uint8)).tolist() == [1.0]
+
+
+def test_ein_alter_hoher_bestand_wird_nicht_bevorzugt_gegenueber_einem_mittelhohen() -> None:
+    hoehen = np.array([12, 30], dtype=np.uint8)
+    assert hoehenfaktor(hoehen).tolist() == [1.0, 1.0]

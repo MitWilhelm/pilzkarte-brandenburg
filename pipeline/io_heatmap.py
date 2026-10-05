@@ -6,6 +6,7 @@ gebrannt, mit dem Mischfaktor verrechnet und relativ zu ganz Barnim gestuft.
 """
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import geopandas as gpd
@@ -24,6 +25,7 @@ from pipeline.habitat import (
     baumart_punkte,
     boden_punkte,
     gesamtwert,
+    hoehenfaktor,
     mit_wegrand,
     relative_stufen,
     wirt_codes,
@@ -48,6 +50,7 @@ BARNIM_ANTWORTEN = (
 )
 BARNIM_WEGE = Path("web/public/daten/barnim")  # je 10-km-Kachel, nur Wege im Wald (pipeline/io_waldwege.py, EPSG:4326)
 EPSG_LFB = 25833
+OBERHOEHE = DATEN / "barnim_oberhoehe.tif"  # pipeline/io_ndom.py
 OHNE_FLAECHE = -1
 
 
@@ -106,17 +109,23 @@ def _baum_raster(baumarten: npt.NDArray[np.uint16], pilz: Pilzart) -> npt.NDArra
     return ergebnis
 
 
+@dataclass(frozen=True)
+class Rasterzusatz:
+    """Was neben Baumarten und Boden in die Bewertung eingeht, auf demselben 10-m-Raster."""
+
+    pilz: Pilzart
+    is_nahe_weg: npt.NDArray[np.bool_]
+    hoehenfaktor: npt.NDArray[np.float32]
+
+
 def _heatmap(
-    baumarten: npt.NDArray[np.uint16],
-    boden: npt.NDArray[np.float32],
-    pilz_und_wege: tuple[Pilzart, npt.NDArray[np.bool_]],
+    baumarten: npt.NDArray[np.uint16], boden: npt.NDArray[np.float32], zusatz: Rasterzusatz
 ) -> npt.NDArray[np.uint8]:
-    pilz, is_nahe_weg = pilz_und_wege
     # Pixel ohne Standortfläche (Rand des Ausschnitts, Nicht-Holzboden) gelten als kein Habitat.
     boden_oder_null = np.where(boden == OHNE_BODEN, 0.0, boden).astype(np.float32)
-    misch = mischfaktor(baumarten, wirt_codes(pilz))
-    wert = gesamtwert(_baum_raster(baumarten, pilz), boden_oder_null, misch)
-    return relative_stufen(mit_wegrand(wert, is_nahe_weg))
+    misch = mischfaktor(baumarten, wirt_codes(zusatz.pilz))
+    wert = gesamtwert(_baum_raster(baumarten, zusatz.pilz), boden_oder_null, misch) * zusatz.hoehenfaktor
+    return relative_stufen(mit_wegrand(wert.astype(np.float32), zusatz.is_nahe_weg))
 
 
 def _barnim_boden(
@@ -166,6 +175,15 @@ def _barnim_wege_maske(raster: tuple[tuple[int, int], Affine]) -> npt.NDArray[np
     return in_der_naehe(np.asarray(gebrannt) == 1, WEGRAND_RADIUS_PIXEL)
 
 
+def _barnim_hoehenfaktor(raster: tuple[tuple[int, int], Affine]) -> npt.NDArray[np.float32]:
+    form, transform = raster
+    with rasterio.open(OBERHOEHE) as quelle:
+        if quelle.crs.to_epsg() != EPSG_LFB or quelle.transform != transform or (quelle.height, quelle.width) != form:
+            raise ValueError(f"Invariante verletzt: {OBERHOEHE.name} liegt nicht auf dem Raster der Baumartenkarte")
+        oberhoehe = quelle.read(1)
+    return hoehenfaktor(oberhoehe)
+
+
 def _barnim() -> None:
     with rasterio.open(DATEN / "barnim_baumarten.tif") as quelle:
         if quelle.crs.to_epsg() != EPSG_LFB:
@@ -178,8 +196,9 @@ def _barnim() -> None:
     profil.update(dtype="uint8", nodata=0)
     boden = _barnim_boden(gpd.read_file(DATEN / "barnim_stok_25833.gpkg"), raster, lies_anteile(BARNIM_ANTWORTEN))
     is_nahe_weg = _barnim_wege_maske(raster)
+    faktor_hoehe = _barnim_hoehenfaktor(raster)
     for pilz in PILZARTEN:
-        stufen = _heatmap(baumarten, boden[pilz], (pilz, is_nahe_weg))
+        stufen = _heatmap(baumarten, boden[pilz], Rasterzusatz(pilz, is_nahe_weg, faktor_hoehe))
         with rasterio.open(DATEN / f"barnim_{pilz}_habitat.tif", "w", **profil) as ziel:
             ziel.write(stufen, 1)
         _melde_stufen("barnim", pilz, stufen)

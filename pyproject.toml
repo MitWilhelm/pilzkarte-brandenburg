@@ -8,6 +8,8 @@ dependencies = [
     "pyogrio>=0.10",
     "pyproj>=3.7",
     "pydantic>=2.9",
+    "laspy>=2.5",
+    "lazrs>=0.6",
 ]
 
 [project.optional-dependencies]
@@ -24,8 +26,8 @@ strict = true
 packages = ["pipeline", "tests"]
 
 [[tool.mypy.overrides]]
-# Warum: rasterio, geopandas und shapely liefern keine vollständigen Typ-Informationen.
-module = ["rasterio.*", "geopandas.*", "shapely.*"]
+# Warum: rasterio, geopandas, shapely und laspy liefern keine vollständigen Typ-Informationen.
+module = ["rasterio.*", "geopandas.*", "shapely.*", "laspy.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

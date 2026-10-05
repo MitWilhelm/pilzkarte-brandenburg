@@ -22,6 +22,7 @@ __all__ = [
     "boden_punkte",
     "gesamtwert",
     "hangfaktor",
+    "hoehenfaktor",
     "lies_standort",
     "mit_wegrand",
     "relative_stufen",
@@ -209,6 +210,13 @@ _SCHLUSS_STUETZEN: dict[Pilzart, tuple[tuple[float, ...], tuple[float, ...]]] = 
     "steinpilz": ((0.0, 0.3, 0.6, 0.85, 1.0), (0.3, 0.6, 1.0, 1.0, 0.8)),
     "pfifferling": ((0.0, 0.3, 0.5, 0.8, 1.0), (0.3, 0.7, 1.0, 1.0, 0.75)),
 }
+# Oberhöhe aus dem nDOM (pipeline/hoehe.py): nur niedrige und junge Bestände werden abgewertet, kein Alters-Bonus.
+# Belegt ist allein die Richtung (Recherche-Notiz "Bestandeshöhe als Alters-/Dichte-Proxy": sehr junge Bestände unter
+# etwa 5–8 m Höhe abwerten, ab Stangenholz voll); ein Altersoptimum ist nicht belegt. Die beiden Grenzen sind Annahmen.
+HOEHE_KEIN_BESTAND_METER = 3.0  # darunter Kahlfläche, Freifläche oder Kultur ohne tragfähiges Myzel: kein Habitat
+HOEHE_VOLL_METER = 10.0  # ab hier voll (Kiefer etwa 20 Jahre, siehe Ertragstafel-Größenordnung oben)
+HOEHE_OHNE_DATEN = 255  # Pixel ohne einen Punkt im Fenster (pipeline/hoehe.py: OHNE_WERT)
+
 # Hanglage: Nordhänge günstiger, steile Südhänge ungünstiger (de-Miguel et al. 2014, Bonet et al. 2010).
 HANG_WIRKUNG = 0.15  # höchstens ±15 %
 HANG_VOLL_GRAD = 15.0  # ab dieser Neigung volle Wirkung
@@ -226,6 +234,15 @@ def strukturfaktor(
     faktor = np.interp(hoehe_m, hoehen_x, hoehen_y) * np.interp(kronenschluss, schluss_x, schluss_y)
     ohne_daten = (hoehe_m == STRUKTUR_KEIN_WERT) | (kronenschluss == STRUKTUR_KEIN_WERT)
     return np.where(ohne_daten, 1.0, faktor).astype(np.float32)
+
+
+def hoehenfaktor(oberhoehe_m: npt.NDArray[np.uint8]) -> npt.NDArray[np.float32]:
+    """0 bis 1 je Pixel: bis HOEHE_KEIN_BESTAND_METER 0, danach linear bis HOEHE_VOLL_METER; ohne Daten neutral 1."""
+    anstieg = (oberhoehe_m.astype(np.float32) - HOEHE_KEIN_BESTAND_METER) / (
+        HOEHE_VOLL_METER - HOEHE_KEIN_BESTAND_METER
+    )
+    faktor = np.clip(anstieg, 0.0, 1.0)
+    return np.where(oberhoehe_m == HOEHE_OHNE_DATEN, 1.0, faktor).astype(np.float32)
 
 
 def hangfaktor(gelaende_m: npt.NDArray[np.float32], pixel_meter: float) -> npt.NDArray[np.float32]:
