@@ -159,7 +159,12 @@ const GPS_FEHLER_VERWEIGERT = 1; // GeolocationPositionError.PERMISSION_DENIED
 const HINWEIS_GPS_BLOCKIERT =
   "Der Standort ist für diese Seite nicht freigegeben, deshalb sind GPS und Melden aus. Android: Einstellungen › Apps › Ihr Browser (z. B. Opera, Chrome) › Berechtigungen › Standort › Zulassen, und im Browser für diese Seite den Standort erlauben. iPhone: Einstellungen › Datenschutz & Sicherheit › Ortungsdienste einschalten, dort „Safari-Websites“ auf „Beim Verwenden der App“. Danach den Standort-Knopf erneut tippen.";
 const HINWEIS_GPS_KEIN_SIGNAL = "Kein GPS-Standort gefunden. Kurz unter freiem Himmel warten und den Standort-Knopf erneut tippen.";
-const HINWEIS_GPS_FEHLT = "Dieser Browser kann keinen Standort liefern.";
+const HINWEIS_GPS_FEHLT = "Dieser Browser kann keinen Standort liefern (Opera Mini zum Beispiel nicht). Bitte Chrome oder Opera (nicht Mini) nutzen.";
+const HINWEIS_GPS_SUCHE = "Standort wird gesucht … Das kann unter Bäumen bis zu 30 Sekunden dauern.";
+// Die Fehlermeldung des Browsers (englisch) hängt an, damit bei einem Problem die genaue Ursache sichtbar ist.
+function mitUrsache(hinweis: string, fehler: GeolocationPositionError): string {
+  return `${hinweis} (Fehler ${String(fehler.code)}: ${fehler.message === "" ? "ohne Meldung" : fehler.message})`;
+}
 const GPS_OPTIONEN: PositionOptions = { enableHighAccuracy: true, maximumAge: 10_000, timeout: 30_000 };
 const GPS_ZOOM = 15;
 const GPS_QUELLE = "gps-genauigkeit";
@@ -219,6 +224,7 @@ export function richteGpsEin(karte: maplibregl.Map, knopf: HTMLButtonElement, me
     isErsterStandort = true;
     knopf.setAttribute("aria-pressed", "true");
     knopf.dataset["zustand"] = "sucht";
+    meldungen.beiProblem(HINWEIS_GPS_SUCHE);
     beobachtung = navigator.geolocation.watchPosition(
       (position) => {
         const standort = standortAusGpsEreignis(position);
@@ -233,7 +239,7 @@ export function richteGpsEin(karte: maplibregl.Map, knopf: HTMLButtonElement, me
         meldungen.beiStandort(standort);
       },
       (fehler) => {
-        meldungen.beiProblem(fehler.code === GPS_FEHLER_VERWEIGERT ? HINWEIS_GPS_BLOCKIERT : HINWEIS_GPS_KEIN_SIGNAL);
+        meldungen.beiProblem(mitUrsache(fehler.code === GPS_FEHLER_VERWEIGERT ? HINWEIS_GPS_BLOCKIERT : HINWEIS_GPS_KEIN_SIGNAL, fehler));
         if (fehler.code === GPS_FEHLER_VERWEIGERT) {
           beende();
         }
