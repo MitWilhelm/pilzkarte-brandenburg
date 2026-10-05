@@ -31,11 +31,17 @@ export interface Kartenausschnitt {
   readonly nord: number;
 }
 
-/** Ein Ziel der Sprungliste. */
-export interface Ort {
-  readonly name: string;
-  readonly anzeigename: string;
-  readonly mitte: readonly [number, number]; // [Länge, Breite]
+const ERDRADIUS_METER = 6_371_000;
+const GRAD_IN_RAD = Math.PI / 180;
+
+/** Abstand zweier Punkte [Länge, Breite] in Metern (Großkreis); auf wenige Meter genau, reicht für Hinweise. */
+export function abstandMeter(a: readonly [number, number], b: readonly [number, number]): number {
+  const breiteA = a[1] * GRAD_IN_RAD;
+  const breiteB = b[1] * GRAD_IN_RAD;
+  const halbeBreite = Math.sin((breiteB - breiteA) / 2);
+  const halbeLaenge = Math.sin(((b[0] - a[0]) * GRAD_IN_RAD) / 2);
+  const h = halbeBreite * halbeBreite + Math.cos(breiteA) * Math.cos(breiteB) * halbeLaenge * halbeLaenge;
+  return 2 * ERDRADIUS_METER * Math.asin(Math.sqrt(h));
 }
 
 /** Gebiete (Kacheln), deren Bild den Ausschnitt schneidet; bloßes Berühren an der Kante zählt nicht. */

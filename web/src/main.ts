@@ -13,15 +13,17 @@ import {
   type Kartenebene,
 } from "./karte.ts";
 import { findeHotspots, hotspotart, type Hotspot, type Hotspotart, type MarkierterHotspot } from "./hotspots.ts";
-import { baumartName, gebieteImAusschnitt, KANAL_JE_PILZ, pixelAnStelle, stufeninfo, type Gebiet, type Ort } from "./geo.ts";
+import { abstandMeter, baumartName, gebieteImAusschnitt, KANAL_JE_PILZ, pixelAnStelle, stufeninfo, type Gebiet } from "./geo.ts";
 import { ladeDatenbild, ladeGebiete } from "./clients/daten.ts";
 import { richteMeldenEin } from "./melden.ts";
 import { ladeWetter, type Wetterreihe } from "./clients/openmeteo.ts";
 import { indexverlauf, tagesindex, type Pilzart } from "./wachstum.ts";
 import {
   element,
-  fuelleOrte,
   fuelleLegende,
+  istTafelOffen,
+  schalteLegende,
+  schalteTafel,
   schalteDetails,
   schliessePunkt,
   sindDetailsOffen,
@@ -36,7 +38,6 @@ import {
 
 const KANAELE_PRO_PIXEL = 4;
 const WETTER_RASTER_GRAD = 0.02; // ~2 km: nahe Punkte teilen sich einen Wetterabruf
-const FLUG_ZOOM = 13;
 const TAGE_RUECKBLICK = 7; // so weit zurück zählt ein günstiger Index für ältere, große Pilze
 const PILZNAMEN: Readonly<Record<Pilzart, string>> = { steinpilz: "Steinpilz", pfifferling: "Pfifferling" };
 const KACHEL_ORDNER = "daten/barnim";
@@ -44,15 +45,15 @@ const KACHEL_UEBERSICHT = "kacheln.json";
 // Unter Zoom 11 wären fast alle 25 Kacheln (~30 MB) im Bild; im Wald mit schwachem Netz zu viel.
 const MIN_ZOOM_LADEN = 11;
 const HINWEIS_ZOOM = "Zum Laden der Pilzkarte näher heranzoomen.";
-// Mittelpunkte wie die früheren Testgebiete (pipeline/gebiete.py); weitere Orte auf Wunsch des Nutzers.
-const ORTE: readonly Ort[] = [
-  { name: "joachimsthal", anzeigename: "Joachimsthal", mitte: [13.745, 52.979] },
-  { name: "schwaerzesee", anzeigename: "Schwärzesee", mitte: [13.712, 52.815] },
+const START_MITTE: readonly [number, number] = [13.745, 52.979]; // Ortsmitte Joachimsthal [Länge, Breite]
+// Hinweis, sobald Kartenmitte oder GPS-Standort näher als `radiusMeter` an einem Schutzgebiet liegt.
+const SCHUTZGEBIETE: readonly { readonly mitte: readonly [number, number]; readonly radiusMeter: number; readonly text: string }[] = [
+  {
+    mitte: [13.712, 52.815], // Schwärzesee
+    radiusMeter: 2000,
+    text: "Der Schwärzesee und das Schwärzetal liegen im Naturschutzgebiet „Nonnenfließ-Schwärzetal“. Dort kann das Sammeln verboten sein. Bitte Schilder vor Ort beachten.",
+  },
 ];
-const SCHUTZHINWEISE: Readonly<Record<string, string>> = {
-  schwaerzesee:
-    "Der Schwärzesee und das Schwärzetal liegen im Naturschutzgebiet „Nonnenfließ-Schwärzetal“. Dort kann das Sammeln verboten sein. Bitte Schilder vor Ort beachten.",
-};
 
 /** Ort, für den der Index oben gilt: GPS-Standort oder Kartenmitte. */
 interface Indexort {
@@ -90,9 +91,15 @@ function fehlertext(fehler: unknown): string {
   return fehler instanceof Error ? fehler.message : String(fehler);
 }
 
+function schutzhinweisAn(ort: Indexort): string | null {
+  const nahe = SCHUTZGEBIETE.find((gebiet) => abstandMeter(gebiet.mitte, [ort.laenge, ort.breite]) <= gebiet.radiusMeter);
+  return nahe === undefined ? null : nahe.text;
+}
+
 async function aktualisiereIndex(zustand: Zustand): Promise<void> {
   const { indexOrt, pilz } = zustand;
   element("index-ort", HTMLElement).textContent = indexOrt.name;
+  zeigeSchutzhinweis(schutzhinweisAn(indexOrt));
   try {
     const reihe = await wetterFuer(indexOrt.breite, indexOrt.laenge);
     if (zustand.indexOrt === indexOrt && zustand.pilz === pilz) {
@@ -234,15 +241,10 @@ async function ladeSichtbare(lader: Kachellader, zustand: Zustand): Promise<void
 
 async function start(): Promise<void> {
   fuelleLegende();
-  fuelleOrte(ORTE);
-  const [startOrt] = ORTE;
-  if (startOrt === undefined) {
-    throw new Error("Invariante verletzt: keine Orte für die Sprungliste");
-  }
   const kacheln = await ladeGebiete(KACHEL_ORDNER, KACHEL_UEBERSICHT);
   const zustand: Zustand = {
     pilz: "steinpilz",
-    indexOrt: { name: "Kartenmitte", breite: startOrt.mitte[1], laenge: startOrt.mitte[0] },
+    indexOrt: { name: "Kartenmitte", breite: START_MITTE[1], laenge: START_MITTE[0] },
     hasGps: false,
     markierung: null,
     letzterTipp: null,
@@ -251,7 +253,7 @@ async function start(): Promise<void> {
   };
   void aktualisiereIndex(zustand);
 
-  const { karte, standortSteuerung } = erzeugeKarte(element("karte", HTMLElement), startOrt.mitte);
+  const { karte, standortSteuerung } = erzeugeKarte(element("karte", HTMLElement), START_MITTE);
   // "style.load" statt "load": "load" wartet auf die OSM-Kacheln, und bei schwachem Netz im Wald
   // würde die Heatmap sonst erst mit dem Hintergrund erscheinen.
   await karte.once("style.load");
@@ -317,18 +319,16 @@ async function start(): Promise<void> {
       void zeigeStelle(karte, ebenen, zustand, zustand.letzterTipp);
     }
   });
-  element("gebietswahl", HTMLSelectElement).addEventListener("change", (ereignis) => {
-    const ziel = ereignis.target;
-    const gewaehlt = ORTE.find((ort) => ziel instanceof HTMLSelectElement && ort.name === ziel.value);
-    if (gewaehlt === undefined) {
-      return;
-    }
-    zeigeSchutzhinweis(SCHUTZHINWEISE[gewaehlt.name] ?? null);
-    karte.flyTo({ center: [gewaehlt.mitte[0], gewaehlt.mitte[1]], zoom: FLUG_ZOOM });
-    // Zurück auf "Springen zu …", damit derselbe Ort später erneut wählbar ist ("change" feuert sonst nicht).
-    if (ziel instanceof HTMLSelectElement) {
-      ziel.value = "";
-    }
+  element("tafel-knopf", HTMLButtonElement).addEventListener("click", () => {
+    schalteTafel(!istTafelOffen());
+  });
+  const legendeKnopf = element("legende-knopf", HTMLButtonElement);
+  fuegeKnopfHinzu(karte, legendeKnopf);
+  legendeKnopf.addEventListener("click", () => {
+    schalteLegende(element("legende-fenster", HTMLElement).hidden);
+  });
+  element("legende-schliessen", HTMLButtonElement).addEventListener("click", () => {
+    schalteLegende(false);
   });
   element("bodengrenzen", HTMLInputElement).addEventListener("change", (ereignis) => {
     const ziel = ereignis.target;

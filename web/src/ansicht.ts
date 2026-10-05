@@ -1,5 +1,5 @@
 // Ansicht: füllt die Tafel mit Index, 7-Tage-Trend und Punkt-Infos. Nur textContent und DOM-Knoten (Regel 12).
-import { STUFEN, googleMapsRoute, komootPlaner, type Ort } from "./geo.ts";
+import { STUFEN, googleMapsRoute, komootPlaner } from "./geo.ts";
 import { indexWort, type Tagesindex, type Tageswetter } from "./wachstum.ts";
 
 const WOCHENTAG = new Intl.DateTimeFormat("de-DE", { weekday: "short", timeZone: "UTC" });
@@ -144,14 +144,27 @@ export function zeigePunktwetterFehler(meldung: string): void {
   }
 }
 
-/** Sprungliste: erster Eintrag ist nur die Aufforderung, damit jeder Ort per "change" anwählbar ist. */
-export function fuelleOrte(orte: readonly Ort[]): void {
-  const aufforderung = new Option("Springen zu …", "", true, true);
-  aufforderung.disabled = true;
-  element("gebietswahl", HTMLSelectElement).replaceChildren(
-    aufforderung,
-    ...orte.map((ort) => new Option(ort.anzeigename, ort.name)),
-  );
+/** Klappt die Tafel auf dem Handy auf (Trend, Melden) oder zu (nur Index-Zeile). */
+export function schalteTafel(isOffen: boolean): void {
+  const tafel = element("tafel", HTMLElement);
+  if (isOffen) {
+    tafel.dataset["offen"] = "ja";
+  } else {
+    delete tafel.dataset["offen"];
+  }
+  const knopf = element("tafel-knopf", HTMLButtonElement);
+  knopf.setAttribute("aria-expanded", String(isOffen));
+  knopf.setAttribute("aria-label", isOffen ? "Tafel zuklappen" : "Tafel aufklappen: 7-Tage-Trend und Melden");
+}
+
+export function istTafelOffen(): boolean {
+  return element("tafel", HTMLElement).dataset["offen"] === "ja";
+}
+
+/** Öffnet oder schließt das Legenden-Fenster. */
+export function schalteLegende(isOffen: boolean): void {
+  element("legende-fenster", HTMLElement).hidden = !isOffen;
+  element("legende-knopf", HTMLButtonElement).setAttribute("aria-expanded", String(isOffen));
 }
 
 /** Hinweis über dem Index, z. B. "näher heranzoomen" oder ein Ladefehler; null blendet ihn aus. */

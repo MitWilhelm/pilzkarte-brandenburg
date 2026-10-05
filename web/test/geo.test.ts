@@ -1,7 +1,7 @@
 // Tests für die reinen Geo-Hilfen in src/geo.ts.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { baumartName, gebieteImAusschnitt, googleMapsRoute, pixelAnStelle, standortAusGpsEreignis, stufeninfo, type Gebiet } from "../src/geo.ts";
+import { abstandMeter, baumartName, gebieteImAusschnitt, googleMapsRoute, pixelAnStelle, standortAusGpsEreignis, stufeninfo, type Gebiet } from "../src/geo.ts";
 
 // Werte wie in web/public/daten/gebiete.json (Export vom 03.10.2026).
 function joachimsthal(): Gebiet {
@@ -29,6 +29,12 @@ test("im Ausschnitt liegen genau die Kacheln, deren Bild ihn schneidet, nicht di
   const kacheln = [kachel("links", 13.5, 52.9), kachel("mitte", 13.6, 52.9), kachel("rechts", 13.7, 52.9), kachel("unten", 13.6, 52.8)];
   const namen = gebieteImAusschnitt(kacheln, { west: 13.55, sued: 52.9, ost: 13.65, nord: 52.95 }).map((gebiet) => gebiet.name);
   assert.deepEqual(namen, ["links", "mitte"]);
+});
+
+test("der Abstand zwischen Joachimsthal und Schwärzesee beträgt rund 18 km, zu sich selbst null", () => {
+  const joachimsthalMitte: [number, number] = [13.745, 52.979];
+  assert.ok(Math.abs(abstandMeter(joachimsthalMitte, [13.712, 52.815]) - 18_400) < 300);
+  assert.equal(abstandMeter(joachimsthalMitte, joachimsthalMitte), 0);
 });
 
 test("ein Ausschnitt fern aller Kacheln ergibt keine Kachel", () => {

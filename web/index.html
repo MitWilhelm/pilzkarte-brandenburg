@@ -22,18 +22,19 @@
     <input type="radio" name="pilz" id="pilz-pfifferling" value="pfifferling">
     <label for="pilz-pfifferling">Pfifferling</label>
   </fieldset>
-  <label class="nur-vorleser" for="gebietswahl">Zu einem Ort springen</label>
-  <select id="gebietswahl" class="gebietswahl"></select>
 </header>
 
 <main id="karte" class="karte" aria-label="Karte mit Habitat-Heatmap"></main>
-<!-- Wird von src/karte.ts als Kartenschalter unter Zoom und GPS eingesetzt. -->
+<!-- Werden von src/karte.ts als Kartenschalter unter Zoom und GPS eingesetzt. -->
+<button type="button" id="legende-knopf" class="knopf-legende" aria-expanded="false" aria-controls="legende-fenster" aria-label="Legende und Quellen" title="Legende" hidden>
+  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M12 3l9 5-9 5-9-5 9-5z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M3 13l9 5 9-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</button>
 <button type="button" id="nur-brennpunkte" class="knopf-brennpunkte" aria-pressed="false" aria-label="Brennpunkte farbig zeigen, übrige Flächen grau" title="Brennpunkte" hidden>
   <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/></svg>
 </button>
 
 <section class="tafel glas" id="tafel" aria-live="polite">
-  <div class="tafel-griff" aria-hidden="true"></div>
+  <button type="button" class="tafel-griff" id="tafel-knopf" aria-expanded="false" aria-controls="tafel" aria-label="Tafel aufklappen: 7-Tage-Trend und Melden"></button>
 
   <p class="hinweis" id="lade-hinweis" hidden></p>
 
@@ -88,6 +89,18 @@
   </article>
 
   <p class="hinweis" id="hinweis">Tippen Sie auf eine farbige Stelle im Wald, um Details zu sehen.</p>
+  <p class="hinweis hinweis-warnung" id="schutz-hinweis" hidden></p>
+
+</section>
+
+<!-- Legende: eigenes Fenster, geöffnet über den Kartenknopf "Legende" (src/main.ts). -->
+<section class="legende-fenster glas" id="legende-fenster" aria-labelledby="legende-titel" hidden>
+  <div class="legende-kopf">
+    <h2 class="legende-titel" id="legende-titel">Karte lesen</h2>
+    <button type="button" class="knopf-schliessen" id="legende-schliessen" aria-label="Legende schließen">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+    </button>
+  </div>
   <ul class="ring-legende" aria-label="Zeichen auf der Karte">
     <li><span class="strassefeld" role="img" aria-label="Straße"></span>Straße für Autos</li>
     <li><span class="wegfeld" role="img" aria-label="Forstweg"></span>Forstweg (meist für Autos gesperrt)</li>
@@ -96,16 +109,11 @@
     <li><span class="flaechenfeld flaechenfeld-neu" role="img" aria-label="türkise Fläche"></span>Türkis: gute Fläche (ab Stufe 85), Wachstumsindex heute günstig</li>
     <li><span class="flaechenfeld flaechenfeld-alt" role="img" aria-label="pinke Fläche"></span>Pink: gute Fläche, nur in den letzten 7 Tagen günstig (ältere, große Pilze)</li>
   </ul>
-  <p class="hinweis hinweis-warnung" id="schutz-hinweis" hidden></p>
-
-  <details class="legende">
-    <summary>Legende, Ebenen und Quellen</summary>
     <ul class="legende-liste" id="legende"></ul>
     <p class="legende-text">Die Farbe zeigt, wie gut eine Stelle zu Baumart, Boden und Mischung der Bäume passt, im Vergleich zum ganzen Landkreis Barnim. Der Index oben gilt für Ihren GPS-Standort, ohne GPS für die Kartenmitte. Der Wachstumsindex schätzt aus Regen, Lufttemperatur, Bodenfeuchte und Jahreszeit, ob gerade Pilze wachsen. Der Knopf <strong>Brennpunkte</strong> färbt zusammenhängende Flächen ab Stufe 85 („Gut“ bis „Sehr gut“, ab 3 ha, in 100-m-Feldern) und macht den Rest grau: <strong>türkis</strong>, wenn der Wachstumsindex dort heute mindestens 60 beträgt, <strong>pink</strong>, wenn er nur in den letzten 7 Tagen mindestens 60 erreichte (dort sind ältere, große Pilze möglich). Regen der letzten drei Wochen zählt stufenlos, am stärksten ein bis zwei Wochen danach. Feuchter Boden bei 11–15 °C (Mittel der letzten 5 Tage) ergibt auch ohne Regen einen mittleren Index; Kälte und Wärme senken ihn, warm und trocken (über 17,5 °C) stark. Jede Fläche nutzt das Wetter an ihrer eigenen Stelle. Ränder von Forstwegen und Pfaden bis etwa 25 m sind leicht aufgewertet.</p>
     <label class="schalter"><input type="checkbox" id="bodengrenzen"> Grenzen der Bodenflächen zeigen</label>
     <p class="legende-text klein">Baumarten 2022: © DLR, CC-BY-4.0 · Standortskarte und Waldflächen: Landesbetrieb Forst Brandenburg, dl-de/by-2-0 · Wetter: Open-Meteo.com, CC-BY-4.0 · Karte und Wege: © OpenStreetMap-Mitwirkende, ODbL · Kreisgrenze: © GeoBasis-DE / BKG (2026), dl-de/by-2-0</p>
     <p class="legende-text klein">Die Karte ersetzt keine Pilzbestimmung. Funde vor dem Verzehr von einer Pilzberatungsstelle prüfen lassen.</p>
-  </details>
 </section>
 
 <dialog class="melde-dialog glas" id="meldedialog" aria-labelledby="melde-titel">

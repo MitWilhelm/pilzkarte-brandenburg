@@ -77,16 +77,11 @@ p, h1, ol, dl, dd { margin: 0; }
 .umschalter label { min-height: 38px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 13px; font-weight: 700; font-size: 14.5px; color: var(--leise); cursor: pointer; }
 .umschalter input:checked + label { background: var(--flaeche); color: var(--text); box-shadow: 0 2px 6px rgb(0 0 0 / 0.15); }
 .umschalter input:focus-visible + label { outline: 2px solid var(--akzent); outline-offset: 2px; }
-.gebietswahl {
-  font: inherit; font-size: 14.5px; font-weight: 800; color: var(--text); min-height: 44px;
-  background: transparent; border: 0; border-radius: 14px; padding: 0 8px;
-}
-.gebietswahl option { color: #1c2a20; }
 
 .karte { position: absolute; inset: 0; }
 
 /* MapLibre-Bedienelemente als runde Glasknöpfe */
-.maplibregl-ctrl-top-right { top: calc(env(safe-area-inset-top, 0px) + 110px); } /* unter der zweizeiligen Leiste */
+.maplibregl-ctrl-top-right { top: calc(env(safe-area-inset-top, 0px) + 66px); } /* unter der einzeiligen Leiste */
 .maplibregl-ctrl-group:not(:empty) {
   background: var(--glas); border: 1px solid var(--glas-rand); border-radius: 16px; box-shadow: var(--schatten);
   -webkit-backdrop-filter: blur(22px) saturate(1.7); backdrop-filter: blur(22px) saturate(1.7);
@@ -105,7 +100,18 @@ p, h1, ol, dl, dd { margin: 0; }
   max-height: 48dvh; overflow-y: auto;
   padding: 8px var(--abstand) 16px; border-radius: 30px;
 }
-.tafel-griff { justify-self: center; width: 40px; height: 4px; border-radius: 4px; background: var(--linie); }
+/* Griff als Knopf: ganze Breite tippbar, sichtbar nur der kurze Strich. */
+.tafel-griff {
+  justify-self: stretch; height: 32px; margin: -8px 0 -10px; padding: 0; border: 0; background: transparent; cursor: pointer;
+}
+.tafel-griff::before { content: ""; display: block; width: 40px; height: 4px; margin: auto; border-radius: 4px; background: var(--linie); }
+.tafel-griff:focus-visible { outline: 3px solid var(--text); outline-offset: -3px; border-radius: 12px; }
+/* Handy: Tafel startet eingeklappt (nur Index-Zeile); data-offen setzt src/ansicht.ts. */
+@media (max-width: 899px) {
+  .tafel:not([data-offen="ja"]) > :not(.tafel-griff, #lade-hinweis, #schutz-hinweis, #block-index, #block-punkt) { display: none; }
+  .tafel:not([data-offen="ja"]) #trend, .tafel:not([data-offen="ja"]) #index-grund { display: none; }
+  .tafel:not([data-offen="ja"]) .index-zahl { width: 48px; height: 48px; font-size: 20px; }
+}
 .block { display: grid; gap: 10px; min-width: 0; }
 .ueberzeile { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--leise); }
 
@@ -171,8 +177,16 @@ p, h1, ol, dl, dd { margin: 0; }
 .hinweis { font-size: 13.5px; color: var(--leise); }
 .hinweis-warnung { color: var(--warnung-text); background: var(--warnung-grund); padding: 9px 11px; border-radius: 14px; }
 
-.legende summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 800; font-size: 14px; color: var(--akzent); }
-.legende[open] { display: grid; gap: 10px; }
+/* Legende als eigenes Fenster unter den Kartenknöpfen */
+.legende-fenster {
+  position: absolute; z-index: 4; left: 10px; right: 10px; top: calc(env(safe-area-inset-top, 0px) + 66px);
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 90px); overflow-y: auto;
+  display: grid; gap: 12px; align-content: start; padding: 12px 14px 16px; border-radius: 22px;
+}
+.legende-kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.legende-titel { font-size: 16px; font-weight: 800; }
+.maplibregl-ctrl-group .knopf-legende { display: grid; place-items: center; color: var(--text); }
+.maplibregl-ctrl-group .knopf-legende[aria-expanded="true"] { background: var(--akzent); color: var(--auf-akzent); }
 .legende-liste { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
 .legende-liste li { display: inline-flex; align-items: center; gap: 6px; }
 .farbfeld { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgb(0 0 0 / 0.15); }
@@ -231,6 +245,7 @@ p, h1, ol, dl, dd { margin: 0; }
   .leiste { right: auto; width: min(560px, calc(100% - 420px)); }
   .tafel { left: auto; right: 10px; top: calc(env(safe-area-inset-top, 0px) + 10px); width: 380px; max-height: none; }
   .tafel-griff { display: none; }
+  .legende-fenster { left: auto; right: 460px; width: 360px; top: calc(env(safe-area-inset-top, 0px) + 10px); }
   .maplibregl-ctrl-top-right { right: 400px; top: calc(env(safe-area-inset-top, 0px) + 10px); }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
