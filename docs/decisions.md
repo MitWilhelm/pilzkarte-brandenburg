@@ -173,3 +173,22 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   Browser); nur Export als Datei (mehr Handarbeit, nichts im Wald prüfbar).
 - **Grenzen:** „Issue geöffnet“ heißt nicht „abgeschickt“ (GitHub meldet nichts zurück). Die Auswertung der Issues
   (Abgleich mit der Heatmap) ist noch nicht gebaut.
+
+## 2026-10-05 — Kronenhöhe: freie Karten gegen LGB-Messwerte geprüft, verworfen
+
+- **Kontext:** Drei LGB-Kachelpaare (bDOM 0,2 m, DGM 1 m) wurden vom Nutzer heruntergeladen und im Release `daten-v1`
+  abgelegt (33413-5872, 33413-5873, 33412-5867; 29.800 Waldzellen à 10 m). Kronenhöhe = bDOM (auf 1 m gemittelt) − DGM,
+  je 10-m-Zelle das obere Quartil. Vergleich mit den freien Karten auf derselben Fläche.
+- **Ergebnis:**
+  - Meta/WRI (1 m): Korrelation r = 0,33, Bias −6,3 m, RMSE 9,9 m. Die Karte staucht: Zellen mit LGB 0–5 m liegen
+    bei Meta im Median bei 13 m, solche mit 25–40 m bei 16 m. Kahlschlag und Altbestand sind kaum zu trennen.
+  - ETH (10 m, 2020): r = 0,12, Bias +4,8 m; fast alle Zellen 22–29 m, unabhängig von der LGB-Höhe.
+  - Beide sind für ein Habitat-Modell nach Bestandesalter **nicht brauchbar**.
+- **Funde gegen LGB (nur Hinweis, 4 Funde in einer Kachel, räumlich nicht unabhängig):** Die vier verlässlichen Funde
+  stehen in hohem Bestand (P75-Kronenhöhe 25–27 m, Rang 61–84 % im Gebiet) mit überdurchschnittlich ungleichmäßigem
+  Kronendach (Streuung der Höhe Rang 58–95 %, Lücken bis 0 m im 50-m-Fenster). Der unsichere Fund A liegt dagegen in
+  einem gleichmäßigen, geschlossenen Dach (Streuung Rang 18 %, Schluss 100 %); das passt nicht zu „Kiefer/Buche“ und
+  stützt die Vermutung, dass seine Koordinate nicht stimmt. Ungleichmäßigkeit kann auch nur Wegnähe widerspiegeln.
+- **Entscheidung:** Das Modell bleibt unverändert (Nutzer: „Verändere erstmal nichts“). Eine Kronenhöhen-Ebene gäbe es
+  nur aus LGB-bDOM; für den Landkreis Barnim (~1.480 km²) wären das ~1.500 Kacheln à 38 MB (~56 GB), bei ~80 KB/s nicht
+  vertretbar. Besser: die Meldungen (Waldbeschreibung, Fehlanzeigen) sammeln und daran die Hotspots prüfen.
