@@ -117,9 +117,67 @@
     <ul class="legende-liste" id="legende"></ul>
     <p class="legende-text">Die Farbe zeigt, wie gut eine Stelle zu Baumart, Boden und Mischung der Bäume passt, im Vergleich zum ganzen Landkreis Barnim. Der Index oben gilt für Ihren GPS-Standort, ohne GPS für die Kartenmitte. Der Wachstumsindex schätzt aus Regen, Lufttemperatur, Bodenfeuchte und Jahreszeit, ob gerade Pilze wachsen. Der Knopf <strong>Brennpunkte</strong> färbt zusammenhängende Flächen ab Stufe 85 („Gut“ bis „Sehr gut“, ab 3 ha, in 100-m-Feldern) und macht den Rest grau: <strong>türkis</strong>, wenn der Wachstumsindex dort heute mindestens 60 beträgt, <strong>pink</strong>, wenn er nur in den letzten 7 Tagen mindestens 60 erreichte (dort sind ältere, große Pilze möglich). Regen der letzten drei Wochen zählt stufenlos, am stärksten ein bis zwei Wochen danach. Feuchter Boden bei 11–15 °C (Mittel der letzten 5 Tage) ergibt auch ohne Regen einen mittleren Index; Kälte und Wärme senken ihn, warm und trocken (über 17,5 °C) stark. Jede Fläche nutzt das Wetter an ihrer eigenen Stelle. Ränder von Forstwegen und Pfaden bis etwa 25 m sind leicht aufgewertet.</p>
     <label class="schalter"><input type="checkbox" id="bodengrenzen"> Grenzen der Bodenflächen zeigen</label>
+    <button type="button" class="knopf" id="tutorial-oeffnen">Anleitung noch einmal zeigen</button>
     <p class="legende-text klein">Baumarten 2022: © DLR, CC-BY-4.0 · Standortskarte und Waldflächen: Landesbetrieb Forst Brandenburg, dl-de/by-2-0 · Wetter: Open-Meteo.com, CC-BY-4.0 · Karte und Wege: © OpenStreetMap-Mitwirkende, ODbL · Kreisgrenze: © GeoBasis-DE / BKG (2026), dl-de/by-2-0</p>
     <p class="legende-text klein">Die Karte ersetzt keine Pilzbestimmung. Funde vor dem Verzehr von einer Pilzberatungsstelle prüfen lassen.</p>
 </section>
+
+<!-- Tutorial: erscheint beim ersten Öffnen (src/tutorialansicht.ts), danach über die Legende erneut abrufbar. -->
+<dialog class="tutorial-dialog glas" id="tutorial" aria-labelledby="tutorial-titel">
+  <div class="tutorial-kopf">
+    <p class="ueberzeile" id="tutorial-fortschritt" aria-live="polite">Schritt 1 von 6</p>
+    <button type="button" class="tutorial-ueberspringen" id="tutorial-ueberspringen">Überspringen</button>
+  </div>
+
+  <section class="tutorial-schritt" data-schritt aria-labelledby="tutorial-titel">
+    <h2 class="tutorial-titel" id="tutorial-titel">Willkommen bei der Pilzkarte Barnim</h2>
+    <p>Die Karte zeigt für <strong>Steinpilz</strong> und <strong>Pfifferling</strong>, <strong>wo</strong> im Landkreis Barnim sie wachsen können und <strong>wann</strong> sich die Suche lohnt.</p>
+    <p>Oben wählen Sie die Pilzart. Alles Weitere erklären die nächsten Schritte, es dauert eine Minute.</p>
+    <p class="tutorial-hinweis">Die Karte dient nur zur Orientierung und ersetzt keine Pilzbestimmung. In Naturschutzgebieten kann das Sammeln verboten sein.</p>
+  </section>
+
+  <section class="tutorial-schritt" data-schritt hidden>
+    <h2 class="tutorial-titel">Die Farben: wo es passt</h2>
+    <span class="tutorial-bild stufenleiste" role="img" aria-label="Farbverlauf von hellgelb bis dunkelbraun"></span>
+    <p class="tutorial-bildtext"><span>Möglich</span><span>Sehr gut</span></p>
+    <p>Hellgelb bis dunkelbraun zeigt, wie gut eine Stelle zu <strong>Baumart, Boden und Mischung der Bäume</strong> passt: Stufe 50 bis 100. Verglichen wird mit dem ganzen Landkreis, dunkelbraun gehört also zu den besten Flächen in Barnim.</p>
+    <p>Wege sind eingezeichnet: gelb Straßen, weiß Forstwege, gestrichelt Pfade.</p>
+  </section>
+
+  <section class="tutorial-schritt" data-schritt hidden>
+    <h2 class="tutorial-titel">Der Index: wann es passt</h2>
+    <p>Unten steht der <strong>Wachstumsindex</strong> von 0 bis 100. Er schätzt aus Regen der letzten drei Wochen, Temperatur, Bodenfeuchte und Jahreszeit, ob gerade Pilze wachsen. Ab 60 ist er „günstig“.</p>
+    <p>Er gilt für <strong>Ihren Standort</strong>, ohne Standort für die <strong>Kartenmitte</strong>. Mit dem Strich über der Tafel klappen Sie den Trend der nächsten 7 Tage und das Melden auf.</p>
+  </section>
+
+  <section class="tutorial-schritt" data-schritt hidden>
+    <h2 class="tutorial-titel">Brennpunkte und Tipps</h2>
+    <ul class="tutorial-liste">
+      <li><span class="brennpunktfeld" role="img" aria-label="Knopf Brennpunkte"></span><span>Der Knopf rechts färbt die besten Flächen und macht den Rest grau.</span></li>
+      <li><span class="flaechenfeld flaechenfeld-neu" role="img" aria-label="türkis"></span><span><strong>Türkis</strong>: gute Fläche, heute günstig.</span></li>
+      <li><span class="flaechenfeld flaechenfeld-alt" role="img" aria-label="pink"></span><span><strong>Pink</strong>: nur in den letzten 7 Tagen günstig (ältere, große Pilze).</span></li>
+      <li><span class="tippfeld" role="img" aria-label="Pilz-Markierung"></span><span><strong>Pilz-Markierungen 1–5</strong>: die fünf besten Steinpilz-Plätze heute. Der türkise Rahmen zeigt die beste Kernfläche (9 ha). Dazu herauszoomen, antippen für Details. Täglich morgens neu berechnet.</span></li>
+    </ul>
+  </section>
+
+  <section class="tutorial-schritt" data-schritt hidden>
+    <h2 class="tutorial-titel">Eine Stelle antippen</h2>
+    <p>Tippen Sie auf die Karte: Unten erscheint eine kleine Vorschau mit <strong>Kennziffer</strong> (Stufe), Bewertung und Index an dieser Stelle.</p>
+    <p><strong>Route</strong> öffnet Google Maps, <strong>Komoot</strong> den Komoot-Planer. <strong>Details</strong> klappt Baumart, Boden, Regen, Bodentemperatur und Koordinaten nach oben auf, das Kreuz schließt die Stelle.</p>
+  </section>
+
+  <section class="tutorial-schritt" data-schritt hidden>
+    <h2 class="tutorial-titel">Standort, Melden und Legende</h2>
+    <p>Der Knopf mit dem Fadenkreuz fragt Ihren <strong>Standort</strong> ab. Dann können Sie <strong>Funde oder „Nichts gefunden“ melden</strong>, mit kurzer Waldbeschreibung. Das geht nur bei einer GPS-Genauigkeit von höchstens 30 m. Die Meldung bleibt im Handy gespeichert, „Senden“ öffnet ein GitHub-Issue.</p>
+    <p>Der Knopf mit den Ebenen zeigt die <strong>Legende</strong> mit allen Zeichen und Quellen. Dort können Sie diese Anleitung auch noch einmal öffnen.</p>
+  </section>
+
+  <ol class="tutorial-punkte" id="tutorial-punkte" aria-hidden="true"></ol>
+  <div class="tutorial-fuss">
+    <button type="button" class="knopf" id="tutorial-zurueck">Zurück</button>
+    <button type="button" class="knopf knopf-haupt" id="tutorial-weiter" autofocus>Weiter</button>
+  </div>
+</dialog>
 
 <dialog class="melde-dialog glas" id="meldedialog" aria-labelledby="melde-titel">
   <form id="meldeformular" class="melde-formular" method="dialog">

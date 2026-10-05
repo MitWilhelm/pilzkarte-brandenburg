@@ -38,6 +38,7 @@ import {
   zeigePunktwetterFehler,
   zeigeSchutzhinweis,
 } from "./ansicht.ts";
+import { richteTutorialEin } from "./tutorialansicht.ts";
 
 const KANAELE_PRO_PIXEL = 4;
 const ANZAHL_TIPPS = 5;
@@ -268,6 +269,7 @@ async function ladeTageswerteOderNull(): Promise<Tageswerte | null> {
 
 async function start(): Promise<void> {
   fuelleLegende();
+  richteTutorialEin(window.localStorage);
   const [kacheln, tageswerte] = await Promise.all([ladeGebiete(KACHEL_ORDNER, KACHEL_UEBERSICHT), ladeTageswerteOderNull()]);
   const zustand: Zustand = {
     pilz: "steinpilz",
