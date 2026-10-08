@@ -29,6 +29,9 @@
 <button type="button" id="gps-knopf" class="knopf-gps" aria-pressed="false" aria-label="Meinen Standort zeigen" title="Standort" hidden>
   <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.2" fill="currentColor"/><circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
 </button>
+<button type="button" id="melden-kartenknopf" class="knopf-melden" aria-label="Fund oder Nichts gefunden melden" title="Melden" hidden>
+  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M12 21s-6-5.2-6-10a6 6 0 0 1 12 0c0 4.8-6 10-6 10z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M12 8v6M9 11h6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+</button>
 <button type="button" id="legende-knopf" class="knopf-legende" aria-expanded="false" aria-controls="legende-fenster" aria-label="Legende und Quellen" title="Legende" hidden>
   <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M12 3l9 5-9 5-9-5 9-5z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M3 13l9 5 9-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
 </button>
@@ -36,11 +39,18 @@
   <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/></svg>
 </button>
 
+<!-- Hinweis zum Standort: oben auf der Karte, unabhängig von der Tafel (die blendet ihn sonst bei gewählter Stelle aus). -->
+<div class="gps-banner" id="gps-banner" hidden>
+  <p class="gps-banner-text" id="gps-hinweis" role="status"></p>
+  <button type="button" class="knopf-schliessen" id="gps-banner-zu" aria-label="Hinweis schließen">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
 <section class="tafel glas" id="tafel" aria-live="polite">
   <button type="button" class="tafel-griff" id="tafel-knopf" aria-expanded="false" aria-controls="tafel" aria-label="Tafel aufklappen: 7-Tage-Trend und Melden"></button>
 
   <p class="hinweis" id="lade-hinweis" hidden></p>
-  <p class="hinweis hinweis-warnung" id="gps-hinweis" role="status" hidden></p>
 
   <article class="block" id="block-index">
     <p class="ueberzeile"><span id="index-ort">Kartenmitte</span> · Wachstumsindex heute</p>
@@ -114,6 +124,7 @@
     <li><span class="wegfeld" role="img" aria-label="Forstweg"></span>Forstweg (meist für Autos gesperrt)</li>
     <li><span class="pfadfeld" role="img" aria-label="Pfad"></span>Pfad, Rückegasse, Waldspur</li>
     <li><span class="tippfeld" role="img" aria-label="Tipp-Markierung"></span>Pilz-Markierung 1–5: die fünf besten Steinpilz-Plätze heute (wachsen heute, größte zusammenhängende Fläche; morgens berechnet); der türkise Rahmen zeigt darin die beste Kernfläche (9 ha)</li>
+    <li><span class="meldefeld" role="img" aria-label="Knopf Melden"></span>Knopf rechts mit Stecknadel und Plus: Fund oder „Nichts gefunden“ melden (braucht einen genauen Standort, höchstens ±30 m)</li>
     <li><span class="brennpunktfeld" role="img" aria-label="Knopf Brennpunkte"></span>Knopf rechts: Brennpunkte farbig zeigen, übrige Flächen grau</li>
     <li><span class="flaechenfeld flaechenfeld-neu" role="img" aria-label="türkise Fläche"></span>Türkis: gute Fläche (ab Stufe 85), Wachstumsindex heute günstig</li>
     <li><span class="flaechenfeld flaechenfeld-alt" role="img" aria-label="pinke Fläche"></span>Pink: gute Fläche, nur in den letzten 7 Tagen günstig (ältere, große Pilze)</li>
@@ -123,6 +134,7 @@
     <label class="schalter"><input type="checkbox" id="bodengrenzen"> Grenzen der Bodenflächen zeigen</label>
     <button type="button" class="knopf" id="tutorial-oeffnen">Anleitung noch einmal zeigen</button>
     <p class="legende-text klein">Baumarten 2022: © DLR, CC-BY-4.0 · Standortskarte und Waldflächen: Landesbetrieb Forst Brandenburg, dl-de/by-2-0 · Wetter: Open-Meteo.com, CC-BY-4.0 · Karte und Wege: © OpenStreetMap-Mitwirkende, ODbL · Kreisgrenze: © GeoBasis-DE / BKG (2026), dl-de/by-2-0 · Bestandshöhe: © GeoBasis-DE / LGB (nDOM), dl-de/by-2-0</p>
+    <p class="legende-text klein" id="version"></p>
     <p class="legende-text klein">Die Karte ersetzt keine Pilzbestimmung. Funde vor dem Verzehr von einer Pilzberatungsstelle prüfen lassen.</p>
 </section>
 
@@ -172,7 +184,7 @@
 
   <section class="tutorial-schritt" data-schritt hidden>
     <h2 class="tutorial-titel">Standort, Melden und Legende</h2>
-    <p>Der Knopf mit dem Fadenkreuz fragt Ihren <strong>Standort</strong> ab. Dann können Sie <strong>Funde oder „Nichts gefunden“ melden</strong>, mit kurzer Waldbeschreibung. Das geht nur bei einer GPS-Genauigkeit von höchstens 30 m. Die Meldung bleibt im Handy gespeichert, „Senden“ öffnet ein GitHub-Issue.</p>
+    <p>Der Knopf mit dem Fadenkreuz fragt Ihren <strong>Standort</strong> ab. Der Knopf mit der Stecknadel und dem Plus öffnet das <strong>Melden von Funden oder „Nichts gefunden“</strong>, mit kurzer Waldbeschreibung. Das geht nur bei einer GPS-Genauigkeit von höchstens 30 m; ohne Standort startet der Knopf zuerst die Ortung. Die Meldung bleibt im Handy gespeichert, „Senden“ öffnet ein GitHub-Issue.</p>
     <p>Der Knopf mit den Ebenen zeigt die <strong>Legende</strong> mit allen Zeichen und Quellen. Dort können Sie diese Anleitung auch noch einmal öffnen.</p>
   </section>
 

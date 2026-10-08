@@ -144,6 +144,15 @@ p, h1, ol, dl, dd { margin: 0; }
 .punkt-index { color: var(--leise); font-size: 14px; }
 /* Gewählte Stelle: kompakte Vorschau; die übrige Tafel ist solange ausgeblendet (data-auswahl, gesetzt in src/ansicht.ts). */
 .tafel[data-auswahl="ja"] > :not(.tafel-griff, #block-punkt, #schutz-hinweis) { display: none; }
+/* Standort-Hinweis: eigenes Banner oben, damit er bei jeder Tafel-Stellung sichtbar ist (Ursache von "GPS-Knopf: gar nichts") */
+.gps-banner {
+  position: absolute; z-index: 5; left: 10px; right: 66px; top: calc(env(safe-area-inset-top, 0px) + 66px);
+  display: flex; gap: 6px; align-items: flex-start; max-height: 42dvh; overflow-y: auto; padding: 8px 6px 8px 12px; border-radius: 18px;
+  color: var(--warnung-text); background: var(--warnung-grund); box-shadow: var(--schatten);
+}
+.gps-banner[hidden] { display: none; }
+.gps-banner-text { flex: 1 1 auto; min-width: 0; font-size: 13.5px; line-height: 1.4; padding-top: 6px; }
+.gps-banner .knopf-schliessen { flex: none; background: transparent; color: inherit; }
 .punkt-vorschau { display: flex; align-items: center; gap: 12px; }
 .kennziffer {
   flex: none; width: 52px; height: 52px; padding: 0; border-radius: 16px; display: grid; place-items: center;
@@ -190,6 +199,9 @@ p, h1, ol, dl, dd { margin: 0; }
 @keyframes gps-suche { 50% { opacity: 0.4; } }
 @media (prefers-reduced-motion: reduce) { .maplibregl-ctrl-group .knopf-gps[data-zustand="sucht"] { animation: none; } }
 .gps-punkt { width: 20px; height: 20px; border-radius: 50%; background: #2f7bf6; border: 4px solid #ffffff; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.25), 0 2px 8px rgb(0 0 0 / 0.35); }
+
+.maplibregl-ctrl-group .knopf-melden { display: grid; place-items: center; color: var(--text); }
+.meldefeld { flex: none; width: 22px; height: 22px; border-radius: 6px; background: var(--akzent); box-shadow: 0 0 0 2px var(--glas-rand); }
 
 /* Tipp-Markierung: Pilz im weißen Kreis mit türkisem Rand (Signalfarbe "wächst heute"), Nummer als Plakette.
    Keine Drehung: MapLibre setzt am Markierungs-Element selbst ein transform zum Positionieren. */

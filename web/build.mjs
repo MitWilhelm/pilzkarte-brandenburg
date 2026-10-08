@@ -14,6 +14,7 @@ await build({
   format: "esm",
   target: "es2022",
   outfile: `${ZIEL}/app.js`,
+  define: { __BUILD_ZEIT__: JSON.stringify(new Date().toISOString()) },
   logLevel: "info",
 });
 

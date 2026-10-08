@@ -32,6 +32,7 @@ import {
   zeigeIndex,
   zeigeGpsHinweis,
   zeigeIndexFehler,
+  zeigeVersion,
   zeigeLadehinweis,
   zeigePunkt,
   zeigePunktwetter,
@@ -267,8 +268,35 @@ async function ladeTageswerteOderNull(): Promise<Tageswerte | null> {
   }
 }
 
+// Setzt build.mjs beim Bauen (esbuild define); in Tests und ohne Build gibt es die Konstante nicht.
+declare const __BUILD_ZEIT__: string | undefined;
+
+/**
+ * Fester Knopf "Melden" auf der Karte. Der Melde-Knopf in der Tafel ist bei eingeklappter Tafel oder gewählter Stelle
+ * ausgeblendet und war so für den Nutzer nicht auffindbar. Der Kartenknopf öffnet das Melden, sobald der Standort genau
+ * genug ist; sonst startet er die Ortung bzw. nennt, was noch fehlt.
+ */
+function richteMeldeKnopfAufKarteEin(karte: maplibregl.Map, gpsKnopf: HTMLButtonElement): void {
+  const meldeKnopf = element("melde-knopf", HTMLButtonElement);
+  const kartenKnopf = element("melden-kartenknopf", HTMLButtonElement);
+  fuegeKnopfHinzu(karte, kartenKnopf);
+  kartenKnopf.addEventListener("click", () => {
+    if (!meldeKnopf.disabled) {
+      zeigeGpsHinweis(null);
+      meldeKnopf.click();
+      return;
+    }
+    if (gpsKnopf.getAttribute("aria-pressed") !== "true") {
+      gpsKnopf.click(); // startet die Ortung und zeigt "Standort wird gesucht …"
+      return;
+    }
+    zeigeGpsHinweis(element("melde-status", HTMLElement).textContent); // nennt z. B. "GPS zu ungenau (±1800 m, nötig ±30 m)"
+  });
+}
+
 async function start(): Promise<void> {
   fuelleLegende();
+  zeigeVersion(typeof __BUILD_ZEIT__ === "string" ? __BUILD_ZEIT__ : "");
   richteTutorialEin(window.localStorage);
   const [kacheln, tageswerte] = await Promise.all([ladeGebiete(KACHEL_ORDNER, KACHEL_UEBERSICHT), ladeTageswerteOderNull()]);
   const zustand: Zustand = {
@@ -310,7 +338,8 @@ async function start(): Promise<void> {
     indexHeute: (stelle, pilz) => indexHeuteAn(stelle.breite, stelle.laenge, pilz),
     speicher: window.localStorage,
   });
-  richteGpsEin(karte, element("gps-knopf", HTMLButtonElement), {
+  const gpsKnopf = element("gps-knopf", HTMLButtonElement);
+  richteGpsEin(karte, gpsKnopf, {
     beiProblem: zeigeGpsHinweis,
     beiStandort: (standort) => {
       meldeStandort(standort);
@@ -319,6 +348,10 @@ async function start(): Promise<void> {
       void aktualisiereIndex(zustand);
     },
   });
+  element("gps-banner-zu", HTMLButtonElement).addEventListener("click", () => {
+    zeigeGpsHinweis(null);
+  });
+  richteMeldeKnopfAufKarteEin(karte, gpsKnopf);
   karte.on("moveend", () => {
     void ladeSichtbare(lader, zustand);
     if (!zustand.hasGps) {

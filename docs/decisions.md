@@ -292,3 +292,18 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   bewertet, dafür gibt es zu wenige Belege. Die nDOM-Daten sind neuer als die DLR-Baumartenkarte (2022).
 - **Verworfen:** Oberes Zehntel (siehe Messfehler); Alters-Bonus (nicht belegt); Lückigkeit als Abschlag (Annahme, würde
   f08 und Tipps abwerten).
+
+## 2026-10-08 — Standort-Hinweis als Banner, fester Melden-Knopf, Fassungsstempel
+
+- **Kontext:** Der Nutzer meldete mehrfach: „GPS-Knopf: gar nichts“ und „Fund melden funktioniert nicht“ (Opera, Android).
+  Im Testbrowser lief die Logik fehlerfrei. Ursache im Code: Die Tafel blendet bei gewählter Stelle (`data-auswahl`)
+  alles außer der Vorschau aus, auch den Standort-Hinweis; „Fund melden“ ist bei eingeklappter Tafel oder gewählter
+  Stelle ebenfalls ausgeblendet. Wer vorher eine Stelle antippte, sah beim GPS-Knopf also keine Reaktion und fand den
+  Melden-Knopf nicht.
+- **Entscheidung:** Der Hinweis ist ein eigenes Banner oben auf der Karte (mit Schließen-Knopf), unabhängig von der Tafel.
+  Neuer fester Kartenknopf „Melden“ (Stecknadel mit Plus): öffnet das Melden, wenn der Standort ≤ 30 m genau ist; ohne
+  Ortung startet er die Ortung, bei zu ungenauem Standort nennt er die Lage. Die Legende nennt die Fassung der Seite
+  (Zeitpunkt des Builds, `__BUILD_ZEIT__` aus esbuild `define`), damit Meldungen einer Fassung zuzuordnen sind.
+- **Offen:** Ob der Standort auf dem Handy des Nutzers (Opera, Android) damit funktioniert, ist nicht bestätigt.
+  Der GPS-Knopf holt zuerst eine grobe Netz-Position und startet dann das genaue GPS; Fehler nennen Code, Meldung und
+  Erlaubnis-Status.

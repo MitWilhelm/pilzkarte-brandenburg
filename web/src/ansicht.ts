@@ -190,11 +190,19 @@ export function schalteLegende(isOffen: boolean): void {
   element("legende-knopf", HTMLButtonElement).setAttribute("aria-expanded", String(isOffen));
 }
 
-/** GPS-Hinweis (blockiert, kein Signal); null blendet ihn aus. */
+/** GPS-Hinweis (blockiert, kein Signal, Suche) als Banner oben auf der Karte; null blendet ihn aus. */
 export function zeigeGpsHinweis(text: string | null): void {
-  const hinweis = element("gps-hinweis", HTMLElement);
-  hinweis.hidden = text === null;
-  hinweis.textContent = text ?? "";
+  element("gps-banner", HTMLElement).hidden = text === null;
+  element("gps-hinweis", HTMLElement).textContent = text ?? "";
+}
+
+/** Welche Fassung der Seite läuft: Zeitpunkt des Builds (steht in der Legende, damit sich Fehlermeldungen zuordnen lassen). */
+export function zeigeVersion(buildZeit: string): void {
+  const stand = new Date(buildZeit);
+  const text = Number.isNaN(stand.getTime())
+    ? "Fassung der Seite: unbekannt"
+    : `Fassung der Seite: ${stand.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Berlin" })}`;
+  element("version", HTMLElement).textContent = text;
 }
 
 /** Hinweis über dem Index, z. B. "näher heranzoomen" oder ein Ladefehler; null blendet ihn aus. */
