@@ -194,7 +194,7 @@ async function zeigeStelle(karte: maplibregl.Map, ebenen: readonly Kartenebene[]
   });
   try {
     const reihe = await wetterFuer(lat, lng);
-    zeigePunktwetter(reihe.tage, reihe.heute, tagesindex(reihe.tage, reihe.heute, zustand.pilz));
+    zeigePunktwetter(reihe.tage, reihe.heute, indexverlauf(reihe.tage, reihe.heute, zustand.pilz));
   } catch (fehler) {
     zeigePunktwetterFehler(fehlertext(fehler));
   }

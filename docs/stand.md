@@ -16,7 +16,7 @@ Die mobile Karte „Pilzkarte Barnim“ ist live (GitHub Pages, gebaut von `main
 | Wachstumsindex | `web/src/wachstum.ts` | Regen stufenlos (voll ab 20 mm, Annahme), Lufttemperatur 11–15,5 °C optimal, Hitze-Bremse, Feuchte, Saison, Frost |
 | Wege | `pipeline/io_waldwege.py` → `web/public/daten/barnim/*_wege.geojson` | OSM: Straße (gelb), Forstweg (weiß), Pfad (gestrichelt); nur im Wald (+50 m), Rohantwort lokal in `rohdaten/barnim_wege/` |
 | Brennpunkte | `web/src/hotspots.ts`, `karte.ts` | Knopf rechts: Flächen ab Stufe 85 ganz türkis (Index heute günstig) bzw. pink (letzte 7 Tage), übrige Heatmap grau |
-| Stellen-Box | `web/src/ansicht.ts`, `index.html` | Kompakte Vorschau (Kennziffer, Bewertung, Index, Route/Komoot/Details), Details klappen nach oben auf |
+| Stellen-Box | `web/src/ansicht.ts`, `index.html` | Kompakte Vorschau (Kennziffer, Bewertung, Index, **7-Tage-Verlauf des Wachstumsindex an der Stelle laut Open-Meteo-Vorhersage**, Route/Komoot/Details), Details klappen nach oben auf |
 | Index oben | `web/src/main.ts` | Index für GPS-Standort, sonst Kartenmitte; Schutzhinweis Schwärzesee nach Nähe (2 km) |
 | Bestandshöhe | `pipeline/hoehe.py`, `io_ndom.py`, `habitat.hoehenfaktor` → `daten/barnim_oberhoehe.tif` | Oberhöhe aus LGB-nDOM; unter 3 m kein Habitat, bis 10 m anteilig; kein Alters-Bonus. Lauf: `python -m pipeline.io_ndom` (~46 min, ~22 GB, nur nötig bei neuen LGB-Daten) |
 | Tageswerte, Tipps | `web/scripts/tageswerte.ts`, `src/tageswerte.ts`, `pages.yml` (täglich 04:00 UTC) | Brennpunkte mit Wetter vorberechnet; Top 5 Steinpilz als Pilz-Markierung; Legende über Kartenknopf, Tafel startet eingeklappt |

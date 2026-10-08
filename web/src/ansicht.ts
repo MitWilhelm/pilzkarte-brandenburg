@@ -46,6 +46,46 @@ export function bremsgrund(tag: Tagesindex): string {
   return schwaechster[1];
 }
 
+export interface Trendzeile {
+  readonly name: string;
+  readonly index: number;
+  readonly isHeute: boolean;
+}
+
+/** Eine Zeile je Tag des Verlaufs: "Heute", dann Wochentage. Rein, damit sie ohne Browser prüfbar ist. */
+export function trendZeilen(verlauf: readonly Tagesindex[]): Trendzeile[] {
+  return verlauf.map((tag, nummer) => ({
+    name: nummer === 0 ? "Heute" : wochentag(tag.datum),
+    index: tag.index,
+    isHeute: nummer === 0,
+  }));
+}
+
+function fuelleTrend(liste: HTMLOListElement, verlauf: readonly Tagesindex[]): void {
+  liste.replaceChildren(
+    ...trendZeilen(verlauf).map((zeile) => {
+      const eintrag = document.createElement("li");
+      const name = document.createElement("span");
+      name.textContent = zeile.name;
+      if (zeile.isHeute) {
+        name.className = "trend-heute";
+      }
+      const zahl = document.createElement("span");
+      zahl.className = "trend-zahl";
+      zahl.textContent = String(zeile.index);
+      const balken = document.createElement("meter");
+      balken.min = 0;
+      balken.max = 100;
+      balken.low = 40;
+      balken.high = 60;
+      balken.optimum = 100;
+      balken.value = zeile.index;
+      eintrag.append(name, zahl, balken);
+      return eintrag;
+    }),
+  );
+}
+
 export function zeigeIndex(ort: string, verlauf: readonly Tagesindex[]): void {
   const heute = verlauf[0];
   if (heute === undefined) {
@@ -55,29 +95,7 @@ export function zeigeIndex(ort: string, verlauf: readonly Tagesindex[]): void {
   element("index-zahl", HTMLElement).textContent = String(heute.index);
   element("index-wort", HTMLElement).textContent = indexWort(heute.index);
   element("index-grund", HTMLElement).textContent = bremsgrund(heute);
-  const liste = element("trend", HTMLOListElement);
-  liste.replaceChildren(
-    ...verlauf.map((tag, nummer) => {
-      const eintrag = document.createElement("li");
-      const name = document.createElement("span");
-      name.textContent = nummer === 0 ? "Heute" : wochentag(tag.datum);
-      if (nummer === 0) {
-        name.className = "trend-heute";
-      }
-      const zahl = document.createElement("span");
-      zahl.className = "trend-zahl";
-      zahl.textContent = String(tag.index);
-      const balken = document.createElement("meter");
-      balken.min = 0;
-      balken.max = 100;
-      balken.low = 40;
-      balken.high = 60;
-      balken.optimum = 100;
-      balken.value = tag.index;
-      eintrag.append(name, zahl, balken);
-      return eintrag;
-    }),
-  );
+  fuelleTrend(element("trend", HTMLOListElement), verlauf);
 }
 
 export function zeigeIndexFehler(meldung: string): void {
@@ -105,6 +123,7 @@ export function zeigePunkt(info: Punktinfo): void {
   for (const id of ["punkt-index", "punkt-regen", "punkt-bodentemp", "punkt-feuchte"]) {
     element(id, HTMLElement).textContent = "…";
   }
+  element("punkt-trend", HTMLOListElement).replaceChildren();
 }
 
 /** Schließt die Stellen-Box; die Tafel zeigt wieder Index, Melden und Hinweise. */
@@ -125,20 +144,24 @@ export function sindDetailsOffen(): boolean {
   return !element("punkt-details", HTMLElement).hidden;
 }
 
-export function zeigePunktwetter(tage: readonly Tageswetter[], heute: number, index: Tagesindex): void {
+/** Wetter und Wachstumsverlauf einer Stelle: `verlauf` beginnt mit heute und reicht so weit wie die Vorhersage. */
+export function zeigePunktwetter(tage: readonly Tageswetter[], heute: number, verlauf: readonly Tagesindex[]): void {
   const tag = tage[heute];
-  if (tag === undefined) {
-    throw new Error("Invariante verletzt: heutiger Wettertag fehlt");
+  const index = verlauf[0];
+  if (tag === undefined || index === undefined) {
+    throw new Error("Invariante verletzt: heutiger Wettertag oder Indexverlauf fehlt");
   }
   const regen = tage.slice(Math.max(0, heute - TAGE_REGEN_SUMME + 1), heute + 1).reduce((s, t) => s + t.regenMm, 0);
   element("punkt-index", HTMLElement).textContent = `Index hier heute: ${String(index.index)} · ${indexWort(index.index)}`;
   element("punkt-regen", HTMLElement).textContent = `${regen.toFixed(1)} mm`;
   element("punkt-bodentemp", HTMLElement).textContent = `${tag.bodentempC.toFixed(1)} °C`;
   element("punkt-feuchte", HTMLElement).textContent = `${String(Math.round(tag.bodenfeuchte * 100))} Vol.-%`;
+  fuelleTrend(element("punkt-trend", HTMLOListElement), verlauf);
 }
 
 export function zeigePunktwetterFehler(meldung: string): void {
   element("punkt-index", HTMLElement).textContent = meldung;
+  element("punkt-trend", HTMLOListElement).replaceChildren();
   for (const id of ["punkt-regen", "punkt-bodentemp", "punkt-feuchte"]) {
     element(id, HTMLElement).textContent = "–";
   }

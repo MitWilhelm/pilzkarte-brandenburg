@@ -161,11 +161,29 @@ const HINWEIS_GPS_BLOCKIERT =
 const HINWEIS_GPS_KEIN_SIGNAL = "Kein GPS-Standort gefunden. Kurz unter freiem Himmel warten und den Standort-Knopf erneut tippen.";
 const HINWEIS_GPS_FEHLT = "Dieser Browser kann keinen Standort liefern (Opera Mini zum Beispiel nicht). Bitte Chrome oder Opera (nicht Mini) nutzen.";
 const HINWEIS_GPS_SUCHE = "Standort wird gesucht … Das kann unter Bäumen bis zu 30 Sekunden dauern.";
-// Die Fehlermeldung des Browsers (englisch) hängt an, damit bei einem Problem die genaue Ursache sichtbar ist.
-function mitUrsache(hinweis: string, fehler: GeolocationPositionError): string {
-  return `${hinweis} (Fehler ${String(fehler.code)}: ${fehler.message === "" ? "ohne Meldung" : fehler.message})`;
+// Die Fehlermeldung des Browsers (englisch) und sein Erlaubnis-Status hängen an, damit bei einem Problem die genaue
+// Ursache sichtbar ist (verweigert, nachfragen, erlaubt).
+function mitUrsache(hinweis: string, fehler: GeolocationPositionError, erlaubnis: string): string {
+  const meldung = fehler.message === "" ? "ohne Meldung" : fehler.message;
+  return `${hinweis} (Fehler ${String(fehler.code)}: ${meldung}; Erlaubnis: ${erlaubnis})`;
 }
-const GPS_OPTIONEN: PositionOptions = { enableHighAccuracy: true, maximumAge: 10_000, timeout: 30_000 };
+
+async function erlaubnisStatus(): Promise<string> {
+  if (!("permissions" in navigator)) {
+    return "nicht abfragbar";
+  }
+  try {
+    return (await navigator.permissions.query({ name: "geolocation" })).state;
+  } catch (fehler) {
+    console.warn("Standort-Erlaubnis nicht abfragbar", fehler);
+    return "nicht abfragbar";
+  }
+}
+
+// Erst eine grobe Position per Netz (schnell, löst die Freigabe-Abfrage des Browsers aus), dann das genaue GPS.
+// Das genaue GPS kann unter Bäumen lange brauchen oder scheitern; die grobe Position zeigt dann wenigstens, wo man ist.
+const GPS_GROB: PositionOptions = { enableHighAccuracy: false, maximumAge: 120_000, timeout: 15_000 };
+const GPS_GENAU: PositionOptions = { enableHighAccuracy: true, maximumAge: 10_000, timeout: 30_000 };
 const GPS_ZOOM = 15;
 const GPS_QUELLE = "gps-genauigkeit";
 
@@ -198,11 +216,13 @@ function zeigeGenauigkeit(karte: maplibregl.Map, standort: Standort): void {
  */
 export function richteGpsEin(karte: maplibregl.Map, knopf: HTMLButtonElement, meldungen: Gpsmeldungen): void {
   let beobachtung: number | null = null;
+  let isAn = false;
   let isErsterStandort = true;
   const punkt = document.createElement("div");
   punkt.className = "gps-punkt";
   const markierung = new maplibregl.Marker({ element: punkt });
   const beende = (): void => {
+    isAn = false;
     if (beobachtung !== null) {
       navigator.geolocation.clearWatch(beobachtung);
     }
@@ -210,9 +230,47 @@ export function richteGpsEin(karte: maplibregl.Map, knopf: HTMLButtonElement, me
     knopf.setAttribute("aria-pressed", "false");
     delete knopf.dataset["zustand"];
   };
+  const empfange = (position: GeolocationPosition): void => {
+    if (!isAn) {
+      return;
+    }
+    const standort = standortAusGpsEreignis(position);
+    knopf.dataset["zustand"] = "aktiv";
+    markierung.setLngLat([standort.laenge, standort.breite]).addTo(karte);
+    zeigeGenauigkeit(karte, standort);
+    if (isErsterStandort) {
+      isErsterStandort = false;
+      karte.easeTo({ center: [standort.laenge, standort.breite], zoom: Math.max(karte.getZoom(), GPS_ZOOM) });
+    }
+    meldungen.beiProblem(null);
+    meldungen.beiStandort(standort);
+  };
+  const melde = (fehler: GeolocationPositionError): void => {
+    const hinweis = fehler.code === GPS_FEHLER_VERWEIGERT ? HINWEIS_GPS_BLOCKIERT : HINWEIS_GPS_KEIN_SIGNAL;
+    void erlaubnisStatus().then((erlaubnis) => {
+      if (isAn || fehler.code === GPS_FEHLER_VERWEIGERT) {
+        meldungen.beiProblem(mitUrsache(hinweis, fehler, erlaubnis));
+      }
+    });
+  };
+  const starteGenau = (): void => {
+    if (!isAn) {
+      return;
+    }
+    beobachtung = navigator.geolocation.watchPosition(
+      empfange,
+      (fehler) => {
+        melde(fehler);
+        if (fehler.code === GPS_FEHLER_VERWEIGERT) {
+          beende();
+        }
+      },
+      GPS_GENAU,
+    );
+  };
   fuegeKnopfHinzu(karte, knopf);
   knopf.addEventListener("click", () => {
-    if (beobachtung !== null) {
+    if (isAn) {
       beende();
       markierung.remove();
       return;
@@ -221,30 +279,25 @@ export function richteGpsEin(karte: maplibregl.Map, knopf: HTMLButtonElement, me
       meldungen.beiProblem(HINWEIS_GPS_FEHLT);
       return;
     }
+    isAn = true;
     isErsterStandort = true;
     knopf.setAttribute("aria-pressed", "true");
     knopf.dataset["zustand"] = "sucht";
     meldungen.beiProblem(HINWEIS_GPS_SUCHE);
-    beobachtung = navigator.geolocation.watchPosition(
+    navigator.geolocation.getCurrentPosition(
       (position) => {
-        const standort = standortAusGpsEreignis(position);
-        knopf.dataset["zustand"] = "aktiv";
-        markierung.setLngLat([standort.laenge, standort.breite]).addTo(karte);
-        zeigeGenauigkeit(karte, standort);
-        if (isErsterStandort) {
-          isErsterStandort = false;
-          karte.easeTo({ center: [standort.laenge, standort.breite], zoom: Math.max(karte.getZoom(), GPS_ZOOM) });
-        }
-        meldungen.beiProblem(null);
-        meldungen.beiStandort(standort);
+        empfange(position);
+        starteGenau();
       },
       (fehler) => {
-        meldungen.beiProblem(mitUrsache(fehler.code === GPS_FEHLER_VERWEIGERT ? HINWEIS_GPS_BLOCKIERT : HINWEIS_GPS_KEIN_SIGNAL, fehler));
+        melde(fehler);
         if (fehler.code === GPS_FEHLER_VERWEIGERT) {
           beende();
+          return;
         }
+        starteGenau();
       },
-      GPS_OPTIONEN,
+      GPS_GROB,
     );
   });
 }

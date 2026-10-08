@@ -150,6 +150,12 @@ p, h1, ol, dl, dd { margin: 0; }
   font: 800 22px/1 var(--schrift); font-variant-numeric: tabular-nums;
 }
 .punkt-text { flex: 1 1 auto; min-width: 0; }
+.punkt-verlauf { display: grid; gap: 6px; }
+.punkt-verlauf:has(.trend-klein:empty) .ueberzeile { opacity: 0.5; }
+.trend-klein { margin: 0; gap: 4px; }
+.trend-klein li { font-size: 11px; }
+.trend-klein .trend-zahl { font-size: 12px; }
+.trend-klein meter { height: 5px; }
 .punkt-bewertung { font-size: 17px; font-weight: 800; }
 .knopf-schliessen {
   flex: none; width: 44px; height: 44px; border: 0; border-radius: 50%; display: grid; place-items: center;
