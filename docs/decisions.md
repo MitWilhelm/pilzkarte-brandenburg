@@ -338,3 +338,12 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   Sie sind klein und schmal (größter 139 ha, Steinpilz 570 ha), weil die obere Stufe vor allem Wegränder und bessere
   Böden innerhalb des Kiefernblocks umfasst; nur 8 haben eine 9-ha-Kernfläche, die übrigen Tipps zeigen eine 1-ha-Zelle.
 - **Meldung:** „Edelreizker“ ist auch im Melde-Formular wählbar (`PILZE` in `meldung.ts`).
+
+## 2026-10-10: Meldungen aufgenommen, Modelländerung verworfen
+
+- Die Meldungen aus den Issues 2–6 sind in `daten/funde.csv` (f09–f11) und `daten/keine_funde.csv` (n01) aufgenommen.
+  Issue 4 und 5 sind dasselbe Ergebnis (gleiche Meldungs-ID, doppelt gesendet). Die Funde stammen von einer Stelle,
+  gesammelt über etwa eine Stunde. Die Baumangaben sind laut Nutzer korrekt; die DLR-Karte führt den Punkt als Fichte,
+  das Kartenmaterial ist dort ungenau.
+- Ein Versuch, Buche und Eiche für Steinpilz von 1,0 auf 0,7 abzuwerten, wurde auf Wunsch des Nutzers zurückgenommen
+  (nie auf main). Das Modell bleibt unverändert.
