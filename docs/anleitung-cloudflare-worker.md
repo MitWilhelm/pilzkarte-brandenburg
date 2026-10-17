@@ -55,7 +55,9 @@ function antwort(status, daten) {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   };
-  return new Response(JSON.stringify(daten), { status, headers: kopf });
+  // Status 204 (Vorabfrage des Browsers) darf keinen Inhalt haben, sonst wirft Cloudflare einen Fehler 500.
+  const inhalt = status === 204 ? null : JSON.stringify(daten);
+  return new Response(inhalt, { status, headers: kopf });
 }
 
 function text(wert, maximum) {
@@ -174,6 +176,12 @@ curl -s -X POST '<URL>' -H 'Origin: https://mitwilhelm.github.io' -H 'Content-Ty
 ```
 
 Schließe das Test-Issue danach. Ohne den `Origin`-Kopf muss die Antwort `403` sein.
+
+Zusätzlich die Vorabfrage des Browsers prüfen (CORS). Erwartet: `HTTP/2 204` (nicht 500):
+
+```bash
+curl -s -i -X OPTIONS '<URL>' -H 'Origin: https://mitwilhelm.github.io' | head -3
+```
 
 ## Schritt 6: Missbrauch begrenzen
 
