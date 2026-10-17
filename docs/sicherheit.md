@@ -19,7 +19,7 @@ Es ist eine eigene Prüfung, kein Gutachten und kein Penetrationstest durch Drit
 | 2 | Anfällige Bibliothek (Lieferkette) | MapLibre 5.11 → 6.14 (GHSA-jrc7-96c5-q579, bei uns nie ausnutzbar: kein `setHTML`); Dependabot wöchentlich; exakte Versionen im `package.json`; Aktionen mit festem Commit | `npm audit`: 0 Funde, alle Tests grün, Karte im Browser | neue Funde zwischen den Dependabot-Läufen |
 | 3 | Besucher-IP an Google (Schriften) | Schriften liegen auf der eigenen Seite (OFL, 45 KB) | Keine Anfrage an fonts.googleapis.com mehr, CSP erlaubt keine fremden Schriften | – |
 | 4 | Genauer Standort an Dritte | Wetterabruf nur mit auf 0,01° (~1 km) gerundeten Koordinaten; Referrer nur Ursprung | Test der Abruf-URL | OSM-Kacheln und Open-Meteo sehen trotzdem die grobe Gegend und die IP |
-| 5 | Meldungs-Spam über den Worker | Obergrenze je IP (5 in 10 Minuten) und insgesamt (30 je Stunde, über die Issues bei GitHub), Meldungs-ID einmalig (doppelt: erstes Issue), Zeitfenster 24 h | 12 Worker-Tests mit nachgebildetem GitHub; Fuzz mit 6.000 zufällig veränderten Anfragen: nie Fehler 500, nie ein Feld außerhalb der Liste | Wer viele IPs hat, kann trotzdem 30 Issues je Stunde erzeugen; ein Captcha (Turnstile) wäre die nächste Stufe |
+| 5 | Meldungs-Spam über den Worker | Obergrenze je IP (5 in 10 Minuten) und insgesamt (30 je Stunde, über die Issues bei GitHub), Meldungs-ID einmalig (doppelt: erstes Issue), Zeitfenster 24 h | 12 Worker-Tests mit nachgebildetem GitHub; Fuzz mit 6.000 zufällig veränderten Anfragen: nie Fehler 500, nie ein Feld außerhalb der Liste | Wer viele IPs hat, kann trotzdem 30 Issues je Stunde erzeugen; eine solche Flut sperrt echte Meldungen bis zu eine Stunde (Fehler 429, nichts geht verloren, das Formular bleibt offen); ein Captcha (Turnstile) wäre die nächste Stufe |
 | 6 | Einschleusen von Text in Issues (Mentions, Markdown, Links) | Strenge Werte, nur Listen-Werte für Baumarten, ISO-Zeit mit festem Muster, Backticks entfernt, Freitext nur im JSON-Block | Test mit `@evil`, `(@evil)`, Markdown-Link; Fuzz: Titel und Body immer im erwarteten Format | `notiz` (500 Zeichen) bleibt Freitext im JSON-Block |
 | 7 | Gefälschte Funde verfälschen das Modell | Label `ungeprüft`; Web-Funde zählen nicht für Modellauswertungen; Änderungen am Modell nur auf einem Zweig mit Zustimmung | Regel im nächtlichen Auftrag, Prüfskript wertet nur `Nutzer` aus | Du musst Web-Funde prüfen und bestätigen |
 | 8 | Prompt-Injection in den nächtlichen Prüfauftrag | Auftrag behandelt Issue-Text als Daten, nutzt nur geprüfte Felder, ignoriert `notiz`, darf `.github/`, `worker/` und Zugänge nie ändern, höchstens 10 Datensätze je Lauf | Prompt neu geschrieben und gelesen; nicht mit einem echten Angriff getestet | Ein Sprachmodell lässt sich nie zu 100 % absichern; deshalb Rechtebegrenzung und Bericht an dich |
@@ -37,7 +37,14 @@ Es ist eine eigene Prüfung, kein Gutachten und kein Penetrationstest durch Drit
    strengen Werten (`worker/meldungen.js`), Dependabot, Aktionen festgesetzt, Auftrag gehärtet. Gegentest: fremde Skripte, Bilder,
    `fetch`, iframe im Browser blockiert; Fuzz am Worker mit 6.000 Anfragen; echte Meldungen vom Oktober (Issues 2–10) werden vom neuen
    Worker akzeptiert, die Test-IDs 11 und 12 zu Recht nicht.
-3. **Runde 3 (erneuter Angriff auf die eigenen Lösungen):** siehe unten „Befunde der Runde 3“.
+3. **Runde 3 (erneuter Angriff auf die eigenen Lösungen):** Alle Rechner, die der gebaute Code ansprechen kann, aus `dist/` ausgelesen und mit der
+   CSP verglichen: Abgerufen werden nur OSM-Kacheln, Open-Meteo und der Meldeserver (alle erlaubt); `github.com`, `komoot.com`,
+   `google.com`, `maplibre.org` und `openstreetmap.org` sind nur Links, die der Besucher selbst öffnet. Kein Verweis auf Google Fonts
+   mehr. Echte Anfrage der Seite an den Worker: keine CSP-Verletzung, nur die gewollte CORS-Abweisung der Herkunft localhost.
+   Befunde der Runde 3: (a) Eine Flut kann echte Meldungen bis zu eine Stunde sperren (oben in Nr. 5 vermerkt, Captcha als nächste Stufe);
+   (b) die Eval-Sperre ließ sich nicht beweisen, weil das Prüfwerkzeug `eval` über den Entwickler-Kanal ausführt, der die CSP umgeht; sie
+   folgt aus `script-src 'self'` ohne `unsafe-eval`; (c) beim Einbetten in einen fremden Rahmen meldet der Browser zwar `onload`, die CSP
+   hat den Inhalt aber blockiert (Verstoß `frame-src` gemeldet). Keine neuen Lücken gefunden, die eine Änderung nötig machten.
 
 ## Offen / nur du kannst es tun
 
