@@ -2,6 +2,7 @@
 // OSM-Kacheln: Nutzungsrichtlinie verlangt Namensnennung und geringe Last (private Nutzung).
 import maplibregl from "maplibre-gl";
 import { faerbeOverlay, kreisPolygon, standortAusGpsEreignis, type Gebiet, type Pilzkanal, type Standort } from "./geo.ts";
+import type { Pilzart } from "./wachstum.ts";
 import { faerbeBrennpunkte, type Brennpunktflaeche } from "./hotspots.ts";
 
 const OSM_KACHELN = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -457,50 +458,88 @@ function pfad(d: string, klasse: string): SVGPathElement {
   return element;
 }
 
-function pilzSymbol(): SVGSVGElement {
+function pilzSymbol(pilz: Pilzart): SVGSVGElement {
   const symbol = document.createElementNS(SVG_NS, "svg");
   symbol.setAttribute("viewBox", "0 0 24 24");
   symbol.setAttribute("width", "24");
   symbol.setAttribute("height", "24");
   symbol.setAttribute("aria-hidden", "true");
+  if (pilz === "pfifferling") {
+    // Pfifferling: gelb-orange, Hut und Stiel gehen als Trichter mit welligem Rand ineinander über
+    symbol.append(pfad("M2.5 9.6c.5-2 2-3.4 3.8-3.8 1.3-1.6 3.4-2.4 5.7-2.4s4.4.8 5.7 2.4c1.8.4 3.3 1.8 3.8 3.8-.6 1.2-1.9 2-3.6 2.3l-3.2 1.2-.6 6.2a2.4 2.4 0 0 1-4.6 0l-.6-6.2-3.2-1.2c-1.7-.3-3-1.1-3.6-2.3z", "tipp-trichter"));
+    return symbol;
+  }
   // Steinpilz: breiter brauner Hut, dicker heller Stiel
   symbol.append(pfad("M9 12.5h6l.8 6.2a3.8 3.8 0 0 1-7.6 0z", "tipp-stiel"), pfad("M2.5 12.5C3.2 6.8 7.2 4 12 4s8.8 2.8 9.5 8.5z", "tipp-hut"));
   return symbol;
 }
 
-/** Setzt die Tipp-Markierungen (Pilz-Symbol mit Nummer) und rahmt ihre Kernfläche; Antippen öffnet ein Fenster. */
-export function zeigeTipps(karte: maplibregl.Map, tipps: readonly Tippmarke[]): void {
-  karte.addSource(TIPP_QUELLE, {
-    type: "geojson",
-    data: {
-      type: "FeatureCollection",
-      features: tipps.map((tipp) => ({
-        type: "Feature",
-        properties: { nummer: tipp.nummer },
-        geometry: { type: "LineString", coordinates: [...tipp.ecken, ...tipp.ecken.slice(0, 1)].map(([laenge, breite]) => [laenge, breite]) },
-      })),
-    },
-  });
+/** Die Tipps beider Pilzarten; `zeige` blendet die der gewählten Art ein und die der anderen aus. */
+export interface Tippsatz {
+  readonly zeige: (pilz: Pilzart) => number; // Anzahl der gezeigten Tipps
+}
+
+const PILZARTEN_MIT_TIPPS: readonly Pilzart[] = ["steinpilz", "pfifferling"];
+
+function rahmen(tipps: readonly Tippmarke[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: tipps.map((tipp) => ({
+      type: "Feature",
+      properties: { nummer: tipp.nummer },
+      geometry: { type: "LineString", coordinates: [...tipp.ecken, ...tipp.ecken.slice(0, 1)].map(([laenge, breite]) => [laenge, breite]) },
+    })),
+  };
+}
+
+function tippMarker(tipp: Tippmarke, pilz: Pilzart): maplibregl.Marker {
+  const knopf = document.createElement("button");
+  knopf.type = "button";
+  knopf.className = `tipp-marke tipp-${pilz}`;
+  knopf.setAttribute("aria-label", `Tipp ${String(tipp.nummer)}: ${tipp.zeilen.join(", ")}`);
+  const nummer = document.createElement("span");
+  nummer.className = "tipp-nummer";
+  nummer.textContent = String(tipp.nummer);
+  knopf.append(pilzSymbol(pilz), nummer);
+  const inhalt = document.createElement("div");
+  inhalt.className = "tipp-fenster";
+  for (const zeile of tipp.zeilen) {
+    const absatz = document.createElement("p");
+    absatz.textContent = zeile;
+    inhalt.append(absatz);
+  }
+  const fenster = new maplibregl.Popup({ offset: TIPP_FENSTER_ABSTAND, maxWidth: "260px" }).setDOMContent(inhalt);
+  return new maplibregl.Marker({ element: knopf, anchor: "center" }).setLngLat([tipp.laenge, tipp.breite]).setPopup(fenster);
+}
+
+/**
+ * Setzt die Tipp-Markierungen (Pilz-Symbol mit Nummer) und rahmt ihre Kernfläche; Antippen öffnet ein Fenster.
+ * Angezeigt werden nur die Tipps der gewählten Pilzart (Aufruf `zeige`).
+ */
+export function erzeugeTipps(karte: maplibregl.Map, jePilz: Readonly<Record<Pilzart, readonly Tippmarke[]>>): Tippsatz {
+  karte.addSource(TIPP_QUELLE, { type: "geojson", data: rahmen([]) });
   // Dunkler Rand unter der türkisen Linie: sichtbar auf Heatmap-Rot wie auf hellem Hintergrund.
   karte.addLayer({ id: TIPP_RAHMEN_RAND, type: "line", source: TIPP_QUELLE, paint: { "line-color": "#0b0f14", "line-width": 6 } });
   karte.addLayer({ id: TIPP_RAHMEN, type: "line", source: TIPP_QUELLE, paint: { "line-color": "#00e5ff", "line-width": 3 } });
-  for (const tipp of tipps) {
-    const knopf = document.createElement("button");
-    knopf.type = "button";
-    knopf.className = "tipp-marke";
-    knopf.setAttribute("aria-label", `Tipp ${String(tipp.nummer)}: ${tipp.zeilen.join(", ")}`);
-    const nummer = document.createElement("span");
-    nummer.className = "tipp-nummer";
-    nummer.textContent = String(tipp.nummer);
-    knopf.append(pilzSymbol(), nummer);
-    const inhalt = document.createElement("div");
-    inhalt.className = "tipp-fenster";
-    for (const zeile of tipp.zeilen) {
-      const absatz = document.createElement("p");
-      absatz.textContent = zeile;
-      inhalt.append(absatz);
-    }
-    const fenster = new maplibregl.Popup({ offset: TIPP_FENSTER_ABSTAND, maxWidth: "260px" }).setDOMContent(inhalt);
-    new maplibregl.Marker({ element: knopf, anchor: "center" }).setLngLat([tipp.laenge, tipp.breite]).setPopup(fenster).addTo(karte);
+  const quelle = karte.getSource(TIPP_QUELLE);
+  if (!(quelle instanceof maplibregl.GeoJSONSource)) {
+    throw new Error(`Invariante verletzt: Quelle ${TIPP_QUELLE} ist keine GeoJSON-Quelle`);
   }
+  const marker = new Map<Pilzart, maplibregl.Marker[]>(
+    PILZARTEN_MIT_TIPPS.map((pilz) => [pilz, jePilz[pilz].map((tipp) => tippMarker(tipp, pilz))]),
+  );
+  return {
+    zeige(gewaehlt) {
+      for (const pilz of PILZARTEN_MIT_TIPPS) {
+        for (const eintrag of marker.get(pilz) ?? []) {
+          eintrag.remove();
+          if (pilz === gewaehlt) {
+            eintrag.addTo(karte);
+          }
+        }
+      }
+      quelle.setData(rahmen(jePilz[gewaehlt]));
+      return jePilz[gewaehlt].length;
+    },
+  };
 }

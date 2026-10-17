@@ -72,6 +72,8 @@ p, h1, ol, dl, dd { margin: 0; }
 }
 .marke { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; margin-right: auto; }
 .marke-zusatz { font-weight: 600; color: var(--leise); }
+.tipps-hinweis { flex: 1 1 100%; margin: 0 8px 4px 0; font-size: 12.5px; line-height: 1.35; color: var(--leise); }
+.tipps-hinweis[hidden] { display: none; }
 .umschalter { display: inline-flex; border: 0; margin: 0; padding: 3px; border-radius: 16px; background: var(--glas-innen); }
 .umschalter input { position: absolute; opacity: 0; pointer-events: none; }
 .umschalter label { min-height: 38px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 13px; font-weight: 700; font-size: 14.5px; color: var(--leise); cursor: pointer; }
@@ -212,6 +214,7 @@ p, h1, ol, dl, dd { margin: 0; }
 }
 .tipp-marke .tipp-hut { fill: #7a3b12; }
 .tipp-marke .tipp-stiel { fill: #e9d8b4; stroke: #8a6a3a; stroke-width: 0.8; }
+.tipp-marke .tipp-trichter { fill: #f2b01e; stroke: #9a6208; stroke-width: 0.8; }
 .tipp-nummer {
   position: absolute; top: -7px; right: -7px;
   min-width: 20px; height: 20px; border-radius: 10px; display: grid; place-items: center;
@@ -314,6 +317,14 @@ p, h1, ol, dl, dd { margin: 0; }
 .melde-gruppe legend, .melde-legende { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--leise); padding: 0 4px; }
 .wahl { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; cursor: pointer; }
 .wahl input { width: 22px; height: 22px; accent-color: var(--akzent); flex: none; }
+/* Waagerechtes Wischkarussell: Auswahl als Kacheln statt Haken; die echten Eingaben bleiben (unsichtbar) für Tastatur und Vorleser. */
+.karussell { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; padding: 2px 32px 8px 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
+.karussell::-webkit-scrollbar { display: none; }
+.karussell .wahl { position: relative; flex: none; scroll-snap-align: start; justify-content: center; padding: 0 18px; white-space: nowrap; background: var(--grund); border: 1.5px solid var(--linie); border-radius: 999px; }
+.karussell .wahl input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.karussell .wahl:has(input:checked) { color: var(--auf-akzent); background: var(--akzent); border-color: var(--akzent); font-weight: 700; }
+.karussell .wahl:has(input:checked)::before { content: "\2713"; margin-right: 6px; }
+.karussell .wahl:has(input:focus-visible) { outline: 2px solid var(--akzent); outline-offset: 2px; }
 .melde-formular textarea { width: 100%; font: inherit; color: var(--text); background: var(--grund); border: 1px solid var(--linie); border-radius: 12px; padding: 10px; resize: vertical; }
 .melde-fehler { color: var(--warnung-text); font-size: 13.5px; }
 .melde-fehler:not(:empty) { background: var(--warnung-grund); padding: 9px 11px; border-radius: 14px; }

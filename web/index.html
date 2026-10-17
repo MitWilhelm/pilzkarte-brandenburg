@@ -22,6 +22,7 @@
     <input type="radio" name="pilz" id="pilz-pfifferling" value="pfifferling">
     <label for="pilz-pfifferling">Pfifferling</label>
   </fieldset>
+  <p class="tipps-hinweis" id="tipps-hinweis" hidden></p>
 </header>
 
 <main id="karte" class="karte" aria-label="Karte mit Habitat-Heatmap"></main>
@@ -123,7 +124,7 @@
     <li><span class="strassefeld" role="img" aria-label="Straße"></span>Straße für Autos</li>
     <li><span class="wegfeld" role="img" aria-label="Forstweg"></span>Forstweg (meist für Autos gesperrt)</li>
     <li><span class="pfadfeld" role="img" aria-label="Pfad"></span>Pfad, Rückegasse, Waldspur</li>
-    <li><span class="tippfeld" role="img" aria-label="Tipp-Markierung"></span>Pilz-Markierung 1–5: die fünf besten Steinpilz-Plätze heute (wachsen heute, größte zusammenhängende Fläche; morgens berechnet); der türkise Rahmen zeigt darin die beste Kernfläche (9 ha)</li>
+    <li><span class="tippfeld" role="img" aria-label="Tipp-Markierung"></span>Pilz-Markierung 1–5: die fünf besten Plätze der gewählten Pilzart heute (Steinpilz: Hut und Stiel, Pfifferling: gelber Trichter) (wachsen heute, größte zusammenhängende Fläche; morgens berechnet); der türkise Rahmen zeigt darin die beste Kernfläche (9 ha)</li>
     <li><span class="meldefeld" role="img" aria-label="Knopf Melden"></span>Knopf rechts mit Stecknadel und Plus: Fund oder „Nichts gefunden“ melden (braucht einen genauen Standort, höchstens ±30 m)</li>
     <li><span class="brennpunktfeld" role="img" aria-label="Knopf Brennpunkte"></span>Knopf rechts: Brennpunkte farbig zeigen, übrige Flächen grau</li>
     <li><span class="flaechenfeld flaechenfeld-neu" role="img" aria-label="türkise Fläche"></span>Türkis: gute Fläche (ab Stufe 85), Wachstumsindex heute günstig</li>
@@ -202,26 +203,33 @@
 
     <fieldset class="melde-gruppe">
       <legend>Ergebnis</legend>
+      <div class="karussell">
         <label class="wahl"><input type="radio" name="ergebnis" value="fund" required> Fund</label>
         <label class="wahl"><input type="radio" name="ergebnis" value="nichts"> Nichts gefunden (hier gesucht)</label>
+      </div>
     </fieldset>
 
     <fieldset class="melde-gruppe">
       <legend>Pilzart</legend>
+      <div class="karussell">
         <label class="wahl"><input type="radio" name="pilz" value="steinpilz" required> Steinpilz</label>
         <label class="wahl"><input type="radio" name="pilz" value="pfifferling"> Pfifferling</label>
+      </div>
     </fieldset>
 
     <fieldset class="melde-gruppe" id="melde-groesse" hidden disabled>
       <legend>Größe der Pilze</legend>
+      <div class="karussell">
         <label class="wahl"><input type="radio" name="groesse" value="jung" required> Jung (klein, fest)</label>
         <label class="wahl"><input type="radio" name="groesse" value="mittel"> Mittel (bis ca. 10 cm)</label>
         <label class="wahl"><input type="radio" name="groesse" value="alt"> Alt (groß, weich oder madig)</label>
         <label class="wahl"><input type="radio" name="groesse" value="gemischt"> Gemischt</label>
+      </div>
     </fieldset>
 
     <fieldset class="melde-gruppe">
       <legend>Wald: Bäume im Kronendach (oben)</legend>
+      <div class="karussell">
         <label class="wahl"><input type="checkbox" name="kronendach" value="Kiefer"> Kiefer</label>
         <label class="wahl"><input type="checkbox" name="kronendach" value="Fichte"> Fichte</label>
         <label class="wahl"><input type="checkbox" name="kronendach" value="Douglasie"> Douglasie</label>
@@ -231,10 +239,12 @@
         <label class="wahl"><input type="checkbox" name="kronendach" value="Birke"> Birke</label>
         <label class="wahl"><input type="checkbox" name="kronendach" value="Erle"> Erle</label>
         <label class="wahl"><input type="checkbox" name="kronendach" value="Sonstige"> Sonstige</label>
+      </div>
     </fieldset>
 
     <fieldset class="melde-gruppe">
       <legend>Unterstand (kleiner, darunter)</legend>
+      <div class="karussell">
         <label class="wahl"><input type="checkbox" name="unterstand" value="Kiefer"> Kiefer</label>
         <label class="wahl"><input type="checkbox" name="unterstand" value="Fichte"> Fichte</label>
         <label class="wahl"><input type="checkbox" name="unterstand" value="Douglasie"> Douglasie</label>
@@ -246,21 +256,26 @@
         <label class="wahl"><input type="checkbox" name="unterstand" value="Sonstige"> Sonstige</label>
         <label class="wahl"><input type="checkbox" name="unterstand" value="Sträucher"> Sträucher</label>
         <label class="wahl"><input type="checkbox" name="unterstand" value="Kein Unterstand"> Kein Unterstand</label>
+      </div>
     </fieldset>
 
     <fieldset class="melde-gruppe">
       <legend>Alter des Bestands</legend>
+      <div class="karussell">
         <label class="wahl"><input type="radio" name="bestandsalter" value="jung" required> Jung (unter ca. 30 Jahre)</label>
         <label class="wahl"><input type="radio" name="bestandsalter" value="mittel"> Mittel (ca. 30–80 Jahre)</label>
         <label class="wahl"><input type="radio" name="bestandsalter" value="alt"> Alt (über ca. 80 Jahre)</label>
         <label class="wahl"><input type="radio" name="bestandsalter" value="unbekannt"> Weiß nicht</label>
+      </div>
     </fieldset>
 
     <fieldset class="melde-gruppe">
       <legend>Dichte des Kronendachs</legend>
+      <div class="karussell">
         <label class="wahl"><input type="radio" name="dichte" value="licht" required> Licht (viel Himmel)</label>
         <label class="wahl"><input type="radio" name="dichte" value="mittel"> Mittel</label>
         <label class="wahl"><input type="radio" name="dichte" value="dicht"> Dicht (dunkel)</label>
+      </div>
     </fieldset>
 
     <div class="melde-gruppe">

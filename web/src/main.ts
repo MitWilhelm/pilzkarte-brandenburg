@@ -10,8 +10,10 @@ import {
   fuegeKnopfHinzu,
   richteGpsEin,
   zeigeHeatmap,
-  zeigeTipps,
+  erzeugeTipps,
   type Kartenebene,
+  type Tippmarke,
+  type Tippsatz,
 } from "./karte.ts";
 import { findeHotspots, type Brennpunktflaeche, type Hotspot, type Hotspotart, type MarkierterHotspot } from "./hotspots.ts";
 import { brennpunktArt, topSammelplaetze, wetterSchluessel, type Tagesbrennpunkt, type Tageswerte } from "./tageswerte.ts";
@@ -247,15 +249,22 @@ async function ladeSichtbare(lader: Kachellader, zustand: Zustand): Promise<void
   await aktualisiereHotspots(karte, ebenen, zustand);
 }
 
-function tippZeilen(punkt: Tagesbrennpunkt, stand: string): string[] {
+function tippZeilen(punkt: Tagesbrennpunkt, pilz: Pilzart, stand: string): string[] {
   const wachstum = punkt.art === "heute" ? "wächst heute" : "günstig in den letzten 7 Tagen";
   return [
-    "Steinpilz-Tipp",
+    `${PILZNAMEN[pilz]}-Tipp`,
     `Kernfläche ${String(punkt.kern.flaecheHektar)} ha, Habitat-Stufe im Mittel ${String(punkt.kern.mittlereStufe)}`,
     `In einem ${String(punkt.flaecheHektar)} ha großen Brennpunkt, ${wachstum}`,
     `Wachstumsindex heute: ${String(punkt.indexHeute)}`,
     `Stand: ${stand}`,
   ];
+}
+
+/** Ohne Tipps sagt ein Hinweis unter dem Schalter, warum: Heute wächst für die Pilzart nirgends genug (Index unter 60). */
+function zeigeTippHinweis(anzahl: number, pilz: Pilzart): void {
+  const hinweis = element("tipps-hinweis", HTMLElement);
+  hinweis.hidden = anzahl > 0;
+  hinweis.textContent = `Heute keine ${PILZNAMEN[pilz]}-Tipps: Das Wetter lässt sie nirgends im Landkreis wachsen (Index unter 60).`;
 }
 
 /** Lädt tageswerte.json; fehlt sie (z. B. lokal ohne Vorberechnung), rechnet die Seite live wie bisher. */
@@ -318,18 +327,19 @@ async function start(): Promise<void> {
   const ebenen: Kartenebene[] = [];
   const lader: Kachellader = { karte, alle: kacheln, ebenen, angefragt: new Set<string>() };
   folgeFarbschema(karte, ebenen);
+  let tipps: Tippsatz | null = null;
   if (tageswerte !== null) {
     const stand = STAND_FORMAT.format(new Date(tageswerte.erstellt));
-    zeigeTipps(
-      karte,
-      topSammelplaetze(tageswerte.steinpilz, ANZAHL_TIPPS).map((punkt, nummer) => ({
+    const markenFuer = (pilz: Pilzart): Tippmarke[] =>
+      topSammelplaetze(tageswerte[pilz], ANZAHL_TIPPS).map((punkt, nummer) => ({
         nummer: nummer + 1,
         laenge: punkt.kern.laenge,
         breite: punkt.kern.breite,
-        zeilen: tippZeilen(punkt, stand),
+        zeilen: tippZeilen(punkt, pilz, stand),
         ecken: punkt.kern.ecken,
-      })),
-    );
+      }));
+    tipps = erzeugeTipps(karte, { steinpilz: markenFuer("steinpilz"), pfifferling: markenFuer("pfifferling") });
+    zeigeTippHinweis(tipps.zeige(zustand.pilz), zustand.pilz);
   }
   const meldeStandort = richteMeldenEin({
     ebenen,
@@ -391,6 +401,9 @@ async function start(): Promise<void> {
     }
     zustand.pilz = ziel.value;
     zustand.brennpunkte = [];
+    if (tipps !== null) {
+      zeigeTippHinweis(tipps.zeige(zustand.pilz), zustand.pilz);
+    }
     zeigeAnsicht(karte, ebenen, zustand);
     void aktualisiereIndex(zustand);
     void aktualisiereHotspots(karte, ebenen, zustand);

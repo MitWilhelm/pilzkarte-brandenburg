@@ -307,3 +307,14 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
 - **Offen:** Ob der Standort auf dem Handy des Nutzers (Opera, Android) damit funktioniert, ist nicht bestätigt.
   Der GPS-Knopf holt zuerst eine grobe Netz-Position und startet dann das genaue GPS; Fehler nennen Code, Meldung und
   Erlaubnis-Status.
+
+## 2026-10-17: Melde-Karussell, Tipps je Pilzart
+
+- **Melde-Formular:** Alle Auswahlfelder sind waagerecht wischbare Kacheln statt Haken-Listen (reines CSS mit
+  `.karussell`; die echten Radio- und Checkbox-Felder bleiben für Tastatur und Vorleser, nur unsichtbar). Einfachwahl
+  bei Ergebnis, Pilzart, Größe, Alter, Dichte; Mehrfachwahl bei Kronendach und Unterstand.
+- **Tipps je Pilzart:** Die Top-5-Tipps gibt es für Steinpilz (Hut und Stiel) und Pfifferling (gelber Trichter);
+  die Seite zeigt nur die der gewählten Art (`erzeugeTipps` in `karte.ts`). Berechnung wie bisher aus den Hotspots der
+  Art und dem Wetter. Gibt es keinen Tipp, steht ein Hinweis unter dem Pilzschalter.
+- **Befund:** Am 2026-10-17 hat kein Pfifferling-Brennpunkt (600 Kandidaten) einen Wachstumsindex ab 60 (Saisonende
+  31.10. senkt den Index); deshalb zeigt die Pfifferling-Seite derzeit keine Tipps. Das ist Absicht, kein Fehler.
