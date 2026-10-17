@@ -99,10 +99,14 @@ export function wetterAusAntwort(antwort: unknown): Wetterreihe {
   return { tage, heute: TAGE_ZURUECK };
 }
 
+// Datenschutz: Open-Meteo bekommt nur auf 0,01° (rund 1 km) gerundete Koordinaten, nie den genauen GPS-Standort.
+// Das Wetter ändert sich auf dieser Skala kaum (das Modellgitter ist gröber).
+const NACHKOMMASTELLEN_ABRUF = 2;
+
 export function wetterUrl(breite: number, laenge: number): string {
   const parameter = new URLSearchParams({
-    latitude: breite.toFixed(4),
-    longitude: laenge.toFixed(4),
+    latitude: breite.toFixed(NACHKOMMASTELLEN_ABRUF),
+    longitude: laenge.toFixed(NACHKOMMASTELLEN_ABRUF),
     hourly: "soil_temperature_6cm,soil_moisture_3_to_9cm",
     daily: "precipitation_sum,temperature_2m_min,temperature_2m_mean",
     past_days: String(TAGE_ZURUECK),

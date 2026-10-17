@@ -70,8 +70,16 @@ const STRASSE_RAND_BREITE: readonly [number, number, number, number] = [12, 4, 1
 const PFAD_STRICHE: readonly [number, number] = [2, 1.5];
 const TIPP_FENSTER_ABSTAND = 26; // Pixel vom Mittelpunkt der runden Tipp-Markierung
 const TIPP_QUELLE = "tipp-kerne";
-const TIPP_RAHMEN_RAND = "tipp-kerne-rand";
+const TIPP_PUNKTE = "tipp-mitten";
+const TIPP_HALO = "tipp-halo"; // unterste Ebene der Tipp-Gruppe: neue Kartenebenen kommen darunter (vorTipps)
+const TIPP_FUELLUNG = "tipp-kerne-fuellung";
+const TIPP_GLANZ = "tipp-kerne-glanz";
 const TIPP_RAHMEN = "tipp-kerne-linie";
+const TIPP_TUERKIS = "#00e5ff";
+// Die Größe folgt dem Zoom: weit draußen ein großer, weicher Glas-Halo um den Tipp, damit man ihn sofort findet; je näher,
+// desto kleiner wird er, bis ab ~Zoom 15,5 nur noch der genaue Rahmen der Kernfläche (bis 9 ha) bleibt.
+const HALO_RADIUS: readonly (readonly [number, number])[] = [[8, 44], [11, 34], [13, 24], [14.5, 12], [15.5, 0]];
+const RAHMEN_BREITE: readonly (readonly [number, number])[] = [[10, 4.5], [14, 3.5], [17, 2.5]];
 
 export interface Kartenebene {
   readonly gebiet: Gebiet;
@@ -318,7 +326,7 @@ export function richteGpsEin(karte: maplibregl.Map, knopf: HTMLButtonElement, me
 
 /** Neue Kartenebenen kommen unter die Tipp-Rahmen, damit später geladene Kacheln sie nicht überdecken. */
 function vorTipps(karte: maplibregl.Map): string | undefined {
-  return karte.getLayer(TIPP_RAHMEN_RAND) === undefined ? undefined : TIPP_RAHMEN_RAND;
+  return karte.getLayer(TIPP_HALO) === undefined ? undefined : TIPP_HALO;
 }
 
 function fuegeHeatmapBildHinzu(karte: maplibregl.Map, ebene: Kartenebene, kanal: Pilzkanal): void {
@@ -548,9 +556,24 @@ function rahmen(tipps: readonly Tippmarke[]): GeoJSON.FeatureCollection {
     features: tipps.map((tipp) => ({
       type: "Feature",
       properties: { nummer: tipp.nummer },
-      geometry: { type: "LineString", coordinates: [...tipp.ecken, ...tipp.ecken.slice(0, 1)].map(([laenge, breite]) => [laenge, breite]) },
+      geometry: { type: "Polygon", coordinates: [[...tipp.ecken, ...tipp.ecken.slice(0, 1)].map(([laenge, breite]) => [laenge, breite])] },
     })),
   };
+}
+
+function mitten(tipps: readonly Tippmarke[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: tipps.map((tipp) => ({
+      type: "Feature",
+      properties: { nummer: tipp.nummer },
+      geometry: { type: "Point", coordinates: [tipp.laenge, tipp.breite] },
+    })),
+  };
+}
+
+function zoomStufen(stufen: readonly (readonly [number, number])[]): maplibregl.ExpressionSpecification {
+  return ["interpolate", ["linear"], ["zoom"], ...stufen.flatMap(([zoom, wert]) => [zoom, wert])];
 }
 
 function tippMarker(tipp: Tippmarke, pilz: Pilzart): maplibregl.Marker {
@@ -579,12 +602,40 @@ function tippMarker(tipp: Tippmarke, pilz: Pilzart): maplibregl.Marker {
  */
 export function erzeugeTipps(karte: maplibregl.Map, jePilz: Readonly<Record<Pilzart, readonly Tippmarke[]>>): Tippsatz {
   karte.addSource(TIPP_QUELLE, { type: "geojson", data: rahmen([]) });
-  // Dunkler Rand unter der türkisen Linie: sichtbar auf Heatmap-Rot wie auf hellem Hintergrund.
-  karte.addLayer({ id: TIPP_RAHMEN_RAND, type: "line", source: TIPP_QUELLE, paint: { "line-color": "#0b0f14", "line-width": 6 } });
-  karte.addLayer({ id: TIPP_RAHMEN, type: "line", source: TIPP_QUELLE, paint: { "line-color": "#00e5ff", "line-width": 3 } });
+  karte.addSource(TIPP_PUNKTE, { type: "geojson", data: mitten([]) });
+  // Liquid-Glass-Look: weicher türkiser Halo mit hellem Rand, getönte Fläche, Glanzlinie und scharfer Rahmen.
+  karte.addLayer({
+    id: TIPP_HALO,
+    type: "circle",
+    source: TIPP_PUNKTE,
+    paint: {
+      "circle-radius": zoomStufen(HALO_RADIUS),
+      "circle-color": TIPP_TUERKIS,
+      "circle-opacity": 0.2,
+      "circle-blur": 0.55,
+      "circle-stroke-color": "#ffffff",
+      "circle-stroke-width": 1.5,
+      "circle-stroke-opacity": 0.55,
+    },
+  });
+  karte.addLayer({ id: TIPP_FUELLUNG, type: "fill", source: TIPP_QUELLE, paint: { "fill-color": TIPP_TUERKIS, "fill-opacity": 0.2 } });
+  karte.addLayer({
+    id: TIPP_GLANZ,
+    type: "line",
+    source: TIPP_QUELLE,
+    paint: { "line-color": "#ffffff", "line-width": 9, "line-blur": 6, "line-opacity": 0.45 },
+  });
+  karte.addLayer({
+    id: TIPP_RAHMEN,
+    type: "line",
+    source: TIPP_QUELLE,
+    layout: { "line-join": "round" },
+    paint: { "line-color": TIPP_TUERKIS, "line-width": zoomStufen(RAHMEN_BREITE), "line-opacity": 0.95 },
+  });
   const quelle = karte.getSource(TIPP_QUELLE);
-  if (!(quelle instanceof maplibregl.GeoJSONSource)) {
-    throw new Error(`Invariante verletzt: Quelle ${TIPP_QUELLE} ist keine GeoJSON-Quelle`);
+  const punkte = karte.getSource(TIPP_PUNKTE);
+  if (!(quelle instanceof maplibregl.GeoJSONSource) || !(punkte instanceof maplibregl.GeoJSONSource)) {
+    throw new Error(`Invariante verletzt: Quellen ${TIPP_QUELLE} und ${TIPP_PUNKTE} sind keine GeoJSON-Quellen`);
   }
   const marker = new Map<Pilzart, maplibregl.Marker[]>(
     PILZARTEN_MIT_TIPPS.map((pilz) => [pilz, jePilz[pilz].map((tipp) => tippMarker(tipp, pilz))]),
@@ -600,6 +651,7 @@ export function erzeugeTipps(karte: maplibregl.Map, jePilz: Readonly<Record<Pilz
         }
       }
       quelle.setData(rahmen(jePilz[gewaehlt]));
+      punkte.setData(mitten(jePilz[gewaehlt]));
       return jePilz[gewaehlt].length;
     },
   };

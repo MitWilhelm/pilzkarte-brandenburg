@@ -2,13 +2,14 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
+<!-- Sicherheit: GitHub Pages setzt keine eigenen Header, daher Content-Security-Policy und Referrer-Policy als meta-Tags.
+     Erlaubt sind nur die eigene Seite, OpenStreetMap-Kacheln, Open-Meteo und der Meldeserver. Neue Quellen hier eintragen. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org; connect-src 'self' data: blob: https://tile.openstreetmap.org https://api.open-meteo.com https://pilzkarte-meldungen.timw-andreae.workers.dev; worker-src blob:; object-src 'none'; base-uri 'none'; form-action 'self'">
+<meta name="referrer" content="strict-origin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#e8eee0" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#141b17" media="(prefers-color-scheme: dark)">
 <title>Pilzkarte Barnim</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="maplibre-gl.css">
 <link rel="stylesheet" href="styles.css">
 </head>

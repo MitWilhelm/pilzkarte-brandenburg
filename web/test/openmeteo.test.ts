@@ -62,6 +62,12 @@ test("die Abfrage-URL fordert 20 Tage Vergangenheit in Ortszeit an", () => {
   assert.equal(url.searchParams.get("timezone"), "Europe/Berlin");
 });
 
+test("Open-Meteo bekommt nur auf 0,01 Grad gerundete Koordinaten, nie den genauen Standort", () => {
+  const url = new URL(wetterUrl(52.97913, 13.74587));
+  assert.equal(url.searchParams.get("latitude"), "52.98");
+  assert.equal(url.searchParams.get("longitude"), "13.75");
+});
+
 test("fehlende Bodenwerte am Prognose-Ende (null) kürzen die Reihe statt Fehler zu werfen", () => {
   const antwort = frischeAntwort();
   for (const feldname of ["soil_temperature_6cm", "soil_moisture_3_to_9cm"]) {

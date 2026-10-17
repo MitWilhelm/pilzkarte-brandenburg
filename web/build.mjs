@@ -22,3 +22,4 @@ cpSync("index.html", `${ZIEL}/index.html`);
 cpSync("styles.css", `${ZIEL}/styles.css`);
 cpSync("node_modules/maplibre-gl/dist/maplibre-gl.css", `${ZIEL}/maplibre-gl.css`);
 cpSync("public/daten", `${ZIEL}/daten`, { recursive: true });
+cpSync("public/fonts", `${ZIEL}/fonts`, { recursive: true });
