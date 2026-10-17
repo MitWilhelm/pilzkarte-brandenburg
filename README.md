@@ -38,6 +38,7 @@ Zur Laufzeit:
 |---|---|---|
 | Wetter, Bodentemperatur, Bodenfeuchte | [Open-Meteo](https://open-meteo.com) | CC-BY-4.0, nur nicht-kommerziell kostenlos |
 | Hintergrundkarte, Wege und Pfade (`web/public/daten/barnim/*_wege.geojson`, per Overpass) | [OpenStreetMap](https://www.openstreetmap.org) | ODbL |
+| Schriften Manrope und IBM Plex Mono (Latin, `web/public/fonts/`, einmal von Google Fonts geladen und auf der eigenen Seite ausgeliefert) | [Manrope](https://github.com/sharanda/manrope), [IBM Plex Mono](https://github.com/IBM/plex) | SIL Open Font License 1.1 |
 
 Quellenvermerke: „© DLR, CC-BY-4.0“ · „Landesbetrieb Forst Brandenburg,
 dl-de/by-2-0“ · „Wetterdaten: Open-Meteo.com“ · „© OpenStreetMap-Mitwirkende“ · „© GeoBasis-DE / BKG (2026)“ · „© GeoBasis-DE / LGB“
