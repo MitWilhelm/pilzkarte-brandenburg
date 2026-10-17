@@ -407,3 +407,20 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   Zoomlimit. Der Verlauf liegt über der Hintergrundkarte und unter der Heatmap.
 - **Verworfen:** Verlauf im Browser per Canvas-Weichzeichner (ctx.filter fehlt in älteren Safari-Versionen) und eine Fläche
   mit festem Streifen (sähe wieder wie eine Linie aus).
+
+## 2026-10-17: Schnellerer Start, Start weiter draußen, Ladeschleier
+
+- **Befund (Messung):** Seit „alle Kacheln im Hintergrund“ lud die Seite für jede Kachel sofort auch Boden- und Wege-GeoJSON:
+  zusammen 17,6 MB (Boden 14 MB, Wege 3,6 MB) zusätzlich zu 8 MB Bildern. Außerdem wartete der Start auf `tageswerte.json`
+  (0,5 MB) und auf die Vorschau, bevor Knöpfe und Karte bedienbar waren.
+- **Vorbild Google Maps (Prinzipien, nicht ihr Code):** Karten laden nur, was im Bild ist, zuerst in grober Auflösung und dann
+  feiner (Detailstufen), die Mitte zuerst, und blockieren den Start nicht mit nachrangigen Daten.
+- **Umsetzung:** (1) Boden und Wege einer Kachel kommen erst ab Zoom 11 und nur für Kacheln im Bild. (2) `tageswerte.json` und
+  die Vorschau laden parallel, ohne den Start zu blockieren; bis die Tageswerte da sind, startet keine Live-Bewertung.
+  (3) Die Vorschau wird weich (linear) gezeichnet, damit sie nicht grob wirkt. (4) 3 statt 2 Kacheln gleichzeitig, die nächsten
+  zur Kartenmitte zuerst. (5) Start bei Zoom 10,6 um Eberswalde statt 13, damit die Vorschau nicht als solche auffällt.
+- **Ladeschleier (Liquid Glass):** Bis alle Kacheln geladen sind, liegt die Karte grau und unscharf unter einem Schleier, aus dessen
+  Mitte sich ein farbiges Fenster mit dem Ladeanteil öffnet; in der Mitte steht eine Glas-Box „Pilze werden gesucht …“ mit
+  Fortschrittsbalken. Das Tutorial (modaler Dialog) liegt darüber, im Hintergrund lädt die Karte weiter. Der Schleier blockiert keine
+  Eingaben und verschwindet weich, auch wenn einzelne Kacheln fehlschlugen (der Hinweis nennt sie).
+- **Messung lokal (ohne Netz-Drosselung):** Beim Start nur noch 1 GeoJSON (Grenze); alle 26 Kacheln in 1,3 s.

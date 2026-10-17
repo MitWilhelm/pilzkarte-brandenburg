@@ -340,3 +340,38 @@ p, h1, ol, dl, dd { margin: 0; }
   .maplibregl-ctrl-top-right { right: 400px; top: calc(env(safe-area-inset-top, 0px) + 10px); }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+/* Ladeschleier im Liquid-Glass-Stil: Die Karte darunter ist zuerst ganz grau und unscharf; mit dem Fortschritt öffnet sich von der
+   Mitte aus ein farbiges Fenster, bis der ganze Barnim sichtbar ist. Er blockiert keine Eingaben. */
+@property --fortschritt { syntax: "<number>"; inherits: true; initial-value: 0; }
+.ladeschleier {
+  --fortschritt: 0;
+  position: absolute; inset: 0; z-index: 2; pointer-events: none; display: grid; place-items: center;
+  transition: opacity 1s ease, --fortschritt 0.6s ease;
+}
+.ladeschleier::before {
+  content: ""; position: absolute; inset: 0;
+  background: rgb(120 126 120 / 0.55);
+  -webkit-backdrop-filter: grayscale(1) blur(calc((1 - var(--fortschritt)) * 5px));
+  backdrop-filter: grayscale(1) blur(calc((1 - var(--fortschritt)) * 5px));
+  /* Das Loch wächst von der Mitte: bei 0 geschlossen, bei 1 weit größer als der Bildschirm. */
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent calc(var(--fortschritt) * 125%), #000 calc(var(--fortschritt) * 125% + 28%));
+  mask-image: radial-gradient(circle at 50% 50%, transparent calc(var(--fortschritt) * 125%), #000 calc(var(--fortschritt) * 125% + 28%));
+}
+.ladeschleier[data-fertig="ja"] { opacity: 0; }
+.ladekarte { width: min(280px, calc(100% - 64px)); padding: 18px 20px 16px; border-radius: 26px; text-align: center; position: relative; }
+.ladetitel { font-size: 17px; font-weight: 800; letter-spacing: 0.01em; }
+.ladepunkte span { display: inline-block; animation: ladepunkt 1.2s ease-in-out infinite; }
+.ladepunkte span:nth-child(2) { animation-delay: 0.2s; }
+.ladepunkte span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes ladepunkt { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+.ladebalken { margin: 12px 4px 8px; height: 6px; border-radius: 999px; background: rgb(127 127 127 / 0.28); overflow: hidden; }
+.ladebalken span {
+  display: block; height: 100%; width: 0; border-radius: inherit; background: var(--akzent);
+  transition: width 0.5s ease;
+}
+.ladetext { font-size: 13px; color: var(--leise); }
+@media (prefers-reduced-motion: reduce) {
+  .ladepunkte span { animation: none; opacity: 1; }
+  .ladeschleier, .ladebalken span, .ladeschleier::before { transition: none; }
+}

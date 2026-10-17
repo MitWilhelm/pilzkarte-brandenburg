@@ -28,6 +28,14 @@
 </header>
 
 <main id="karte" class="karte" aria-label="Karte mit Habitat-Heatmap"></main>
+<!-- Ladeschleier: bis die Karte geladen ist, wird sie von Grau zu Farbe aufgedeckt (src/ansicht.ts: zeigeLadefortschritt). -->
+<div class="ladeschleier" id="ladeschleier" role="status" aria-live="polite">
+  <div class="ladekarte glas">
+    <p class="ladetitel">Pilze werden gesucht <span class="ladepunkte" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></p>
+    <div class="ladebalken" aria-hidden="true"><span id="ladebalken-fuellung"></span></div>
+    <p class="ladetext" id="ladetext">Barnim wird geöffnet …</p>
+  </div>
+</div>
 <!-- Werden von src/karte.ts als Kartenschalter unter Zoom und GPS eingesetzt. -->
 <button type="button" id="gps-knopf" class="knopf-gps" aria-pressed="false" aria-label="Meinen Standort zeigen" title="Standort" hidden>
   <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.2" fill="currentColor"/><circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>

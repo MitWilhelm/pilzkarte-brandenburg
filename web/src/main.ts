@@ -14,6 +14,8 @@ import {
   zeigeRandverlauf,
   begrenzeKarte,
   fuegeVorschauHinzu,
+  fuegeDetailsHinzu,
+  hatDetails,
   entferneVorschau,
   type Kartenebene,
   type Tippmarke,
@@ -24,6 +26,7 @@ import { brennpunktArt, topSammelplaetze, wetterSchluessel, type Tagesbrennpunkt
 import { abstandMeter, baumartName, gebieteImAusschnitt, KANAL_JE_PILZ, pixelAnStelle, stufeninfo, type Gebiet } from "./geo.ts";
 import { ladeDatenbild, ladeGebiete, ladeGrenze, ladeTageswerte } from "./clients/daten.ts";
 import { richteMeldenEin } from "./melden.ts";
+import { ladeanteil, ladetext } from "./laden.ts";
 import { sendeAnWorker } from "./clients/meldeserver.ts";
 import { ladeWetter, type Wetterreihe } from "./clients/openmeteo.ts";
 import { indexverlauf, tagesindex, type Pilzart } from "./wachstum.ts";
@@ -41,6 +44,8 @@ import {
   zeigeIndexFehler,
   zeigeVersion,
   zeigeLadehinweis,
+  zeigeLadefortschritt,
+  beendeLadeschleier,
   zeigePunkt,
   zeigePunktwetter,
   zeigePunktwetterFehler,
@@ -58,7 +63,9 @@ const VORSCHAU_UEBERSICHT = "vorschau.json";
 const MASKE_UEBERSICHT = "maske.json";
 // Alle Kacheln (zusammen ~8 MB) kommen nach dem Start nacheinander im Hintergrund, die nächsten zur Kartenmitte zuerst;
 // bis dahin zeigt die grobe Vorschau den ganzen Barnim.
-const GLEICHZEITIG_LADEN = 2;
+const GLEICHZEITIG_LADEN = 3;
+// Boden und Wege (zusammen 17 MB für den ganzen Barnim) erst ab diesem Zoom und nur für Kacheln im Bild.
+const DETAILS_AB_ZOOM = 11;
 const START_MITTE: readonly [number, number] = [13.8199, 52.8337]; // Eberswalde [Länge, Breite]
 // Hinweis, sobald Kartenmitte oder GPS-Standort näher als `radiusMeter` an einem Schutzgebiet liegt.
 const SCHUTZGEBIETE: readonly { readonly mitte: readonly [number, number]; readonly radiusMeter: number; readonly text: string }[] = [
@@ -86,6 +93,7 @@ interface Zustand {
   brennpunkte: readonly Brennpunktflaeche[]; // zuletzt markierte Flächen der gewählten Pilzart
   vorschau: Kartenebene | null; // grobe Ebene des ganzen Barnims, bis alle Kacheln im Detail geladen sind
   tageswerte: Tageswerte | null; // morgens vorberechnet; null: Brennpunkte werden live mit Wetter bewertet
+  isTageswerteGeprueft: boolean; // false, solange tageswerte.json noch lädt (dann keine Live-Bewertung starten)
 }
 
 const wetterSpeicher = new Map<string, Promise<Wetterreihe>>();
@@ -145,6 +153,9 @@ function zeigeAnsicht(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zus
  * Datei fehlt, live mit dem Wetter je Fläche; nahe Stellen teilen sich dann einen Abruf (wetterSchluessel).
  */
 async function aktualisiereHotspots(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zustand: Zustand): Promise<void> {
+  if (!zustand.isTageswerteGeprueft) {
+    return; // tageswerte.json lädt noch; danach ruft start() diese Funktion erneut auf
+  }
   const pilz = zustand.pilz;
   if (zustand.tageswerte !== null) {
     const geladen = new Set(ebenen.map((ebene) => ebene.gebiet.name));
@@ -217,6 +228,7 @@ interface Kachellader {
   readonly alle: readonly Gebiet[];
   readonly ebenen: Kartenebene[];
   readonly angefragt: Set<string>;
+  readonly mitDetails: Set<string>; // Kacheln, deren Boden und Wege schon eingefügt oder angefragt sind
 }
 
 /** Lädt die angegebenen Kacheln, soweit noch nicht angefragt; eine fehlgeschlagene wird später erneut versucht. */
@@ -260,6 +272,31 @@ async function ladeSichtbare(lader: Kachellader, zustand: Zustand): Promise<void
   const bild = lader.karte.getBounds();
   const ausschnitt = { west: bild.getWest(), sued: bild.getSouth(), ost: bild.getEast(), nord: bild.getNorth() };
   await ladeKacheln(lader, zustand, gebieteImAusschnitt(lader.alle, ausschnitt));
+  fuegeSichtbareDetailsHinzu(lader);
+}
+
+/** Boden und Wege der geladenen Kacheln im Bild einfügen, sobald man nahe genug ist (ab DETAILS_AB_ZOOM). */
+function fuegeSichtbareDetailsHinzu(lader: Kachellader): void {
+  const { karte, ebenen, mitDetails } = lader;
+  if (karte.getZoom() < DETAILS_AB_ZOOM) {
+    return;
+  }
+  const bild = karte.getBounds();
+  const ausschnitt = { west: bild.getWest(), sued: bild.getSouth(), ost: bild.getEast(), nord: bild.getNorth() };
+  const geladen = new Set(ebenen.map((ebene) => ebene.gebiet.name));
+  const zeigeLinien = element("bodengrenzen", HTMLInputElement).checked;
+  for (const gebiet of gebieteImAusschnitt(lader.alle, ausschnitt)) {
+    if (geladen.has(gebiet.name) && !mitDetails.has(gebiet.name) && !hatDetails(karte, gebiet)) {
+      mitDetails.add(gebiet.name);
+      fuegeDetailsHinzu(karte, gebiet, zeigeLinien);
+    }
+  }
+}
+
+/** Zeigt den Ladeanteil im Schleier: Vorschau zählt wenig, jede fertige Kachel gleich viel. */
+function meldeLaden(lader: Kachellader, zustand: Zustand): void {
+  const anteil = ladeanteil(zustand.vorschau !== null || lader.ebenen.length > 0, lader.ebenen.length, lader.alle.length);
+  zeigeLadefortschritt(anteil, ladetext(anteil));
 }
 
 /** Lädt nach dem Start alle Kacheln im Detail, die nächsten zur Kartenmitte zuerst, je GLEICHZEITIG_LADEN auf einmal. */
@@ -270,7 +307,11 @@ async function ladeAlleImHintergrund(lader: Kachellader, zustand: Zustand): Prom
   );
   for (let start = 0; start < nachAbstand.length; start += GLEICHZEITIG_LADEN) {
     await ladeKacheln(lader, zustand, nachAbstand.slice(start, start + GLEICHZEITIG_LADEN));
+    meldeLaden(lader, zustand);
+    fuegeSichtbareDetailsHinzu(lader);
   }
+  // Auch wenn einzelne Kacheln fehlschlugen (der Hinweis nennt sie), endet das Warten; Verschieben versucht es erneut.
+  beendeLadeschleier();
 }
 
 function tippZeilen(punkt: Tagesbrennpunkt, pilz: Pilzart, stand: string): string[] {
@@ -331,9 +372,10 @@ async function start(): Promise<void> {
   fuelleLegende();
   zeigeVersion(typeof __BUILD_ZEIT__ === "string" ? __BUILD_ZEIT__ : "");
   richteTutorialEin(window.localStorage);
-  const [kacheln, tageswerte, vorschauGebiete, grenze, maskeGebiete] = await Promise.all([
+  // tageswerte.json (~0,5 MB) blockiert den Start nicht: Die Karte erscheint zuerst, die Tipps kommen nach.
+  const tageswerteVersprechen = ladeTageswerteOderNull();
+  const [kacheln, vorschauGebiete, grenze, maskeGebiete] = await Promise.all([
     ladeGebiete(KACHEL_ORDNER, KACHEL_UEBERSICHT),
-    ladeTageswerteOderNull(),
     ladeGebiete(KACHEL_ORDNER, VORSCHAU_UEBERSICHT),
     ladeGrenze(KACHEL_ORDNER),
     ladeGebiete(KACHEL_ORDNER, MASKE_UEBERSICHT),
@@ -347,7 +389,8 @@ async function start(): Promise<void> {
     isBrennpunkteAn: false,
     brennpunkte: [],
     vorschau: null,
-    tageswerte,
+    tageswerte: null,
+    isTageswerteGeprueft: false,
   };
   void aktualisiereIndex(zustand);
 
@@ -365,30 +408,43 @@ async function start(): Promise<void> {
   if (vorschauGebiet === undefined) {
     throw new Error(`Invariante verletzt: ${VORSCHAU_UEBERSICHT} enthält kein Gebiet`);
   }
-  try {
-    zustand.vorschau = { gebiet: vorschauGebiet, daten: await ladeDatenbild(vorschauGebiet) };
-    fuegeVorschauHinzu(karte, zustand.vorschau, KANAL_JE_PILZ[zustand.pilz]);
-  } catch (fehler) {
-    zustand.vorschau = null;
-    console.warn(`Vorschau nicht geladen, die Kacheln kommen einzeln: ${fehlertext(fehler)}`);
-  }
   const ebenen: Kartenebene[] = [];
-  const lader: Kachellader = { karte, alle: kacheln, ebenen, angefragt: new Set<string>() };
+  const lader: Kachellader = { karte, alle: kacheln, ebenen, angefragt: new Set<string>(), mitDetails: new Set<string>() };
   folgeFarbschema(karte, ebenen);
   let tipps: Tippsatz | null = null;
-  if (tageswerte !== null) {
-    const stand = STAND_FORMAT.format(new Date(tageswerte.erstellt));
-    const markenFuer = (pilz: Pilzart): Tippmarke[] =>
-      topSammelplaetze(tageswerte[pilz], ANZAHL_TIPPS).map((punkt, nummer) => ({
-        nummer: nummer + 1,
-        laenge: punkt.kern.laenge,
-        breite: punkt.kern.breite,
-        zeilen: tippZeilen(punkt, pilz, stand),
-        ecken: punkt.kern.ecken,
-      }));
-    tipps = erzeugeTipps(karte, { steinpilz: markenFuer("steinpilz"), pfifferling: markenFuer("pfifferling"), edelreizker: markenFuer("edelreizker") });
-    zeigeTippHinweis(tipps.zeige(zustand.pilz), zustand.pilz);
-  }
+  // Die grobe Vorschau lädt, ohne den Rest des Starts aufzuhalten (Knöpfe, GPS, Melden).
+  void (async (): Promise<void> => {
+    try {
+      zustand.vorschau = { gebiet: vorschauGebiet, daten: await ladeDatenbild(vorschauGebiet) };
+      fuegeVorschauHinzu(karte, zustand.vorschau, KANAL_JE_PILZ[zustand.pilz]);
+      if (ebenen.length === kacheln.length) {
+        entferneVorschau(karte, zustand.vorschau); // alle Kacheln waren schneller als die Vorschau
+        zustand.vorschau = null;
+      }
+    } catch (fehler) {
+      zustand.vorschau = null;
+      console.warn(`Vorschau nicht geladen, die Kacheln kommen einzeln: ${fehlertext(fehler)}`);
+    }
+    meldeLaden(lader, zustand);
+  })();
+  void tageswerteVersprechen.then((tageswerte) => {
+    zustand.tageswerte = tageswerte;
+    zustand.isTageswerteGeprueft = true;
+    if (tageswerte !== null) {
+      const stand = STAND_FORMAT.format(new Date(tageswerte.erstellt));
+      const markenFuer = (pilz: Pilzart): Tippmarke[] =>
+        topSammelplaetze(tageswerte[pilz], ANZAHL_TIPPS).map((punkt, nummer) => ({
+          nummer: nummer + 1,
+          laenge: punkt.kern.laenge,
+          breite: punkt.kern.breite,
+          zeilen: tippZeilen(punkt, pilz, stand),
+          ecken: punkt.kern.ecken,
+        }));
+      tipps = erzeugeTipps(karte, { steinpilz: markenFuer("steinpilz"), pfifferling: markenFuer("pfifferling"), edelreizker: markenFuer("edelreizker") });
+      zeigeTippHinweis(tipps.zeige(zustand.pilz), zustand.pilz);
+    }
+    void aktualisiereHotspots(karte, ebenen, zustand);
+  });
   const meldeStandort = richteMeldenEin({
     ebenen,
     aktuellePilzart: () => zustand.pilz,

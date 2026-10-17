@@ -10,7 +10,10 @@ const OSM_HINWEIS = '© <a href="https://www.openstreetmap.org/copyright">OpenSt
 const QUELLEN_HINWEIS = "© DLR · © LFB Brandenburg"; // ausführlich in der Legende
 const KACHEL_PIXEL = 256;
 const MAX_ZOOM = 19;
-const START_ZOOM = 13;
+// Beim Start etwas weiter heraus (um Eberswalde), damit die grobe Vorschau nicht als solche auffällt; die Kacheln
+// im Detail brauchen erst ab Zoom 12.
+const START_ZOOM = 10.6;
+const VORSCHAU_NAME = "vorschau";
 const HEATMAP_DECKKRAFT = 0.6; // etwas durchsichtiger, damit Wege darunter lesbar bleiben
 const BODEN_LINIENBREITE = 0.6;
 const WEGE_MIN_ZOOM = 11.5; // darunter sind 26 Kacheln voller Wege nur Last und Gekrissel
@@ -126,6 +129,9 @@ export function folgeFarbschema(karte: maplibregl.Map, ebenen: readonly Karteneb
     const schema = farbschema();
     faerbeHintergrund(karte);
     for (const { gebiet } of ebenen) {
+      if (!hatDetails(karte, gebiet)) {
+        continue; // Wege kommen erst beim Heranzoomen; sie bekommen die Farben dann direkt
+      }
       karte.setPaintProperty(`wege-rand-${gebiet.name}`, "line-color", schema.wegRand);
       karte.setPaintProperty(`wege-${gebiet.name}`, "line-color", schema.weg);
       karte.setPaintProperty(`pfade-${gebiet.name}`, "line-color", schema.pfad);
@@ -331,8 +337,8 @@ function fuegeHeatmapBildHinzu(karte: maplibregl.Map, ebene: Kartenebene, kanal:
     id: `heatmap-${gebiet.name}`,
     type: "raster",
     source: `heatmap-${gebiet.name}`,
-    // nearest: Klassen nicht verwischen, jedes 10-m-Feld bleibt erkennbar
-    paint: { "raster-opacity": HEATMAP_DECKKRAFT, "raster-resampling": "nearest" },
+    // Vorschau weich (linear), Kacheln scharf (nearest): Klassen nicht verwischen, jedes 10-m-Feld bleibt erkennbar.
+    paint: { "raster-opacity": HEATMAP_DECKKRAFT, "raster-resampling": gebiet.name === VORSCHAU_NAME ? "linear" : "nearest" },
   }, vorTipps(karte));
 }
 
@@ -350,25 +356,36 @@ export function entferneVorschau(karte: maplibregl.Map, ebene: Kartenebene): voi
 
 export function fuegeEbenenHinzu(karte: maplibregl.Map, ebenen: readonly Kartenebene[], kanal: Pilzkanal): void {
   for (const ebene of ebenen) {
-    const { gebiet } = ebene;
     fuegeHeatmapBildHinzu(karte, ebene, kanal);
-    karte.addSource(`boden-${gebiet.name}`, { type: "geojson", data: `${gebiet.ordner}/${gebiet.name}_boden.geojson` });
-    // Unsichtbare Füllung, damit ein Tipp die Bodenfläche findet; Linien nur auf Wunsch sichtbar.
-    karte.addLayer({
-      id: `boden-flaeche-${gebiet.name}`,
-      type: "fill",
-      source: `boden-${gebiet.name}`,
-      paint: { "fill-opacity": 0 },
-    }, vorTipps(karte));
-    karte.addLayer({
-      id: `boden-linie-${gebiet.name}`,
-      type: "line",
-      source: `boden-${gebiet.name}`,
-      layout: { visibility: "none" },
-      paint: { "line-color": "#4b3a6b", "line-width": BODEN_LINIENBREITE },
-    }, vorTipps(karte));
-    fuegeWegeHinzu(karte, gebiet);
   }
+}
+
+/** Ob die schweren Einzelheiten (Boden und Wege) dieser Kachel schon eingefügt sind. */
+export function hatDetails(karte: maplibregl.Map, gebiet: Gebiet): boolean {
+  return karte.getSource(`boden-${gebiet.name}`) !== undefined;
+}
+
+/**
+ * Boden und Wege einer Kachel (zusammen etwa 700 KB je Kachel): erst, wenn man nahe genug ist, damit der Start nicht auf
+ * 17 MB GeoJSON wartet. `zeigeBodenlinien` übernimmt den Stand des Schalters.
+ */
+export function fuegeDetailsHinzu(karte: maplibregl.Map, gebiet: Gebiet, zeigeBodenlinien: boolean): void {
+  karte.addSource(`boden-${gebiet.name}`, { type: "geojson", data: `${gebiet.ordner}/${gebiet.name}_boden.geojson` });
+  // Unsichtbare Füllung, damit ein Tipp die Bodenfläche findet; Linien nur auf Wunsch sichtbar.
+  karte.addLayer({
+    id: `boden-flaeche-${gebiet.name}`,
+    type: "fill",
+    source: `boden-${gebiet.name}`,
+    paint: { "fill-opacity": 0 },
+  }, vorTipps(karte));
+  karte.addLayer({
+    id: `boden-linie-${gebiet.name}`,
+    type: "line",
+    source: `boden-${gebiet.name}`,
+    layout: { visibility: zeigeBodenlinien ? "visible" : "none" },
+    paint: { "line-color": "#4b3a6b", "line-width": BODEN_LINIENBREITE },
+  }, vorTipps(karte));
+  fuegeWegeHinzu(karte, gebiet);
 }
 
 // Wege aus OpenStreetMap (pipeline/io_waldwege.py): über der Heatmap, damit man den Weg zur Stelle sieht.
@@ -454,12 +471,18 @@ export function fuegeKnopfHinzu(karte: maplibregl.Map, knopf: HTMLButtonElement)
 
 export function zeigeBodengrenzen(karte: maplibregl.Map, ebenen: readonly Kartenebene[], isSichtbar: boolean): void {
   for (const { gebiet } of ebenen) {
+    if (!hatDetails(karte, gebiet)) {
+      continue; // noch nicht geladen; fuegeDetailsHinzu übernimmt den Schalterstand
+    }
     karte.setLayoutProperty(`boden-linie-${gebiet.name}`, "visibility", isSichtbar ? "visible" : "none");
   }
 }
 
 /** Bodenbeschreibung unter einem Bildschirmpunkt oder null, wenn dort keine Standortfläche liegt. */
 export function bodenAnPunkt(karte: maplibregl.Map, punkt: maplibregl.Point, gebiet: Gebiet): string | null {
+  if (!hatDetails(karte, gebiet)) {
+    return null; // Boden dieser Kachel ist noch nicht geladen (zu weit herausgezoomt)
+  }
   const treffer = karte.queryRenderedFeatures(punkt, { layers: [`boden-flaeche-${gebiet.name}`] })[0];
   if (treffer === undefined) {
     return null;

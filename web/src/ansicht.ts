@@ -212,6 +212,23 @@ export function zeigeLadehinweis(text: string | null): void {
   hinweis.textContent = text ?? "";
 }
 
+/** Ladeschleier: die Karte darunter wird mit dem Anteil (0 bis 1) von Grau zu Farbe aufgedeckt, `text` steht in der Box. */
+export function zeigeLadefortschritt(anteil: number, text: string): void {
+  const schleier = element("ladeschleier", HTMLElement);
+  schleier.style.setProperty("--fortschritt", anteil.toFixed(3));
+  element("ladebalken-fuellung", HTMLElement).style.setProperty("width", `${(anteil * 100).toFixed(1)}%`);
+  element("ladetext", HTMLElement).textContent = text;
+}
+
+/** Blendet den Ladeschleier aus (weich); danach nimmt er keinen Platz mehr ein. */
+export function beendeLadeschleier(): void {
+  const schleier = element("ladeschleier", HTMLElement);
+  schleier.dataset["fertig"] = "ja";
+  window.setTimeout(() => {
+    schleier.hidden = true;
+  }, 1200);
+}
+
 export function fuelleLegende(): void {
   element("legende", HTMLUListElement).replaceChildren(
     ...STUFEN.map((klasse) => {
