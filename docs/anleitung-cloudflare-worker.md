@@ -40,7 +40,7 @@ nachgebildeten GitHub-Antwort getestet; gegen das echte GitHub und Cloudflare is
 
 const ERLAUBTER_URSPRUNG = "https://mitwilhelm.github.io";
 const ERGEBNISSE = ["fund", "nichts"];
-const PILZE = ["steinpilz", "pfifferling"];
+const PILZE = ["steinpilz", "pfifferling", "edelreizker"];
 const GROESSEN = ["jung", "mittel", "alt", "gemischt"];
 const BESTANDSALTER = ["jung", "mittel", "alt", "unbekannt"];
 const DICHTEN = ["licht", "mittel", "dicht"];
