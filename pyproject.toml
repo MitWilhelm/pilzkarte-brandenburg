@@ -9,7 +9,7 @@ dependencies = [
     "pyproj>=3.7",
     "pydantic>=2.9",
     "laspy>=2.5",
-    "lazrs>=0.6",
+    "lazrs>=0.8.2",
 ]
 
 [project.optional-dependencies]
