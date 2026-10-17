@@ -46,7 +46,7 @@ import { richteTutorialEin } from "./tutorialansicht.ts";
 const KANAELE_PRO_PIXEL = 4;
 const ANZAHL_TIPPS = 5;
 const STAND_FORMAT = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
-const PILZNAMEN: Readonly<Record<Pilzart, string>> = { steinpilz: "Steinpilz", pfifferling: "Pfifferling" };
+const PILZNAMEN: Readonly<Record<Pilzart, string>> = { steinpilz: "Steinpilz", pfifferling: "Pfifferling", edelreizker: "Edelreizker" };
 const KACHEL_ORDNER = "daten/barnim";
 const KACHEL_UEBERSICHT = "kacheln.json";
 // Unter Zoom 11 wären fast alle 25 Kacheln (~30 MB) im Bild; im Wald mit schwachem Netz zu viel.
@@ -338,7 +338,7 @@ async function start(): Promise<void> {
         zeilen: tippZeilen(punkt, pilz, stand),
         ecken: punkt.kern.ecken,
       }));
-    tipps = erzeugeTipps(karte, { steinpilz: markenFuer("steinpilz"), pfifferling: markenFuer("pfifferling") });
+    tipps = erzeugeTipps(karte, { steinpilz: markenFuer("steinpilz"), pfifferling: markenFuer("pfifferling"), edelreizker: markenFuer("edelreizker") });
     zeigeTippHinweis(tipps.zeige(zustand.pilz), zustand.pilz);
   }
   const meldeStandort = richteMeldenEin({
@@ -396,7 +396,7 @@ async function start(): Promise<void> {
   });
   element("pilzwahl", HTMLFieldSetElement).addEventListener("change", (ereignis) => {
     const ziel = ereignis.target;
-    if (!(ziel instanceof HTMLInputElement) || (ziel.value !== "steinpilz" && ziel.value !== "pfifferling")) {
+    if (!(ziel instanceof HTMLInputElement) || (ziel.value !== "steinpilz" && ziel.value !== "pfifferling" && ziel.value !== "edelreizker")) {
       return;
     }
     zustand.pilz = ziel.value;

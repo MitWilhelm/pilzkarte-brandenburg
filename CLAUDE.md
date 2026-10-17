@@ -12,7 +12,7 @@ auf dieses Projekt zugeschnitten (Python-Datenaufbereitung + TypeScript-Web).
 
 ## Projektziel
 
-Eine mobile Webseite, die für Steinpilz und Pfifferling zeigt, **wo** sie in
+Eine mobile Webseite, die für Steinpilz, Pfifferling und Edelreizker zeigt, **wo** sie in
 Brandenburg wachsen können (vorberechnete Habitat-Heatmap) und **wann** sich
 die Suche lohnt (täglicher Wachstumsindex aus Wetterdaten). Dazu GPS-Standort
 und ein Link zur Navigation (Google Maps / Komoot). Nutzer: nur der Eigentümer.

@@ -12,7 +12,7 @@ export type Brennpunktstatus = Hotspotart | "flaeche-index-zu-niedrig" | "keiner
 
 export const ERGEBNIS_FUND: Ergebnis = "fund";
 export const ERGEBNISSE: readonly Ergebnis[] = [ERGEBNIS_FUND, "nichts"];
-export const PILZE: readonly Pilzart[] = ["steinpilz", "pfifferling"];
+export const PILZE: readonly Pilzart[] = ["steinpilz", "pfifferling", "edelreizker"];
 export const GROESSEN: readonly Pilzgroesse[] = ["jung", "mittel", "alt", "gemischt"];
 export const BESTANDSALTER: readonly Bestandsalter[] = ["jung", "mittel", "alt", "unbekannt"];
 export const DICHTEN: readonly Dichte[] = ["licht", "mittel", "dicht"];
@@ -169,7 +169,7 @@ export function pruefeMeldung(roh: unknown): Meldung {
   };
 }
 
-const PILZ_NAME: Readonly<Record<Pilzart, string>> = { steinpilz: "Steinpilz", pfifferling: "Pfifferling" };
+const PILZ_NAME: Readonly<Record<Pilzart, string>> = { steinpilz: "Steinpilz", pfifferling: "Pfifferling", edelreizker: "Edelreizker" };
 const BRENNPUNKT_TEXT: Readonly<Record<Brennpunktstatus, string>> = {
   heute: "in einem Umriss, Index heute günstig (türkis)",
   "letzte-tage": "in einem Umriss, nur in den letzten 7 Tagen günstig (pink)",

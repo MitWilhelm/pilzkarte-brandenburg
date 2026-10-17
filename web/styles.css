@@ -214,6 +214,9 @@ p, h1, ol, dl, dd { margin: 0; }
 }
 .tipp-marke .tipp-hut { fill: #7a3b12; }
 .tipp-marke .tipp-stiel { fill: #e9d8b4; stroke: #8a6a3a; stroke-width: 0.8; }
+.tipp-marke .tipp-reizker-hut { fill: #e8742a; stroke: #8a3a10; stroke-width: 0.8; }
+.tipp-marke .tipp-reizker-stiel { fill: #f3c9a0; stroke: #a8602a; stroke-width: 0.8; }
+.tipp-marke .tipp-reizker-ring { fill: none; stroke: #8a3a10; stroke-width: 1; stroke-linecap: round; }
 .tipp-marke .tipp-trichter { fill: #f2b01e; stroke: #9a6208; stroke-width: 0.8; }
 .tipp-nummer {
   position: absolute; top: -7px; right: -7px;

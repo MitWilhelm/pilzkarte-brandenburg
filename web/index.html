@@ -21,6 +21,8 @@
     <label for="pilz-steinpilz">Steinpilz</label>
     <input type="radio" name="pilz" id="pilz-pfifferling" value="pfifferling">
     <label for="pilz-pfifferling">Pfifferling</label>
+    <input type="radio" name="pilz" id="pilz-edelreizker" value="edelreizker">
+    <label for="pilz-edelreizker">Edelreizker</label>
   </fieldset>
   <p class="tipps-hinweis" id="tipps-hinweis" hidden></p>
 </header>
@@ -124,7 +126,7 @@
     <li><span class="strassefeld" role="img" aria-label="Straße"></span>Straße für Autos</li>
     <li><span class="wegfeld" role="img" aria-label="Forstweg"></span>Forstweg (meist für Autos gesperrt)</li>
     <li><span class="pfadfeld" role="img" aria-label="Pfad"></span>Pfad, Rückegasse, Waldspur</li>
-    <li><span class="tippfeld" role="img" aria-label="Tipp-Markierung"></span>Pilz-Markierung 1–5: die fünf besten Plätze der gewählten Pilzart heute (Steinpilz: Hut und Stiel, Pfifferling: gelber Trichter) (wachsen heute, größte zusammenhängende Fläche; morgens berechnet); der türkise Rahmen zeigt darin die beste Kernfläche (9 ha)</li>
+    <li><span class="tippfeld" role="img" aria-label="Tipp-Markierung"></span>Pilz-Markierung 1–5: die fünf besten Plätze der gewählten Pilzart heute (Steinpilz: Hut und Stiel, Pfifferling: gelber Trichter, Edelreizker: orangefarbener Hut mit Ringen) (wachsen heute, größte zusammenhängende Fläche; morgens berechnet); der türkise Rahmen zeigt darin die beste Kernfläche (9 ha)</li>
     <li><span class="meldefeld" role="img" aria-label="Knopf Melden"></span>Knopf rechts mit Stecknadel und Plus: Fund oder „Nichts gefunden“ melden (braucht einen genauen Standort, höchstens ±30 m)</li>
     <li><span class="brennpunktfeld" role="img" aria-label="Knopf Brennpunkte"></span>Knopf rechts: Brennpunkte farbig zeigen, übrige Flächen grau</li>
     <li><span class="flaechenfeld flaechenfeld-neu" role="img" aria-label="türkise Fläche"></span>Türkis: gute Fläche (ab Stufe 85), Wachstumsindex heute günstig</li>
@@ -132,6 +134,7 @@
   </ul>
     <ul class="legende-liste" id="legende"></ul>
     <p class="legende-text">Die Farbe zeigt, wie gut eine Stelle zu Baumart, Boden und Mischung der Bäume passt, im Vergleich zum ganzen Landkreis Barnim. Der Index oben gilt für Ihren GPS-Standort, ohne GPS für die Kartenmitte. Der Wachstumsindex schätzt aus Regen, Lufttemperatur, Bodenfeuchte und Jahreszeit, ob gerade Pilze wachsen. Der Knopf <strong>Brennpunkte</strong> färbt zusammenhängende Flächen ab Stufe 85 („Gut“ bis „Sehr gut“, ab 3 ha, in 100-m-Feldern) und macht den Rest grau: <strong>türkis</strong>, wenn der Wachstumsindex dort heute mindestens 60 beträgt, <strong>pink</strong>, wenn er nur in den letzten 7 Tagen mindestens 60 erreichte (dort sind ältere, große Pilze möglich). Regen der letzten drei Wochen zählt stufenlos, am stärksten ein bis zwei Wochen danach. Feuchter Boden bei 11–15 °C (Mittel der letzten 5 Tage) ergibt auch ohne Regen einen mittleren Index; Kälte und Wärme senken ihn, warm und trocken (über 17,5 °C) stark. Jede Fläche nutzt das Wetter an ihrer eigenen Stelle. Ränder von Forstwegen und Pfaden bis etwa 25 m sind leicht aufgewertet. Kahlflächen, Lichtungen und sehr niedrige junge Bestände (Höhe der obersten Bäume unter 10 m, laut Laserdaten des LGB) sind abgewertet; ein hoher, alter Bestand bekommt keinen Bonus.</p>
+    <p class="legende-text"><strong>Edelreizker:</strong> Die Karte bewertet die Reizker mit roter bis orangeroter Milch gemeinsam (Edel-, Blut- und Kiefern-Reizker unter Kiefer, Fichten-Reizker unter Fichte). Kiefernbestände zählen voll, Fichte mäßig, Laubwald und andere Nadelhölzer nicht. Junge Kiefernbestände werden nicht abgewertet, nur Kahlflächen. Der Index beachtet vor allem Regen im Spätsommer und Herbst; die Saison reicht von Juli bis November. Die Zahlen beruhen auf Annahmen aus Studien meist aus Spanien und auf Erfahrungsberichten, nicht auf Funden aus Barnim.</p>
     <label class="schalter"><input type="checkbox" id="bodengrenzen"> Grenzen der Bodenflächen zeigen</label>
     <button type="button" class="knopf" id="tutorial-oeffnen">Anleitung noch einmal zeigen</button>
     <p class="legende-text klein">Baumarten 2022: © DLR, CC-BY-4.0 · Standortskarte und Waldflächen: Landesbetrieb Forst Brandenburg, dl-de/by-2-0 · Wetter: Open-Meteo.com, CC-BY-4.0 · Karte und Wege: © OpenStreetMap-Mitwirkende, ODbL · Kreisgrenze: © GeoBasis-DE / BKG (2026), dl-de/by-2-0 · Bestandshöhe: © GeoBasis-DE / LGB (nDOM), dl-de/by-2-0</p>
@@ -148,7 +151,7 @@
 
   <section class="tutorial-schritt" data-schritt aria-labelledby="tutorial-titel">
     <h2 class="tutorial-titel" id="tutorial-titel">Willkommen bei der Pilzkarte Barnim</h2>
-    <p>Die Karte zeigt für <strong>Steinpilz</strong> und <strong>Pfifferling</strong>, <strong>wo</strong> im Landkreis Barnim sie wachsen können und <strong>wann</strong> sich die Suche lohnt.</p>
+    <p>Die Karte zeigt für <strong>Steinpilz</strong>, <strong>Pfifferling</strong> und <strong>Edelreizker</strong>, <strong>wo</strong> im Landkreis Barnim sie wachsen können und <strong>wann</strong> sich die Suche lohnt.</p>
     <p>Oben wählen Sie die Pilzart. Alles Weitere erklären die nächsten Schritte, es dauert eine Minute.</p>
     <p class="tutorial-hinweis">Die Karte dient nur zur Orientierung und ersetzt keine Pilzbestimmung. In Naturschutzgebieten kann das Sammeln verboten sein.</p>
   </section>
@@ -173,7 +176,7 @@
       <li><span class="brennpunktfeld" role="img" aria-label="Knopf Brennpunkte"></span><span>Der Knopf rechts färbt die besten Flächen und macht den Rest grau.</span></li>
       <li><span class="flaechenfeld flaechenfeld-neu" role="img" aria-label="türkis"></span><span><strong>Türkis</strong>: gute Fläche, heute günstig.</span></li>
       <li><span class="flaechenfeld flaechenfeld-alt" role="img" aria-label="pink"></span><span><strong>Pink</strong>: nur in den letzten 7 Tagen günstig (ältere, große Pilze).</span></li>
-      <li><span class="tippfeld" role="img" aria-label="Pilz-Markierung"></span><span><strong>Pilz-Markierungen 1–5</strong>: die fünf besten Plätze der gewählten Pilzart heute (Steinpilz: Hut, Pfifferling: Trichter). Der türkise Rahmen zeigt die beste Kernfläche (9 ha). Dazu herauszoomen, antippen für Details. Täglich morgens neu berechnet.</span></li>
+      <li><span class="tippfeld" role="img" aria-label="Pilz-Markierung"></span><span><strong>Pilz-Markierungen 1–5</strong>: die fünf besten Plätze der gewählten Pilzart heute (Steinpilz: Hut, Pfifferling: Trichter, Edelreizker: Hut mit Ringen). Der türkise Rahmen zeigt die beste Kernfläche (9 ha). Dazu herauszoomen, antippen für Details. Täglich morgens neu berechnet.</span></li>
     </ul>
   </section>
 
@@ -214,6 +217,7 @@
       <div class="karussell">
         <label class="wahl"><input type="radio" name="pilz" value="steinpilz" required> Steinpilz</label>
         <label class="wahl"><input type="radio" name="pilz" value="pfifferling"> Pfifferling</label>
+        <label class="wahl"><input type="radio" name="pilz" value="edelreizker"> Edelreizker</label>
       </div>
     </fieldset>
 

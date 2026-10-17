@@ -154,10 +154,12 @@ export function komootPlaner(breite: number, laenge: number): string {
   return `https://www.komoot.com/plan/@${koordinaten(breite, laenge)},16z`;
 }
 
-export type Pilzkanal = 1 | 2; // Kanal im Daten-Bild: 1 = Steinpilz (Grün), 2 = Pfifferling (Blau)
+// Kanal im Daten-Bild: 1 = Steinpilz (Grün), 2 = Pfifferling (Blau), 3 = Edelreizker (Alpha). Das Alpha der Datei ist
+// 255; ladeDatenbild setzt dort beim Laden die Edelreizker-Stufe aus <name>_reizker.png ein.
+export type Pilzkanal = 1 | 2 | 3;
 
-/** Kanal im Daten-Bild je Pilzart (Steinpilz Grün, Pfifferling Blau). */
-export const KANAL_JE_PILZ: Readonly<Record<Pilzart, Pilzkanal>> = { steinpilz: 1, pfifferling: 2 };
+/** Kanal im Daten-Bild je Pilzart (Steinpilz Grün, Pfifferling Blau, Edelreizker Alpha). */
+export const KANAL_JE_PILZ: Readonly<Record<Pilzart, Pilzkanal>> = { steinpilz: 1, pfifferling: 2, edelreizker: 3 };
 const KANAELE_PRO_PIXEL = 4;
 const DECKKRAFT = 255;
 

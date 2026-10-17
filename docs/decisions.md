@@ -318,3 +318,23 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   Art und dem Wetter. Gibt es keinen Tipp, steht ein Hinweis unter dem Pilzschalter.
 - **Befund:** Am 2026-10-17 hat kein Pfifferling-Brennpunkt (600 Kandidaten) einen Wachstumsindex ab 60 (Saisonende
   31.10. senkt den Index); deshalb zeigt die Pfifferling-Seite derzeit keine Tipps. Das ist Absicht, kein Fehler.
+
+## 2026-10-17: Dritte Karte „Edelreizker“
+
+- **Grundlage:** `docs/recherche-edelreizker.md`. Entscheidungen des Nutzers: Fichten-Reizker mitbeachten, junge Kiefern
+  nicht abwerten, Wegaufschlag nicht höher als bei Steinpilz (bleibt 15 %).
+- **Modell (alle Zahlen Annahmen, nicht mit Funden belegt):** Baum: Kiefer 1,0, Fichte 0,6 (Fichten-Reizker), alle
+  anderen Baumarten 0. Mischung wie bei den anderen Arten (Wirte = Kiefer und Fichte). Boden: Nährkraft A, Z, M gut,
+  K mittel, R gering; Feuchte 1 bis 3 gut (trockene Standorte sind günstig, bei Steinpilz nur mittel), nasse Standorte
+  ungeeignet. Höhe: nur Kahlflächen unter 3 m null, sonst 1 (`hoehenfaktor_fuer`), anders als beim Steinpilz.
+- **Wachstumsindex:** wie Steinpilz, aber Saison 1.7. bis 30.11. mit Höhepunkt 1.9. bis 31.10., und 15 mm wirksamer
+  Regen (statt 20 mm) für den vollen Regenfaktor. Verzögerung zwischen Regen und Fruchtkörpern wie Steinpilz (keine Daten).
+- **Technik:** Das Daten-PNG hat keinen freien Kanal (Alpha ist die Deckkraft). Die Edelreizker-Stufe liegt in
+  `<kachel>_reizker.png` (Grauwert, zusammen 1 MB); `ladeDatenbild` setzt sie beim Laden als Alpha-Kanal (Kanal 3) ein,
+  `scripts/tageswerte.ts` genauso. Steinpilz- und Pfifferling-Dateien blieben byteidentisch. Eine ältere
+  `tageswerte.json` ohne Edelreizker wird gelesen (leere Liste).
+- **Ergebnis Barnim:** 3.464 ha Stufe 50–59, 21.796 ha 70–79, 564 ha 80–89, 9.266 ha 90–100 (ein großer gleichartiger
+  Kiefernblock steht wegen der mittleren Rangstufe in der Mitte). Am 17.10.2026: 699 Brennpunkte, alle heute günstig.
+  Sie sind klein und schmal (größter 139 ha, Steinpilz 570 ha), weil die obere Stufe vor allem Wegränder und bessere
+  Böden innerhalb des Kiefernblocks umfasst; nur 8 haben eine 9-ha-Kernfläche, die übrigen Tipps zeigen eine 1-ha-Zelle.
+- **Meldung:** „Edelreizker“ ist auch im Melde-Formular wählbar (`PILZE` in `meldung.ts`).

@@ -80,15 +80,14 @@ export async function ladeTageswerte(ordner: string): Promise<Tageswerte> {
   return tageswerteAusJson(inhalt);
 }
 
-/** Lädt das Daten-PNG verlustfrei: ohne Farbraum-Umrechnung, damit Codes und Stufen exakt bleiben. */
-export async function ladeDatenbild(gebiet: Gebiet): Promise<ImageData> {
-  const bild = await createImageBitmap(await (await hole(`${gebiet.ordner}/${gebiet.name}.png`)).blob(), {
+async function ladePng(gebiet: Gebiet, datei: string): Promise<ImageData> {
+  const bild = await createImageBitmap(await (await hole(`${gebiet.ordner}/${datei}`)).blob(), {
     colorSpaceConversion: "none",
     premultiplyAlpha: "none",
   });
   if (bild.width !== gebiet.breitePixel || bild.height !== gebiet.hoehePixel) {
     throw new Error(
-      `Invariante verletzt: ${gebiet.name}.png ist ${String(bild.width)}x${String(bild.height)}, erwartet ${String(gebiet.breitePixel)}x${String(gebiet.hoehePixel)}`,
+      `Invariante verletzt: ${datei} ist ${String(bild.width)}x${String(bild.height)}, erwartet ${String(gebiet.breitePixel)}x${String(gebiet.hoehePixel)}`,
     );
   }
   const leinwand = new OffscreenCanvas(bild.width, bild.height);
@@ -98,4 +97,24 @@ export async function ladeDatenbild(gebiet: Gebiet): Promise<ImageData> {
   }
   zeichnung.drawImage(bild, 0, 0);
   return zeichnung.getImageData(0, 0, bild.width, bild.height);
+}
+
+/**
+ * Lädt das Daten-PNG verlustfrei (ohne Farbraum-Umrechnung, damit Codes und Stufen exakt bleiben) und fügt die
+ * Edelreizker-Stufe aus `<name>_reizker.png` als Alpha-Kanal (Kanal 3) ein.
+ */
+export async function ladeDatenbild(gebiet: Gebiet): Promise<ImageData> {
+  const [haupt, reizker] = await Promise.all([ladePng(gebiet, `${gebiet.name}.png`), ladePng(gebiet, `${gebiet.name}_reizker.png`)]);
+  return fuegeReizkerEin(haupt, reizker);
+}
+
+/** Setzt den Grauwert der Reizker-Datei als Alpha der Hauptdatei ein (rein; verändert `haupt`). */
+export function fuegeReizkerEin<T extends { readonly data: Uint8ClampedArray }>(haupt: T, reizker: { readonly data: Uint8ClampedArray }): T {
+  if (haupt.data.length !== reizker.data.length) {
+    throw new Error(`Invariante verletzt: Reizker-Bild hat ${String(reizker.data.length)} Bytes, Hauptbild ${String(haupt.data.length)}`);
+  }
+  for (let start = 0; start < haupt.data.length; start += 4) {
+    haupt.data[start + 3] = reizker.data[start] ?? 0;
+  }
+  return haupt;
 }

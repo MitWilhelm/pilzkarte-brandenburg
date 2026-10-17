@@ -1,7 +1,7 @@
 // Tests für die reinen Geo-Hilfen in src/geo.ts.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { abstandMeter, baumartName, kreisPolygon, gebieteImAusschnitt, googleMapsRoute, pixelAnStelle, standortAusGpsEreignis, stufeninfo, type Gebiet } from "../src/geo.ts";
+import { KANAL_JE_PILZ, faerbeOverlay, abstandMeter, baumartName, kreisPolygon, gebieteImAusschnitt, googleMapsRoute, pixelAnStelle, standortAusGpsEreignis, stufeninfo, type Gebiet } from "../src/geo.ts";
 
 // Werte wie in web/public/daten/gebiete.json (Export vom 03.10.2026).
 function joachimsthal(): Gebiet {
@@ -123,4 +123,12 @@ test("ein GPS-Ereignis mit Werten am Prototyp (wie im Browser) wird gelesen, ein
     () => standortAusGpsEreignis({ coords: { latitude: "52.9", longitude: 13.7, accuracy: 5 }, timestamp: 1 }),
     /latitude ist keine Zahl/,
   );
+});
+
+test("Edelreizker liegt im Alpha-Kanal und wird wie die anderen Pilzarten eingefärbt", () => {
+  assert.equal(KANAL_JE_PILZ.edelreizker, 3);
+  const daten = new Uint8ClampedArray([5, 0, 0, 95, 5, 0, 0, 0]);
+  const farbig = faerbeOverlay(daten, KANAL_JE_PILZ.edelreizker);
+  assert.deepEqual([...farbig.slice(0, 4)], [122, 28, 18, 255]);
+  assert.deepEqual([...farbig.slice(4, 8)], [0, 0, 0, 0]);
 });

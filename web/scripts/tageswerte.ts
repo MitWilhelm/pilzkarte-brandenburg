@@ -18,7 +18,7 @@ const VERSUCHE = 3;
 const PAUSE_NACH_UEBERLAST_MS = 60_000;
 const UEBERLAST_STATUS = ["Status 429", "Status 503"];
 const MAX_FEHLANTEIL = 0.5;
-const PILZARTEN: readonly Pilzart[] = ["steinpilz", "pfifferling"];
+const PILZARTEN: readonly Pilzart[] = ["steinpilz", "pfifferling", "edelreizker"];
 
 interface Fund {
   readonly gebiet: Gebiet;
@@ -54,6 +54,14 @@ function findeAlle(kacheln: readonly Gebiet[]): Fund[] {
       throw new Error(`Invariante verletzt: ${gebiet.name}.png ist ${String(bild.width)}x${String(bild.height)}`);
     }
     const daten = new Uint8ClampedArray(bild.data.buffer, bild.data.byteOffset, bild.data.length);
+    // Edelreizker liegt in <name>_reizker.png (Grauwert); wie in der Webseite (ladeDatenbild) als Alpha (Kanal 3).
+    const reizker = PNG.sync.read(readFileSync(`${ORDNER}/${gebiet.name}_reizker.png`));
+    if (reizker.data.length !== daten.length) {
+      throw new Error(`Invariante verletzt: ${gebiet.name}_reizker.png hat andere Größe als ${gebiet.name}.png`);
+    }
+    for (let start = 0; start < daten.length; start += 4) {
+      daten[start + 3] = reizker.data[start] ?? 0;
+    }
     for (const pilz of PILZARTEN) {
       for (const hotspot of findeHotspots({ daten, kanal: KANAL_JE_PILZ[pilz], gebiet })) {
         funde.push({ gebiet, daten, hotspot, pilz });
@@ -98,7 +106,7 @@ async function main(): Promise<void> {
   const kacheln = gebieteAusJson(JSON.parse(readFileSync(`${ORDNER}/kacheln.json`, "utf8")), "daten/barnim");
   const funde = findeAlle(kacheln);
   const wetter = await ladeWetterFuerAlle(funde);
-  const jePilz: Record<Pilzart, Tagesbrennpunkt[]> = { steinpilz: [], pfifferling: [] };
+  const jePilz: Record<Pilzart, Tagesbrennpunkt[]> = { steinpilz: [], pfifferling: [], edelreizker: [] };
   for (const { gebiet, daten, hotspot, pilz } of funde) {
     const reihe = wetter.get(wetterSchluessel(hotspot.breite, hotspot.laenge));
     if (reihe === undefined) {

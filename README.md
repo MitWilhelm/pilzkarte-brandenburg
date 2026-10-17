@@ -1,6 +1,6 @@
 # Pilzkarte Brandenburg
 
-Private Pilz-Habitatkarte für Brandenburg: **wo** Steinpilz und Pfifferling
+Private Pilz-Habitatkarte für Brandenburg: **wo** Steinpilz, Pfifferling und Edelreizker
 wachsen können (Heatmap aus Baumarten und Boden) und **wann** sich die Suche
 lohnt (Wachstumsindex aus dem Wetter der letzten und kommenden Tage).
 

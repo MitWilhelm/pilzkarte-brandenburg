@@ -102,3 +102,17 @@ test("die Wortskala ordnet den Index in fünf Stufen ein", async () => {
   assert.equal(indexWort(20), "Mäßig");
   assert.equal(indexWort(0), "Ungünstig");
 });
+
+test("Edelreizker: Saison Juli bis November mit Höhepunkt September und Oktober", () => {
+  assert.equal(saisonfaktor("edelreizker", "2026-10-03"), 1);
+  assert.equal(saisonfaktor("edelreizker", "2026-07-20"), 0.6);
+  assert.equal(saisonfaktor("edelreizker", "2026-11-20"), 0.6);
+  assert.equal(saisonfaktor("edelreizker", "2026-12-15"), 0.05);
+});
+
+test("Edelreizker: schon 15 mm wirksamer Regen ergeben den vollen Regenfaktor, Steinpilz braucht 20 mm", () => {
+  const edel = tagesindex(reihe([...Array.from({ length: 8 }, () => 0), 15, ...Array.from({ length: 10 }, () => 0)]), 18, "edelreizker");
+  const stein = tagesindex(reihe([...Array.from({ length: 8 }, () => 0), 15, ...Array.from({ length: 10 }, () => 0)]), 18, "steinpilz");
+  assert.ok(edel.faktoren.regen > stein.faktoren.regen);
+  assert.equal(edel.faktoren.regen, 1);
+});

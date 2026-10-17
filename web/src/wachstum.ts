@@ -3,7 +3,7 @@
 // 10–17 °C trägt auch ohne Regen einen mittleren Index; warm und trocken bremst stark (docs/decisions.md).
 // Alle Schwellen sind Fachwissen-Annahmen (docs/decisions.md), nicht mit Funden kalibriert.
 
-export type Pilzart = "steinpilz" | "pfifferling";
+export type Pilzart = "steinpilz" | "pfifferling" | "edelreizker";
 
 export interface Tageswetter {
   readonly datum: string; // JJJJ-MM-TT, Ortszeit Europe/Berlin
@@ -47,15 +47,22 @@ interface Saison {
 const LATENZ: Readonly<Record<Pilzart, Latenz>> = {
   steinpilz: { zuFruehBis: 4, ernteAb: 7, ernteBis: 14, abklingenBis: 21 },
   pfifferling: { zuFruehBis: 5, ernteAb: 9, ernteBis: 18, abklingenBis: 26 },
+  // Edelreizker: zur Verzögerung zwischen Regen und Fruchtkörpern fand die Recherche nichts; wie beim Steinpilz angenommen.
+  edelreizker: { zuFruehBis: 4, ernteAb: 7, ernteBis: 14, abklingenBis: 21 },
 };
 const SAISON: Readonly<Record<Pilzart, Saison>> = {
   steinpilz: { beginn: "06-20", hoehepunktBeginn: "08-10", hoehepunktEnde: "10-20", ende: "11-20" },
   pfifferling: { beginn: "06-01", hoehepunktBeginn: "07-01", hoehepunktEnde: "09-20", ende: "10-31" },
+  // Edelreizker: Juli bis November, vor allem September bis Oktober (docs/recherche-edelreizker.md).
+  edelreizker: { beginn: "07-01", hoehepunktBeginn: "09-01", hoehepunktEnde: "10-31", ende: "11-30" },
 };
 // Gewicht eines Regentags nach Abstand in Tagen (Latenz): früh wenig, 1–2 Wochen danach voll, dann abklingend.
 const GEWICHT_ZU_FRUEH = 0.35;
 const GEWICHT_ABKLINGEN = 0.6;
 const REGEN_VOLL_MM = 20; // so viel wirksamer Regen ergibt den vollen Regenfaktor (Salerni 2023: ab ~20 mm)
+// Edelreizker: Niederschlag im Spätsommer und Herbst ist der wichtigste Wettertreiber (Spanien-Studien), schon 15 mm
+// genügen für den vollen Regenfaktor (Annahme).
+const REGEN_VOLL_MM_JE_PILZ: Readonly<Record<Pilzart, number>> = { steinpilz: REGEN_VOLL_MM, pfifferling: REGEN_VOLL_MM, edelreizker: 15 };
 const REGEN_GRUND = 0.2; // ohne Regen und ohne günstigen Boden
 const REGEN_GRUND_GUTER_BODEN = 0.5; // ohne Regen, aber feuchter Boden bei 10–17 °C: mittlerer Index
 // Lufttemperatur (5-Tage-Mittel): Funde bei Bielefeld meist 7–19 °C, Optimum 13,2 °C (Brejon Lamartinière &
@@ -123,9 +130,9 @@ function mittelDerLetztenTage(tage: readonly Tageswetter[], position: number, we
 
 /** Stufenloser Regenfaktor: Grundwert plus Anteil des wirksamen Regens.
  *  `bodenanteil` (0–1): wie günstig es ohne Regen ist; 1 = feuchter Boden bei 11–15,5 °C, hebt den Grundwert auf „mittel“. */
-export function regenfaktor(wirksamerRegenMm: number, bodenanteil: number): number {
+export function regenfaktor(wirksamerRegenMm: number, bodenanteil: number, vollMm: number = REGEN_VOLL_MM): number {
   const grund = REGEN_GRUND + (REGEN_GRUND_GUTER_BODEN - REGEN_GRUND) * bodenanteil;
-  return grund + (1 - grund) * linear(wirksamerRegenMm, 0, REGEN_VOLL_MM);
+  return grund + (1 - grund) * linear(wirksamerRegenMm, 0, vollMm);
 }
 
 /** Warm und trocken (5-Tage-Mittel) bremst stark. */
@@ -192,7 +199,7 @@ export function tagesindex(tage: readonly Tageswetter[], position: number, pilz:
   const bodenanteil = linear(tag.bodenfeuchte, FEUCHTE_TROCKEN, FEUCHTE_GUT) * temperatur;
   const wirksam = wirksamerRegen(tage, position, pilz);
   const faktoren: Indexfaktoren = {
-    regen: regenfaktor(wirksam, bodenanteil),
+    regen: regenfaktor(wirksam, bodenanteil, REGEN_VOLL_MM_JE_PILZ[pilz]),
     temperatur,
     bodenfeuchte: bodenfeuchtefaktor(tag.bodenfeuchte),
     saison: saisonfaktor(pilz, tag.datum),

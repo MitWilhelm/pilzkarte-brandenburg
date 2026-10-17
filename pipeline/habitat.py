@@ -23,6 +23,7 @@ __all__ = [
     "gesamtwert",
     "hangfaktor",
     "hoehenfaktor",
+    "hoehenfaktor_fuer",
     "lies_standort",
     "mit_wegrand",
     "relative_stufen",
@@ -30,8 +31,8 @@ __all__ = [
     "wirt_codes",
 ]
 
-Pilzart = Literal["steinpilz", "pfifferling"]
-PILZARTEN: tuple[Pilzart, ...] = ("steinpilz", "pfifferling")
+Pilzart = Literal["steinpilz", "pfifferling", "edelreizker"]
+PILZARTEN: tuple[Pilzart, ...] = ("steinpilz", "pfifferling", "edelreizker")
 
 GUT = 1.0
 MITTEL = 0.6
@@ -76,14 +77,33 @@ _BAUMART: dict[Pilzart, dict[int, float]] = {
         9: GERING,
         666: UNGEEIGNET,
     },
+    # Edelreizker und Verwandte (docs/recherche-edelreizker.md): Kiefer ist der Hauptpartner (Edel-, Blut-, Kiefern-
+    # Reizker); Fichte zählt für den Fichten-Reizker mit 0,6. Alle anderen Baumarten sind kein Wirt (Annahmen).
+    "edelreizker": {
+        0: GUT,
+        1: MITTEL,
+        2: UNGEEIGNET,
+        3: UNGEEIGNET,
+        4: UNGEEIGNET,
+        5: UNGEEIGNET,
+        6: UNGEEIGNET,
+        7: UNGEEIGNET,
+        8: UNGEEIGNET,
+        9: UNGEEIGNET,
+        666: UNGEEIGNET,
+    },
 }
 _NAEHRKRAFT: dict[Pilzart, dict[str, float]] = {
     # Arm (A) wie ziemlich arm: Steinpilz-Ertrag stieg mit Sand, Säure und C/N (Martínez-Peña et al. 2012, FEM).
     "steinpilz": {"A": GUT, "Z": GUT, "M": GUT, "K": MITTEL, "R": GERING},
     "pfifferling": {"A": GUT, "Z": GUT, "M": MITTEL, "K": GERING, "R": UNGEEIGNET},
+    # Edelreizker: sandig bis leicht kalkhaltig, schwach bis mäßig nährstoffreich, meidet stark stickstoffreiche Böden.
+    "edelreizker": {"A": GUT, "Z": GUT, "M": GUT, "K": MITTEL, "R": GERING},
 }
 # Feuchte 3 fehlt in der LFB-Legende; vermutlich "trocken" -> nur mittel bewertet.
 _FEUCHTE: dict[int, float] = {1: GUT, 2: GUT, 3: MITTEL}
+# Edelreizker: frische bis trockene Böden sind gut (Wikipedia), also auch Stufe 3; nasse Standorte bleiben ungeeignet.
+_FEUCHTE_EDELREIZKER: dict[int, float] = {1: GUT, 2: GUT, 3: GUT}
 
 # Endung g = schwach grundfrisch, w = wechselfrisch/-feucht (LFB-Legende); v kommt im Barnim vor (0,35 % der Anteile)
 # und ist in den gefundenen Legenden nicht erklärt. Alle drei werden gelesen, aber nicht bewertet (Annahme für v).
@@ -143,7 +163,8 @@ def _punkte_eines_standorts(pilz: Pilzart, standort: Standort) -> float:
         return UNGEEIGNET
     if standort.feuchte not in _FEUCHTE:
         raise ValueError(f"Invariante verletzt: unbekannte Feuchtestufe {standort.feuchte}")
-    return _NAEHRKRAFT[pilz][standort.naehrkraft] * _FEUCHTE[standort.feuchte]
+    feuchte = _FEUCHTE_EDELREIZKER if pilz == "edelreizker" else _FEUCHTE
+    return _NAEHRKRAFT[pilz][standort.naehrkraft] * feuchte[standort.feuchte]
 
 
 def boden_punkte(pilz: Pilzart, anteile: list[Standortanteil]) -> float:
@@ -243,6 +264,18 @@ def hoehenfaktor(oberhoehe_m: npt.NDArray[np.uint8]) -> npt.NDArray[np.float32]:
     )
     faktor = np.clip(anstieg, 0.0, 1.0)
     return np.where(oberhoehe_m == HOEHE_OHNE_DATEN, 1.0, faktor).astype(np.float32)
+
+
+def hoehenfaktor_fuer(pilz: Pilzart, oberhoehe_m: npt.NDArray[np.uint8]) -> npt.NDArray[np.float32]:
+    """Höhenfaktor der Pilzart. Edelreizker: nur Kahlflächen (unter HOEHE_KEIN_BESTAND_METER) sind kein Habitat.
+
+    Junge Kiefernbestände zählen voll (Aufforstungen und lichte, durchforstete Bestände tragen gut, siehe
+    docs/recherche-edelreizker.md); bei Steinpilz und Pfifferling gilt der gleitende Faktor `hoehenfaktor`.
+    """
+    if pilz != "edelreizker":
+        return hoehenfaktor(oberhoehe_m)
+    kahl = (oberhoehe_m < HOEHE_KEIN_BESTAND_METER) & (oberhoehe_m != HOEHE_OHNE_DATEN)
+    return np.where(kahl, 0.0, 1.0).astype(np.float32)
 
 
 def hangfaktor(gelaende_m: npt.NDArray[np.float32], pixel_meter: float) -> npt.NDArray[np.float32]:

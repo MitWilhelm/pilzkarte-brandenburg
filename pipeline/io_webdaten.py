@@ -2,7 +2,9 @@
 
 Aufruf: python -m pipeline.io_webdaten   (Übersicht in barnim/kacheln.json)
 <name>.png: Daten-Bild in Web-Mercator (EPSG:3857), R = Baumart-Index, G = Steinpilz-Stufe,
-B = Pfifferling-Stufe, A = 255. Dazu <name>_boden.geojson; die Übersicht nennt Ecken (WGS84) und Pixelgröße.
+B = Pfifferling-Stufe, A = 255. Daneben <name>_reizker.png (ein Grauwert-Kanal = Edelreizker-Stufe; ein vierter
+Farbkanal wäre durch die Deckkraft verfälscht), die Webseite fügt beide beim Laden zusammen. Dazu <name>_boden.geojson;
+die Übersicht nennt Ecken (WGS84) und Pixelgröße.
 """
 
 import json
@@ -106,11 +108,15 @@ def _exportiere_kachel(kachel: Kachel) -> dict[str, object] | None:
         return None
     stein, _ = _kachel_mercator(DATEN / "barnim_steinpilz_habitat.tif", kachel)
     pfiff, _ = _kachel_mercator(DATEN / "barnim_pfifferling_habitat.tif", kachel)
+    reizker, _ = _kachel_mercator(DATEN / "barnim_edelreizker_habitat.tif", kachel)
     hoehe, breite = baum_codes.shape
     deckend = np.full(baum_codes.shape, UNDURCHSICHTIG, dtype=np.uint8)
     profil = {"driver": "PNG", "width": breite, "height": hoehe, "count": 4, "dtype": "uint8"}
     with rasterio.open(BARNIM_ZIEL / f"{kachel.name}.png", "w", **profil) as ziel:
         ziel.write(np.stack([_baumart_index(baum_codes), _stufe(stein), _stufe(pfiff), deckend]))
+    profil_reizker = {"driver": "PNG", "width": breite, "height": hoehe, "count": 1, "dtype": "uint8"}
+    with rasterio.open(BARNIM_ZIEL / f"{kachel.name}_reizker.png", "w", **profil_reizker) as ziel:
+        ziel.write(_stufe(reizker), 1)
     mitte = Transformer.from_crs(EPSG_LFB, EPSG_WGS84, always_xy=True).transform(
         kachel.links + KANTE_METER / 2, kachel.unten + KANTE_METER / 2
     )

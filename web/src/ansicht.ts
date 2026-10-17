@@ -13,7 +13,7 @@ export interface Punktinfo {
   readonly stufenname: string | null;
   readonly baumart: string | null;
   readonly boden: string | null;
-  readonly pilzName: string; // "Steinpilz" oder "Pfifferling", für die Bewertungszeile
+  readonly pilzName: string; // z. B. "Steinpilz", für die Bewertungszeile
 }
 
 export function element<T extends HTMLElement>(id: string, klasse: new () => T): T {

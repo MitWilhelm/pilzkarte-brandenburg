@@ -14,6 +14,7 @@ from pipeline.habitat import (
     gesamtwert,
     hangfaktor,
     hoehenfaktor,
+    hoehenfaktor_fuer,
     lies_standort,
     mit_wegrand,
     relative_stufen,
@@ -155,3 +156,22 @@ def test_pixel_ohne_hoehendaten_bleiben_neutral_statt_als_kahlflaeche_zu_gelten(
 def test_ein_alter_hoher_bestand_wird_nicht_bevorzugt_gegenueber_einem_mittelhohen() -> None:
     hoehen = np.array([12, 30], dtype=np.uint8)
     assert hoehenfaktor(hoehen).tolist() == [1.0, 1.0]
+
+
+def test_edelreizker_hat_nur_kiefer_als_guten_und_fichte_als_mittleren_partner() -> None:
+    assert baumart_punkte("edelreizker", 0) == 1.0
+    assert baumart_punkte("edelreizker", 1) == 0.6
+    assert [baumart_punkte("edelreizker", code) for code in (5, 6, 7, 8)] == [0.0, 0.0, 0.0, 0.0]
+    assert wirt_codes("edelreizker") == frozenset({0, 1})
+
+
+def test_edelreizker_bewertet_trockene_standorte_gut_steinpilz_nur_mittel() -> None:
+    trocken = [Standortanteil(code="Z3", anteil=10)]
+    assert boden_punkte("edelreizker", trocken) == 1.0
+    assert boden_punkte("steinpilz", trocken) == pytest.approx(0.6)
+
+
+def test_edelreizker_wertet_junge_bestaende_nicht_ab_nur_kahlflaechen_sind_null() -> None:
+    hoehen = np.array([0, 2, 3, 5, 12, 255], dtype=np.uint8)
+    assert hoehenfaktor_fuer("edelreizker", hoehen).tolist() == [0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
+    assert hoehenfaktor_fuer("steinpilz", hoehen).tolist() == hoehenfaktor(hoehen).tolist()

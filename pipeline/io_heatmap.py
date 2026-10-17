@@ -25,7 +25,7 @@ from pipeline.habitat import (
     baumart_punkte,
     boden_punkte,
     gesamtwert,
-    hoehenfaktor,
+    hoehenfaktor_fuer,
     mit_wegrand,
     relative_stufen,
     wirt_codes,
@@ -175,13 +175,12 @@ def _barnim_wege_maske(raster: tuple[tuple[int, int], Affine]) -> npt.NDArray[np
     return in_der_naehe(np.asarray(gebrannt) == 1, WEGRAND_RADIUS_PIXEL)
 
 
-def _barnim_hoehenfaktor(raster: tuple[tuple[int, int], Affine]) -> npt.NDArray[np.float32]:
+def _barnim_oberhoehe(raster: tuple[tuple[int, int], Affine]) -> npt.NDArray[np.uint8]:
     form, transform = raster
     with rasterio.open(OBERHOEHE) as quelle:
         if quelle.crs.to_epsg() != EPSG_LFB or quelle.transform != transform or (quelle.height, quelle.width) != form:
             raise ValueError(f"Invariante verletzt: {OBERHOEHE.name} liegt nicht auf dem Raster der Baumartenkarte")
-        oberhoehe = quelle.read(1)
-    return hoehenfaktor(oberhoehe)
+        return np.asarray(quelle.read(1), dtype=np.uint8)
 
 
 def _barnim() -> None:
@@ -196,9 +195,9 @@ def _barnim() -> None:
     profil.update(dtype="uint8", nodata=0)
     boden = _barnim_boden(gpd.read_file(DATEN / "barnim_stok_25833.gpkg"), raster, lies_anteile(BARNIM_ANTWORTEN))
     is_nahe_weg = _barnim_wege_maske(raster)
-    faktor_hoehe = _barnim_hoehenfaktor(raster)
+    oberhoehe = _barnim_oberhoehe(raster)
     for pilz in PILZARTEN:
-        stufen = _heatmap(baumarten, boden[pilz], Rasterzusatz(pilz, is_nahe_weg, faktor_hoehe))
+        stufen = _heatmap(baumarten, boden[pilz], Rasterzusatz(pilz, is_nahe_weg, hoehenfaktor_fuer(pilz, oberhoehe)))
         with rasterio.open(DATEN / f"barnim_{pilz}_habitat.tif", "w", **profil) as ziel:
             ziel.write(stufen, 1)
         _melde_stufen("barnim", pilz, stufen)

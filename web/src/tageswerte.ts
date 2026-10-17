@@ -26,6 +26,7 @@ export interface Tageswerte {
   readonly erstellt: string; // ISO-Zeitpunkt der Berechnung
   readonly steinpilz: readonly Tagesbrennpunkt[];
   readonly pfifferling: readonly Tagesbrennpunkt[];
+  readonly edelreizker: readonly Tagesbrennpunkt[];
 }
 
 export interface Brennpunktbewertung {
@@ -160,5 +161,6 @@ export function tageswerteAusJson(inhalt: unknown): Tageswerte {
     erstellt,
     steinpilz: brennpunkte(eintrag(inhalt, "steinpilz"), "steinpilz"),
     pfifferling: brennpunkte(eintrag(inhalt, "pfifferling"), "pfifferling"),
+    edelreizker: brennpunkte(eintrag(inhalt, "edelreizker") ?? [], "edelreizker"),
   };
 }

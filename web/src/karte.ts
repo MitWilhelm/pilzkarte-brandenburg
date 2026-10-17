@@ -469,6 +469,15 @@ function pilzSymbol(pilz: Pilzart): SVGSVGElement {
     symbol.append(pfad("M2.5 9.6c.5-2 2-3.4 3.8-3.8 1.3-1.6 3.4-2.4 5.7-2.4s4.4.8 5.7 2.4c1.8.4 3.3 1.8 3.8 3.8-.6 1.2-1.9 2-3.6 2.3l-3.2 1.2-.6 6.2a2.4 2.4 0 0 1-4.6 0l-.6-6.2-3.2-1.2c-1.7-.3-3-1.1-3.6-2.3z", "tipp-trichter"));
     return symbol;
   }
+  if (pilz === "edelreizker") {
+    // Reizker: flach eingedellter orangefarbener Hut mit dunkleren Zonenringen, schlanker heller Stiel
+    symbol.append(
+      pfad("M9.7 13.6h4.6l.5 5.4a2.8 2.8 0 0 1-5.6 0z", "tipp-reizker-stiel"),
+      pfad("M2.5 12c.6-5.6 4.7-8.2 9.5-8.2s8.9 2.6 9.5 8.2c-.6 1.7-4.2 2.7-9.5 2.7S3.1 13.7 2.5 12z", "tipp-reizker-hut"),
+      pfad("M5.6 10.4c1.7-1.6 3.8-2.4 6.4-2.4s4.7.8 6.4 2.4M8.6 12.1c1-.7 2.2-1 3.4-1s2.4.3 3.4 1", "tipp-reizker-ring"),
+    );
+    return symbol;
+  }
   // Steinpilz: breiter brauner Hut, dicker heller Stiel
   symbol.append(pfad("M9 12.5h6l.8 6.2a3.8 3.8 0 0 1-7.6 0z", "tipp-stiel"), pfad("M2.5 12.5C3.2 6.8 7.2 4 12 4s8.8 2.8 9.5 8.5z", "tipp-hut"));
   return symbol;
@@ -479,7 +488,7 @@ export interface Tippsatz {
   readonly zeige: (pilz: Pilzart) => number; // Anzahl der gezeigten Tipps
 }
 
-const PILZARTEN_MIT_TIPPS: readonly Pilzart[] = ["steinpilz", "pfifferling"];
+const PILZARTEN_MIT_TIPPS: readonly Pilzart[] = ["steinpilz", "pfifferling", "edelreizker"];
 
 function rahmen(tipps: readonly Tippmarke[]): GeoJSON.FeatureCollection {
   return {

@@ -48,3 +48,8 @@ test("tageswerte.json wird geprüft und eine unbekannte Art meldet eine verletzt
   const falsch = { ...gueltig, steinpilz: [{ ...punkt("a", "heute", 12, 13.5), art: "morgen" }] };
   assert.throws(() => tageswerteAusJson(falsch), /Invariante verletzt: tageswerte.json, unbekannte Art morgen/);
 });
+
+test("eine ältere tageswerte.json ohne Edelreizker wird gelesen und liefert eine leere Liste", () => {
+  const alt = { erstellt: "2026-10-05T04:00:00Z", steinpilz: [], pfifferling: [] };
+  assert.deepEqual(tageswerteAusJson(alt).edelreizker, []);
+});
