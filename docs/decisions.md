@@ -359,3 +359,13 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
 - **Kein automatisches Wiederholen:** Ein zweiter Versuch nach unklarer Antwort könnte ein doppeltes Issue anlegen
   (so kamen Issue 4 und 5 am 10.10. zustande). Nach Erfolg gilt die Meldung als gesendet (Vermerk im Handy).
 - **Nicht übernommen:** `modell` (Habitat-Stufe, Index) fehlt im Issue; aus den Koordinaten nachrechenbar.
+
+## 2026-10-17: Melden nur mit Internet und GPS
+
+- **Entscheidung (Nutzer):** Ohne Internet ist Melden nicht möglich. Die Meldung wird sofort gesendet; nur bei Erfolg
+  wird sie im Handy vermerkt (Verlauf „gesendet (Issue #n)“). Schlägt das Senden fehl, bleibt das Formular offen, nichts wird
+  gespeichert, der Text nennt die Ursache. Der Melden-Knopf ist ohne Internet (`navigator.onLine`) aus und sagt es.
+- **Grenze:** `navigator.onLine` meldet „online“, auch wenn das WLAN kein Internet hat; dann greift die Fehlermeldung
+  beim Senden.
+- **Verworfen:** Zwischenspeichern und später senden (war die erste Fassung): widerspricht dem Wunsch und erzeugte
+  doppelte Issues.

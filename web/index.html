@@ -106,7 +106,7 @@
     <p class="ueberzeile">Fund oder Fehlanzeige melden</p>
     <p class="melde-status" id="melde-status">GPS ist aus. Tippen Sie auf den Standort-Knopf rechts oben, dann kann gemeldet werden.</p>
     <button type="button" class="knopf knopf-haupt" id="melde-knopf" disabled>Fund oder „Nichts gefunden“ melden</button>
-    <ul class="melde-liste" id="melde-liste" aria-label="Gespeicherte Meldungen"></ul>
+    <ul class="melde-liste" id="melde-liste" aria-label="Bisherige Meldungen"></ul>
   </article>
 
   <p class="hinweis" id="hinweis">Tippen Sie auf eine farbige Stelle im Wald, um Details zu sehen.</p>
@@ -188,7 +188,7 @@
 
   <section class="tutorial-schritt" data-schritt hidden>
     <h2 class="tutorial-titel">Standort, Melden und Legende</h2>
-    <p>Der Knopf mit dem Fadenkreuz fragt Ihren <strong>Standort</strong> ab. Der Knopf mit der Stecknadel und dem Plus öffnet das <strong>Melden von Funden oder „Nichts gefunden“</strong>, mit kurzer Waldbeschreibung. Das geht nur bei einer GPS-Genauigkeit von höchstens 30 m; ohne Standort startet der Knopf zuerst die Ortung. Die Meldung bleibt im Handy gespeichert, „Senden“ öffnet ein GitHub-Issue.</p>
+    <p>Der Knopf mit dem Fadenkreuz fragt Ihren <strong>Standort</strong> ab. Der Knopf mit der Stecknadel und dem Plus öffnet das <strong>Melden von Funden oder „Nichts gefunden“</strong>, mit kurzer Waldbeschreibung. Das geht nur bei einer GPS-Genauigkeit von höchstens 30 m; ohne Standort startet der Knopf zuerst die Ortung. Melden geht nur mit GPS <strong>und Internet</strong>: Die Meldung wird sofort gesendet, ohne Internet ist Melden nicht möglich.</p>
     <p>Der Knopf mit den Ebenen zeigt die <strong>Legende</strong> mit allen Zeichen und Quellen. Dort können Sie diese Anleitung auch noch einmal öffnen.</p>
   </section>
 
@@ -289,7 +289,7 @@
 
     <p class="melde-fehler" id="melde-fehler" role="alert"></p>
     <div class="aktionen">
-      <button type="submit" class="knopf knopf-haupt" id="melde-speichern">Im Handy speichern</button>
+      <button type="submit" class="knopf knopf-haupt" id="melde-speichern">Senden</button>
       <button type="button" class="knopf" id="melde-abbrechen">Abbrechen</button>
     </div>
   </form>

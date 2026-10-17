@@ -1,5 +1,6 @@
-// Melde-Ablauf: Knopf (nur mit GPS-Standort), Formular, Speichern im Handy, Liste mit Senden über den Meldeserver
-// (ohne GitHub-Konto) und Ausweichlink zum GitHub-Issue.
+// Melde-Ablauf: Knopf (nur mit GPS-Standort und Internet), Formular, Senden über den Meldeserver (ohne GitHub-Konto),
+// Liste der bisherigen Meldungen. Ohne Internet ist Melden nicht möglich: Eine Meldung wird erst beim erfolgreichen
+// Senden im Handy vermerkt, nie vorher.
 // Rand-Modul (Bedienelemente und Browser-Speicher); die Regeln für Prüfung und Issue-Text stehen in meldung.ts.
 import { element } from "./ansicht.ts";
 import { KANAL_JE_PILZ, pixelAnStelle, type Standort } from "./geo.ts";
@@ -131,6 +132,14 @@ function meldeKnopf(beschriftung: string, aktion: string, id: string): HTMLButto
   return knopf;
 }
 
+/** Melden braucht GPS und Internet; ohne Internet bleibt der Knopf aus und der Text sagt es. */
+function meldeLage(standort: Standort | null, jetztMs: number, isOnline: boolean): { readonly isBereit: boolean; readonly text: string } {
+  if (!isOnline) {
+    return { isBereit: false, text: "Kein Internet: Melden geht nur mit Internet und GPS." };
+  }
+  return standortStatus(standort, jetztMs);
+}
+
 function zeigeListe(liste: HTMLElement, gespeichert: GespeicherteMeldungen): void {
   const eintraege: HTMLElement[] = gespeichert.meldungen.map(({ meldung, geoeffnetAm, gesendet }) => {
     const punkt = document.createElement("li");
@@ -183,7 +192,7 @@ export function richteMeldenEin(umgebung: Meldeumgebung): (neuerStandort: Stando
     const gespeichert = ladeMeldungen(umgebung.speicher);
     zeigeListe(liste, gespeichert);
     const offen = gespeichert.meldungen.filter(({ geoeffnetAm, gesendet }) => geoeffnetAm === null && gesendet === null).length;
-    const lage = standortStatus(standort, Date.now());
+    const lage = meldeLage(standort, Date.now(), navigator.onLine);
     const offenText = offen === 0 ? "" : `${String(offen)} Meldung(en) noch nicht gesendet.`;
     status.textContent = [hinweisNachSpeichern, lage.text, offenText].filter((teil) => teil !== "").join(" ");
     knopf.disabled = !lage.isBereit;
@@ -196,7 +205,7 @@ export function richteMeldenEin(umgebung: Meldeumgebung): (neuerStandort: Stando
   };
 
   knopf.addEventListener("click", () => {
-    const jetzt = standortStatus(standort, Date.now());
+    const jetzt = meldeLage(standort, Date.now(), navigator.onLine);
     if (standort === null || !jetzt.isBereit) {
       zeigeMeldungen();
       return;
@@ -236,6 +245,7 @@ export function richteMeldenEin(umgebung: Meldeumgebung): (neuerStandort: Stando
       return;
     }
     speichern.disabled = true;
+    speichern.textContent = "Wird gesendet …";
     fehlerText.textContent = "";
     void (async (): Promise<void> => {
       try {
@@ -260,14 +270,31 @@ export function richteMeldenEin(umgebung: Meldeumgebung): (neuerStandort: Stando
           notiz: feld(daten, "notiz").trim(),
           modell: bewertung.modell,
         });
+        if (!navigator.onLine) {
+          throw new Error("Kein Internet: Die Meldung wurde nicht gesendet und nicht gespeichert. Melden geht nur mit Internet.");
+        }
+        let issueNummer: number;
+        try {
+          issueNummer = await umgebung.sende(meldung);
+        } catch (fehler) {
+          throw new Error(
+            `Nicht gesendet, nichts gespeichert (${fehler instanceof Error ? fehler.message : String(fehler)}). Bitte mit Internet erneut versuchen.`,
+            { cause: fehler },
+          );
+        }
+        // Erst nach dem erfolgreichen Senden im Handy vermerkt (Verlauf, kein Zwischenspeicher für später).
         speichereMeldung(umgebung.speicher, meldung);
-        hinweisNachSpeichern = [`Gespeichert: ${kurztext(meldung)}.`, bewertung.hinweis ?? ""].filter((teil) => teil !== "").join(" ");
+        markiereGesendet(umgebung.speicher, meldung.id, { am: new Date().toISOString(), issueNummer });
+        hinweisNachSpeichern = [`Gesendet: ${kurztext(meldung)} (Issue #${String(issueNummer)}). Danke!`, bewertung.hinweis ?? ""]
+          .filter((teil) => teil !== "")
+          .join(" ");
         dialog.close();
         zeigeMeldungen();
       } catch (fehler) {
         fehlerText.textContent = fehler instanceof Error ? fehler.message : String(fehler);
       } finally {
         speichern.disabled = false;
+        speichern.textContent = "Senden";
       }
     })();
   });
@@ -311,6 +338,8 @@ export function richteMeldenEin(umgebung: Meldeumgebung): (neuerStandort: Stando
     }
   });
 
+  window.addEventListener("online", zeigeMeldungen);
+  window.addEventListener("offline", zeigeMeldungen);
   window.setInterval(zeigeMeldungen, AUFFRISCHEN_MS);
   zeigeMeldungen();
   return (neuerStandort) => {
