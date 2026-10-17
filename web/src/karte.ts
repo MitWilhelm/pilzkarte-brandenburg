@@ -1,7 +1,7 @@
 // Karten-Rand: MapLibre mit OpenStreetMap-Hintergrund, Heatmap-Bildern je Gebiet und Bodenflächen.
 // OSM-Kacheln: Nutzungsrichtlinie verlangt Namensnennung und geringe Last (private Nutzung).
 import maplibregl from "maplibre-gl";
-import { faerbeOverlay, kreisPolygon, standortAusGpsEreignis, type Gebiet, type Pilzkanal, type Standort } from "./geo.ts";
+import { faerbeOverlay, kreisPolygon, standortAusGpsEreignis, type Ecke, type Gebiet, type Grenze, type Pilzkanal, type Standort } from "./geo.ts";
 import type { Pilzart } from "./wachstum.ts";
 import { faerbeBrennpunkte, type Brennpunktflaeche } from "./hotspots.ts";
 
@@ -13,6 +13,15 @@ const MAX_ZOOM = 19;
 const START_ZOOM = 13;
 const HEATMAP_DECKKRAFT = 0.6; // etwas durchsichtiger, damit Wege darunter lesbar bleiben
 const BODEN_LINIENBREITE = 0.6;
+const WEGE_MIN_ZOOM = 11.5; // darunter sind 26 Kacheln voller Wege nur Last und Gekrissel
+const MASKE_FARBE = "#8d928d";
+const MASKE_DECKKRAFT = 0.78; // Fläche außerhalb des Barnims: grau, aber Orte darunter bleiben lesbar
+const GRENZE_FARBE = "#0b5d2a";
+const GRENZE_RAND_FARBE = "#ffffff";
+const WELT: [number, number][] = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]];
+const GRENZE_RAND_PIXEL: maplibregl.PaddingOptions = { top: 96, bottom: 150, left: 12, right: 64 }; // Platz für Kopfleiste, Tafel, Knöpfe
+const BEWEGUNGSRAUM_GRAD = 0.5; // Spielraum um die Barnim-Grenze; zu klein, begrenzt er auf hohen Handys das Herauszoomen (Höhe des Bildes)
+const MIN_ZOOM_SPIELRAUM = 0.15; // etwas weiter heraus als "gesamter Barnim im Bild"
 
 // Dunkelmodus: OSM-Kacheln gibt es nur hell; Helligkeit umkehren und Farbton drehen ergibt eine dunkle Karte
 // mit ungefähr gleichen Farben (Wasser bleibt bläulich, Wald grünlich).
@@ -308,26 +317,43 @@ function vorTipps(karte: maplibregl.Map): string | undefined {
   return karte.getLayer(TIPP_RAHMEN_RAND) === undefined ? undefined : TIPP_RAHMEN_RAND;
 }
 
+function fuegeHeatmapBildHinzu(karte: maplibregl.Map, ebene: Kartenebene, kanal: Pilzkanal): void {
+  const { gebiet } = ebene;
+  karte.addSource(`heatmap-${gebiet.name}`, {
+    type: "image",
+    url: bildUrl(ebene, { kanal, brennpunkte: null }),
+    coordinates: [
+      [gebiet.ecken[0][0], gebiet.ecken[0][1]],
+      [gebiet.ecken[1][0], gebiet.ecken[1][1]],
+      [gebiet.ecken[2][0], gebiet.ecken[2][1]],
+      [gebiet.ecken[3][0], gebiet.ecken[3][1]],
+    ],
+  });
+  karte.addLayer({
+    id: `heatmap-${gebiet.name}`,
+    type: "raster",
+    source: `heatmap-${gebiet.name}`,
+    // nearest: Klassen nicht verwischen, jedes 10-m-Feld bleibt erkennbar
+    paint: { "raster-opacity": HEATMAP_DECKKRAFT, "raster-resampling": "nearest" },
+  }, vorTipps(karte));
+}
+
+/** Grobe Vorschau des ganzen Barnims; ihre Ebene heißt `heatmap-<name>` und wird von zeigeHeatmap mitgefärbt. */
+export function fuegeVorschauHinzu(karte: maplibregl.Map, ebene: Kartenebene, kanal: Pilzkanal): void {
+  fuegeHeatmapBildHinzu(karte, ebene, kanal);
+}
+
+/** Nimmt die Vorschau heraus, sobald alle Kacheln im Detail geladen sind. */
+export function entferneVorschau(karte: maplibregl.Map, ebene: Kartenebene): void {
+  const kennung = `heatmap-${ebene.gebiet.name}`;
+  karte.removeLayer(kennung);
+  karte.removeSource(kennung);
+}
+
 export function fuegeEbenenHinzu(karte: maplibregl.Map, ebenen: readonly Kartenebene[], kanal: Pilzkanal): void {
   for (const ebene of ebenen) {
     const { gebiet } = ebene;
-    karte.addSource(`heatmap-${gebiet.name}`, {
-      type: "image",
-      url: bildUrl(ebene, { kanal, brennpunkte: null }),
-      coordinates: [
-        [gebiet.ecken[0][0], gebiet.ecken[0][1]],
-        [gebiet.ecken[1][0], gebiet.ecken[1][1]],
-        [gebiet.ecken[2][0], gebiet.ecken[2][1]],
-        [gebiet.ecken[3][0], gebiet.ecken[3][1]],
-      ],
-    });
-    karte.addLayer({
-      id: `heatmap-${gebiet.name}`,
-      type: "raster",
-      source: `heatmap-${gebiet.name}`,
-      // nearest: Klassen nicht verwischen, jedes 10-m-Feld bleibt erkennbar
-      paint: { "raster-opacity": HEATMAP_DECKKRAFT, "raster-resampling": "nearest" },
-    }, vorTipps(karte));
+    fuegeHeatmapBildHinzu(karte, ebene, kanal);
     karte.addSource(`boden-${gebiet.name}`, { type: "geojson", data: `${gebiet.ordner}/${gebiet.name}_boden.geojson` });
     // Unsichtbare Füllung, damit ein Tipp die Bodenfläche findet; Linien nur auf Wunsch sichtbar.
     karte.addLayer({
@@ -356,6 +382,7 @@ function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
     id: `pfade-${gebiet.name}`,
     type: "line",
     source: quelle,
+    minzoom: WEGE_MIN_ZOOM,
     filter: ["==", ["get", "art"], "pfad"],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": schema.pfad, "line-width": breite(PFAD_BREITE), "line-dasharray": [...PFAD_STRICHE] },
@@ -364,6 +391,7 @@ function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
     id: `wege-rand-${gebiet.name}`,
     type: "line",
     source: quelle,
+    minzoom: WEGE_MIN_ZOOM,
     filter: ["==", ["get", "art"], "weg"],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": schema.wegRand, "line-width": breite(WEG_RAND_BREITE) },
@@ -372,6 +400,7 @@ function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
     id: `wege-${gebiet.name}`,
     type: "line",
     source: quelle,
+    minzoom: WEGE_MIN_ZOOM,
     filter: ["==", ["get", "art"], "weg"],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": schema.weg, "line-width": breite(WEG_BREITE) },
@@ -380,6 +409,7 @@ function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
     id: `strassen-rand-${gebiet.name}`,
     type: "line",
     source: quelle,
+    minzoom: WEGE_MIN_ZOOM,
     filter: ["==", ["get", "art"], "strasse"],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": schema.strasseRand, "line-width": breite(STRASSE_RAND_BREITE) },
@@ -388,6 +418,7 @@ function fuegeWegeHinzu(karte: maplibregl.Map, gebiet: Gebiet): void {
     id: `strassen-${gebiet.name}`,
     type: "line",
     source: quelle,
+    minzoom: WEGE_MIN_ZOOM,
     filter: ["==", ["get", "art"], "strasse"],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": schema.strasse, "line-width": breite(STRASSE_BREITE) },
@@ -551,4 +582,49 @@ export function erzeugeTipps(karte: maplibregl.Map, jePilz: Readonly<Record<Pilz
       return jePilz[gewaehlt].length;
     },
   };
+}
+
+function alsPositionen(ring: readonly Ecke[]): [number, number][] {
+  return ring.map(([laenge, breite]): [number, number] => [laenge, breite]);
+}
+
+/** Graue Fläche außerhalb des Barnims und kräftige Grenzlinie; liegt über der Hintergrundkarte, unter der Heatmap. */
+export function zeigeGrenze(karte: maplibregl.Map, grenze: Grenze): void {
+  karte.addSource("barnim-maske", {
+    type: "geojson",
+    data: { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [WELT, ...grenze.ringe.map(alsPositionen)] } },
+  });
+  karte.addLayer({ id: "barnim-maske", type: "fill", source: "barnim-maske", paint: { "fill-color": MASKE_FARBE, "fill-opacity": MASKE_DECKKRAFT } });
+  karte.addSource("barnim-grenze", {
+    type: "geojson",
+    data: { type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: grenze.ringe.map(alsPositionen) } },
+  });
+  karte.addLayer({
+    id: "barnim-grenze-rand",
+    type: "line",
+    source: "barnim-grenze",
+    layout: { "line-join": "round" },
+    paint: { "line-color": GRENZE_RAND_FARBE, "line-width": 6, "line-opacity": 0.9 },
+  });
+  karte.addLayer({
+    id: "barnim-grenze",
+    type: "line",
+    source: "barnim-grenze",
+    layout: { "line-join": "round" },
+    paint: { "line-color": GRENZE_FARBE, "line-width": 3 },
+  });
+}
+
+/** Begrenzt Verschieben und Herauszoomen: Der ganze Barnim passt gerade aufs Handy, weiter hinaus geht es nicht. */
+export function begrenzeKarte(karte: maplibregl.Map, grenze: Grenze): void {
+  const ausschnitt: maplibregl.LngLatBoundsLike = [[grenze.west, grenze.sued], [grenze.ost, grenze.nord]];
+  const kamera = karte.cameraForBounds(ausschnitt, { padding: GRENZE_RAND_PIXEL });
+  if (kamera === undefined || kamera.zoom === undefined) {
+    throw new Error("Invariante verletzt: Kamera für die Barnim-Grenze nicht berechenbar");
+  }
+  karte.setMinZoom(kamera.zoom - MIN_ZOOM_SPIELRAUM);
+  karte.setMaxBounds([
+    [grenze.west - BEWEGUNGSRAUM_GRAD, grenze.sued - BEWEGUNGSRAUM_GRAD],
+    [grenze.ost + BEWEGUNGSRAUM_GRAD, grenze.nord + BEWEGUNGSRAUM_GRAD],
+  ]);
 }

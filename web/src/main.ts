@@ -11,6 +11,10 @@ import {
   richteGpsEin,
   zeigeHeatmap,
   erzeugeTipps,
+  zeigeGrenze,
+  begrenzeKarte,
+  fuegeVorschauHinzu,
+  entferneVorschau,
   type Kartenebene,
   type Tippmarke,
   type Tippsatz,
@@ -18,7 +22,7 @@ import {
 import { findeHotspots, type Brennpunktflaeche, type Hotspot, type Hotspotart, type MarkierterHotspot } from "./hotspots.ts";
 import { brennpunktArt, topSammelplaetze, wetterSchluessel, type Tagesbrennpunkt, type Tageswerte } from "./tageswerte.ts";
 import { abstandMeter, baumartName, gebieteImAusschnitt, KANAL_JE_PILZ, pixelAnStelle, stufeninfo, type Gebiet } from "./geo.ts";
-import { ladeDatenbild, ladeGebiete, ladeTageswerte } from "./clients/daten.ts";
+import { ladeDatenbild, ladeGebiete, ladeGrenze, ladeTageswerte } from "./clients/daten.ts";
 import { richteMeldenEin } from "./melden.ts";
 import { sendeAnWorker } from "./clients/meldeserver.ts";
 import { ladeWetter, type Wetterreihe } from "./clients/openmeteo.ts";
@@ -50,10 +54,11 @@ const STAND_FORMAT = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "
 const PILZNAMEN: Readonly<Record<Pilzart, string>> = { steinpilz: "Steinpilz", pfifferling: "Pfifferling", edelreizker: "Edelreizker" };
 const KACHEL_ORDNER = "daten/barnim";
 const KACHEL_UEBERSICHT = "kacheln.json";
-// Unter Zoom 11 wären fast alle 25 Kacheln (~30 MB) im Bild; im Wald mit schwachem Netz zu viel.
-const MIN_ZOOM_LADEN = 11;
-const HINWEIS_ZOOM = "Zum Laden der Pilzkarte näher heranzoomen.";
-const START_MITTE: readonly [number, number] = [13.745, 52.979]; // Ortsmitte Joachimsthal [Länge, Breite]
+const VORSCHAU_UEBERSICHT = "vorschau.json";
+// Alle Kacheln (zusammen ~8 MB) kommen nach dem Start nacheinander im Hintergrund, die nächsten zur Kartenmitte zuerst;
+// bis dahin zeigt die grobe Vorschau den ganzen Barnim.
+const GLEICHZEITIG_LADEN = 2;
+const START_MITTE: readonly [number, number] = [13.8199, 52.8337]; // Eberswalde [Länge, Breite]
 // Hinweis, sobald Kartenmitte oder GPS-Standort näher als `radiusMeter` an einem Schutzgebiet liegt.
 const SCHUTZGEBIETE: readonly { readonly mitte: readonly [number, number]; readonly radiusMeter: number; readonly text: string }[] = [
   {
@@ -78,6 +83,7 @@ interface Zustand {
   letzterTipp: maplibregl.MapMouseEvent | null; // für Neubewertung beim Wechsel der Pilzart
   isBrennpunkteAn: boolean; // Knopf: Brennpunkt-Flächen türkis/pink, übrige Heatmap grau
   brennpunkte: readonly Brennpunktflaeche[]; // zuletzt markierte Flächen der gewählten Pilzart
+  vorschau: Kartenebene | null; // grobe Ebene des ganzen Barnims, bis alle Kacheln im Detail geladen sind
   tageswerte: Tageswerte | null; // morgens vorberechnet; null: Brennpunkte werden live mit Wetter bewertet
 }
 
@@ -130,7 +136,7 @@ async function indexHeuteAn(breite: number, laenge: number, pilz: Pilzart): Prom
 }
 
 function zeigeAnsicht(karte: maplibregl.Map, ebenen: readonly Kartenebene[], zustand: Zustand): void {
-  zeigeHeatmap(karte, ebenen, { kanal: KANAL_JE_PILZ[zustand.pilz], brennpunkte: zustand.isBrennpunkteAn ? zustand.brennpunkte : null });
+  zeigeHeatmap(karte, zustand.vorschau === null ? ebenen : [zustand.vorschau, ...ebenen], { kanal: KANAL_JE_PILZ[zustand.pilz], brennpunkte: zustand.isBrennpunkteAn ? zustand.brennpunkte : null });
 }
 
 /**
@@ -212,17 +218,10 @@ interface Kachellader {
   readonly angefragt: Set<string>;
 }
 
-/** Lädt die Kacheln im Bild, die noch fehlen; eine fehlgeschlagene wird beim nächsten Verschieben erneut versucht. */
-async function ladeSichtbare(lader: Kachellader, zustand: Zustand): Promise<void> {
-  const { karte, alle, ebenen, angefragt } = lader;
-  if (karte.getZoom() < MIN_ZOOM_LADEN) {
-    zeigeLadehinweis(HINWEIS_ZOOM);
-    return;
-  }
-  zeigeLadehinweis(null);
-  const bild = karte.getBounds();
-  const ausschnitt = { west: bild.getWest(), sued: bild.getSouth(), ost: bild.getEast(), nord: bild.getNorth() };
-  const neu = gebieteImAusschnitt(alle, ausschnitt).filter((gebiet) => !angefragt.has(gebiet.name));
+/** Lädt die angegebenen Kacheln, soweit noch nicht angefragt; eine fehlgeschlagene wird später erneut versucht. */
+async function ladeKacheln(lader: Kachellader, zustand: Zustand, gebiete: readonly Gebiet[]): Promise<void> {
+  const { karte, ebenen, angefragt } = lader;
+  const neu = gebiete.filter((gebiet) => !angefragt.has(gebiet.name));
   for (const gebiet of neu) {
     angefragt.add(gebiet.name);
   }
@@ -247,7 +246,30 @@ async function ladeSichtbare(lader: Kachellader, zustand: Zustand): Promise<void
   if (zustand.isBrennpunkteAn) {
     zeigeAnsicht(karte, ebenen, zustand);
   }
+  if (ebenen.length === lader.alle.length && zustand.vorschau !== null) {
+    entferneVorschau(karte, zustand.vorschau);
+    zustand.vorschau = null;
+    zeigeAnsicht(karte, ebenen, zustand);
+  }
   await aktualisiereHotspots(karte, ebenen, zustand);
+}
+
+/** Kacheln im Bild (nach Verschieben): holt, was fehlt, auch wenn das Laden im Hintergrund noch nicht dort war. */
+async function ladeSichtbare(lader: Kachellader, zustand: Zustand): Promise<void> {
+  const bild = lader.karte.getBounds();
+  const ausschnitt = { west: bild.getWest(), sued: bild.getSouth(), ost: bild.getEast(), nord: bild.getNorth() };
+  await ladeKacheln(lader, zustand, gebieteImAusschnitt(lader.alle, ausschnitt));
+}
+
+/** Lädt nach dem Start alle Kacheln im Detail, die nächsten zur Kartenmitte zuerst, je GLEICHZEITIG_LADEN auf einmal. */
+async function ladeAlleImHintergrund(lader: Kachellader, zustand: Zustand): Promise<void> {
+  const mitte = lader.karte.getCenter();
+  const nachAbstand = [...lader.alle].sort(
+    (erste, zweite) => abstandMeter(erste.mitte, [mitte.lng, mitte.lat]) - abstandMeter(zweite.mitte, [mitte.lng, mitte.lat]),
+  );
+  for (let start = 0; start < nachAbstand.length; start += GLEICHZEITIG_LADEN) {
+    await ladeKacheln(lader, zustand, nachAbstand.slice(start, start + GLEICHZEITIG_LADEN));
+  }
 }
 
 function tippZeilen(punkt: Tagesbrennpunkt, pilz: Pilzart, stand: string): string[] {
@@ -308,7 +330,12 @@ async function start(): Promise<void> {
   fuelleLegende();
   zeigeVersion(typeof __BUILD_ZEIT__ === "string" ? __BUILD_ZEIT__ : "");
   richteTutorialEin(window.localStorage);
-  const [kacheln, tageswerte] = await Promise.all([ladeGebiete(KACHEL_ORDNER, KACHEL_UEBERSICHT), ladeTageswerteOderNull()]);
+  const [kacheln, tageswerte, vorschauGebiete, grenze] = await Promise.all([
+    ladeGebiete(KACHEL_ORDNER, KACHEL_UEBERSICHT),
+    ladeTageswerteOderNull(),
+    ladeGebiete(KACHEL_ORDNER, VORSCHAU_UEBERSICHT),
+    ladeGrenze(KACHEL_ORDNER),
+  ]);
   const zustand: Zustand = {
     pilz: "steinpilz",
     indexOrt: { name: "Kartenmitte", breite: START_MITTE[1], laenge: START_MITTE[0] },
@@ -317,6 +344,7 @@ async function start(): Promise<void> {
     letzterTipp: null,
     isBrennpunkteAn: false,
     brennpunkte: [],
+    vorschau: null,
     tageswerte,
   };
   void aktualisiereIndex(zustand);
@@ -325,6 +353,19 @@ async function start(): Promise<void> {
   // "style.load" statt "load": "load" wartet auf die OSM-Kacheln, und bei schwachem Netz im Wald
   // würde die Heatmap sonst erst mit dem Hintergrund erscheinen.
   await karte.once("style.load");
+  zeigeGrenze(karte, grenze);
+  begrenzeKarte(karte, grenze);
+  const vorschauGebiet = vorschauGebiete[0];
+  if (vorschauGebiet === undefined) {
+    throw new Error(`Invariante verletzt: ${VORSCHAU_UEBERSICHT} enthält kein Gebiet`);
+  }
+  try {
+    zustand.vorschau = { gebiet: vorschauGebiet, daten: await ladeDatenbild(vorschauGebiet) };
+    fuegeVorschauHinzu(karte, zustand.vorschau, KANAL_JE_PILZ[zustand.pilz]);
+  } catch (fehler) {
+    zustand.vorschau = null;
+    console.warn(`Vorschau nicht geladen, die Kacheln kommen einzeln: ${fehlertext(fehler)}`);
+  }
   const ebenen: Kartenebene[] = [];
   const lader: Kachellader = { karte, alle: kacheln, ebenen, angefragt: new Set<string>() };
   folgeFarbschema(karte, ebenen);
@@ -372,7 +413,8 @@ async function start(): Promise<void> {
       void aktualisiereIndex(zustand);
     }
   });
-  void ladeSichtbare(lader, zustand);
+  zeigeLadehinweis(null);
+  void ladeAlleImHintergrund(lader, zustand);
   void aktualisiereHotspots(karte, ebenen, zustand);
   const knopf = element("nur-brennpunkte", HTMLButtonElement);
   fuegeKnopfHinzu(karte, knopf);

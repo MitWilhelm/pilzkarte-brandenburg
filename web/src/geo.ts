@@ -23,6 +23,15 @@ export interface Gebiet {
 
 export type Ecke = readonly [number, number];
 
+/** Kreisgrenze: Außenringe in [Länge, Breite] (WGS84) und ihr umschließendes Rechteck. */
+export interface Grenze {
+  readonly ringe: readonly (readonly Ecke[])[];
+  readonly west: number;
+  readonly sued: number;
+  readonly ost: number;
+  readonly nord: number;
+}
+
 /** Sichtbarer Kartenausschnitt in Grad (WGS84). */
 export interface Kartenausschnitt {
   readonly west: number;

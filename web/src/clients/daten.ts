@@ -1,6 +1,6 @@
 // Lädt die exportierten Gebietsdaten (Übersicht wie barnim/kacheln.json, Daten-PNG) vom eigenen Webserver und prüft sie.
 // Kein Rate-Limit (eigene Dateien); Fehler werden mit Ursache weitergereicht.
-import type { Ecke, Gebiet } from "../geo.ts";
+import type { Ecke, Gebiet, Grenze } from "../geo.ts";
 import { tageswerteAusJson, type Tageswerte } from "../tageswerte.ts";
 
 function zahl(wert: unknown, name: string): number {
@@ -55,6 +55,39 @@ export function gebieteAusJson(inhalt: unknown, ordner: string): Gebiet[] {
   });
 }
 
+function ring(wert: unknown, name: string): Ecke[] {
+  if (!Array.isArray(wert) || wert.length < 4) {
+    throw new Error(`Invariante verletzt: Grenze, ${name} ist kein Ring`);
+  }
+  const punkte: readonly unknown[] = wert;
+  return punkte.map((punkt, nummer) => ecke(punkt, `${name}[${String(nummer)}]`));
+}
+
+/** Prüft grenze.geojson (FeatureCollection mit einem Polygon oder MultiPolygon, WGS84) und liefert die Außenringe. */
+export function grenzeAusJson(inhalt: unknown): Grenze {
+  const merkmale = eintrag(inhalt, "features");
+  const erstes: unknown = Array.isArray(merkmale) ? merkmale[0] : undefined;
+  const geometrie = eintrag(erstes, "geometry");
+  const art = eintrag(geometrie, "type");
+  const koordinaten = eintrag(geometrie, "coordinates");
+  if ((art !== "Polygon" && art !== "MultiPolygon") || !Array.isArray(koordinaten)) {
+    throw new Error(`Invariante verletzt: Grenze hat die Geometrie ${String(art)}, erwartet Polygon oder MultiPolygon`);
+  }
+  const polygone: readonly unknown[] = art === "Polygon" ? [koordinaten] : koordinaten;
+  const ringe = polygone.map((polygon, nummer) => {
+    const teile: unknown = polygon;
+    if (!Array.isArray(teile) || teile.length === 0) {
+      throw new Error(`Invariante verletzt: Grenze, Polygon ${String(nummer)} ist leer`);
+    }
+    const aussen: unknown = teile[0];
+    return ring(aussen, `Polygon ${String(nummer)}`);
+  });
+  const alle = ringe.flat();
+  const laengen = alle.map(([laenge]) => laenge);
+  const breiten = alle.map(([, breite]) => breite);
+  return { ringe, west: Math.min(...laengen), sued: Math.min(...breiten), ost: Math.max(...laengen), nord: Math.max(...breiten) };
+}
+
 async function hole(url: string): Promise<Response> {
   let antwort: Response;
   try {
@@ -72,6 +105,12 @@ async function hole(url: string): Promise<Response> {
 export async function ladeGebiete(ordner: string, datei: string): Promise<Gebiet[]> {
   const inhalt: unknown = await (await hole(`${ordner}/${datei}`)).json();
   return gebieteAusJson(inhalt, ordner);
+}
+
+/** Lädt die Kreisgrenze `<ordner>/grenze.geojson`. */
+export async function ladeGrenze(ordner: string): Promise<Grenze> {
+  const inhalt: unknown = await (await hole(`${ordner}/grenze.geojson`)).json();
+  return grenzeAusJson(inhalt);
 }
 
 /** Lädt die morgens vorberechneten Brennpunkte samt Wetter (scripts/tageswerte.ts). */

@@ -382,3 +382,18 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   die Karte hohe Stufen zeigt, findet dort eher: Die Trefferquote belegt das Modell nur schwach. Aussagekräftig sind
   Fehlanzeigen. Die DLR-Baumartenkarte (2022, 10 m) weicht an den Fundstellen von den Angaben des Nutzers ab.
 - **Entscheidung:** Modell und Wachstumsindex bleiben unverändert, bis mehr unabhängige Funde und Fehlanzeigen vorliegen.
+
+## 2026-10-17: Start in Eberswalde, Vorschau, graue Fläche außerhalb, Zoomgrenze
+
+- **Start:** Karte öffnet in Eberswalde (13,8199 / 52,8337) statt Joachimsthal.
+- **Vorschau:** `vorschau.png` (+ `vorschau_reizker.png`, `vorschau.json`): ganzer Barnim mit 100 m Auflösung (524 × 577 Pixel,
+  zusammen 208 KB), Mittelwert der Habitat-Stufen. Sie erscheint sofort; danach kommen alle 26 Kacheln im Detail im
+  Hintergrund (je 2 gleichzeitig, die nächsten zur Kartenmitte zuerst, zusammen etwa 8 MB). Sind alle geladen, verschwindet
+  die Vorschau. Das frühere „Zum Laden näher heranzoomen“ (Mindestzoom 11) entfällt.
+- **Grenze:** `grenze.geojson` (Kreisgrenze, 50 m vereinfacht, 17 KB). Außerhalb ist die Karte grau (Deckkraft 78 %), die Grenze
+  ist weiß-grün umrandet. Wege erscheinen erst ab Zoom 11,5 (vorher nur Last und Gekrissel).
+- **Zoomgrenze:** Mindestzoom aus der Barnim-Grenze und der Bildschirmgröße (`cameraForBounds`, Platz für Kopfleiste und Tafel,
+  0,15 Stufen weiter hinaus); Verschieben nur bis 0,5° über die Grenze. Ein zu kleiner Rand (0,12°) begrenzte auf einem
+  hohen Handy wegen der Bildhöhe das Herauszoomen, sodass der Barnim breiter als der Bildschirm war.
+- **Grenze der Prüfung:** Das Verhalten der Vorschau beim ersten Laden (vor den Kacheln) habe ich nicht am Bildschirm
+  gesehen, weil der Testbrowser erst nach einem Bildschirmfoto zeichnet.

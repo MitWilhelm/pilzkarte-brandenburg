@@ -1,6 +1,8 @@
 """Exportiert die Barnim-Daten je 10-km-Kachel für die Webseite nach web/public/daten/barnim/.
 
 Aufruf: python -m pipeline.io_webdaten   (Übersicht in barnim/kacheln.json)
+Zusätzlich: vorschau.png (+ vorschau_reizker.png, vorschau.json) = ganz Barnim grob (100 m), damit die Karte beim
+Start sofort etwas zeigt, und grenze.geojson = Kreisgrenze (WGS84) für die graue Fläche außerhalb.
 <name>.png: Daten-Bild in Web-Mercator (EPSG:3857), R = Baumart-Index, G = Steinpilz-Stufe,
 B = Pfifferling-Stufe, A = 255. Daneben <name>_reizker.png (ein Grauwert-Kanal = Edelreizker-Stufe; ein vierter
 Farbkanal wäre durch die Deckkraft verfälscht), die Webseite fügt beide beim Laden zusammen. Dazu <name>_boden.geojson;
@@ -37,6 +39,10 @@ UNDURCHSICHTIG = 255
 VEREINFACHUNG_METER = 3.0  # Bodenflächen: 3 m Toleranz reicht für die Karte und spart Platz
 NACHKOMMASTELLEN_GRAD = 6
 EPSG_LFB = 25833
+VORSCHAU_PIXEL_METER_WEB = (
+    166.0  # 100 m am Boden: in Web-Mercator sind Strecken bei 52,8° Breite um 1/cos(Breite) länger
+)
+GRENZE_VEREINFACHUNG_METER = 50.0
 BARNIM_ZIEL = ZIEL / "barnim"
 BARNIM_GRENZE = DATEN / "barnim_grenze_25833.geojson"
 LESERAND_METER = 500.0
@@ -166,6 +172,70 @@ def _barnim() -> None:
         pixel = f"{meta['breitePixel']}x{meta['hoehePixel']} Pixel"
         print(f"{kachel.name}: {pixel}, {anzahl} Bodenflächen, {groesse // 1024} KB")
     (BARNIM_ZIEL / "kacheln.json").write_text(json.dumps(uebersicht, ensure_ascii=False, indent=1), encoding="utf-8")
+    _exportiere_vorschau_und_grenze(grenze)
+
+
+def _vorschau_raster(datei: Path, transform: rasterio.Affine, form: tuple[int, int]) -> npt.NDArray[np.uint8]:
+    ziel = np.zeros(form, dtype=np.uint8)
+    with rasterio.open(datei) as quelle:
+        if quelle.crs.to_epsg() != EPSG_LFB:
+            raise ValueError(f"Invariante verletzt: {datei.name} hat EPSG {quelle.crs.to_epsg()}, erwartet {EPSG_LFB}")
+        # Mittelwert über die Habitat-Pixel (0 = kein Habitat bleibt außen vor), sonst verschluckt die Vorschau Stufen.
+        reproject(
+            source=rasterio.band(quelle, 1),
+            destination=ziel,
+            dst_transform=transform,
+            dst_crs=f"EPSG:{EPSG_WEB}",
+            src_nodata=0,
+            dst_nodata=0,
+            resampling=Resampling.average,
+        )
+    return ziel
+
+
+def _exportiere_vorschau_und_grenze(grenze: shape) -> None:
+    with rasterio.open(DATEN / "barnim_steinpilz_habitat.tif") as quelle:
+        links, unten, rechts, oben = quelle.bounds
+        transform, breite, hoehe = calculate_default_transform(
+            quelle.crs,
+            f"EPSG:{EPSG_WEB}",
+            quelle.width,
+            quelle.height,
+            links,
+            unten,
+            rechts,
+            oben,
+            resolution=VORSCHAU_PIXEL_METER_WEB,
+        )
+    form = (hoehe, breite)
+    stein = _vorschau_raster(DATEN / "barnim_steinpilz_habitat.tif", transform, form)
+    pfiff = _vorschau_raster(DATEN / "barnim_pfifferling_habitat.tif", transform, form)
+    reizker = _vorschau_raster(DATEN / "barnim_edelreizker_habitat.tif", transform, form)
+    keine_baumart = np.full(form, INDEX_KEIN_WERT, dtype=np.uint8)
+    deckend = np.full(form, UNDURCHSICHTIG, dtype=np.uint8)
+    profil = {"driver": "PNG", "width": breite, "height": hoehe, "count": 4, "dtype": "uint8"}
+    with rasterio.open(BARNIM_ZIEL / "vorschau.png", "w", **profil) as ziel:
+        ziel.write(np.stack([keine_baumart, stein, pfiff, deckend]))
+    with rasterio.open(BARNIM_ZIEL / "vorschau_reizker.png", "w", **{**profil, "count": 1}) as ziel:
+        ziel.write(reizker, 1)
+    mitte = Transformer.from_crs(EPSG_LFB, EPSG_WGS84, always_xy=True).transform(
+        (links + rechts) / 2, (unten + oben) / 2
+    )
+    meta = {
+        "name": "vorschau",
+        "anzeigename": "Barnim (Vorschau)",
+        "mitte": [round(mitte[0], NACHKOMMASTELLEN_GRAD), round(mitte[1], NACHKOMMASTELLEN_GRAD)],
+        "breitePixel": breite,
+        "hoehePixel": hoehe,
+        "ecken": _ecken_wgs84(transform, breite, hoehe),
+    }
+    (BARNIM_ZIEL / "vorschau.json").write_text(json.dumps([meta], ensure_ascii=False, indent=1), encoding="utf-8")
+    einfach = gpd.GeoSeries([grenze.simplify(GRENZE_VEREINFACHUNG_METER)], crs=EPSG_LFB).to_crs(EPSG_WGS84)
+    einfach.to_file(BARNIM_ZIEL / "grenze.geojson", driver="GeoJSON", COORDINATE_PRECISION=NACHKOMMASTELLEN_KACHEL)
+    groesse = sum(
+        (BARNIM_ZIEL / name).stat().st_size for name in ("vorschau.png", "vorschau_reizker.png", "grenze.geojson")
+    )
+    print(f"vorschau: {breite}x{hoehe} Pixel, mit Grenze {groesse // 1024} KB")
 
 
 def main() -> None:
