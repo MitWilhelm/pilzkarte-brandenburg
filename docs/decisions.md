@@ -369,3 +369,16 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   beim Senden.
 - **Verworfen:** Zwischenspeichern und später senden (war die erste Fassung): widerspricht dem Wunsch und erzeugte
   doppelte Issues.
+
+## 2026-10-17: Funde vom 16.10. (Issues 7–10) ausgewertet, Modell unverändert
+
+- **Funde:** Vier Steinpilz-Funde (alt) unter Buche (laut Nutzer; die DLR-Karte führt die Stellen als Eiche, Buche, Birke),
+  aufgenommen als f12–f15 in `daten/funde.csv`. Das Modell zeigte dort Stufe 97 (an einer Stelle 79, im 30-m-Umkreis 97), der
+  Wachstumsindex war 57 („letzte Tage“, knapp unter der Schwelle 60).
+- **Auswertung** (`python -m pipeline.io_fundepruefung`): 9 von 12 Steinpilz-Funden von Nutzern liegen ab Stufe 85, obwohl nur
+  26 % der Habitatfläche ab Stufe 85 liegen. Die Funde unter Buche und Eiche passen also zu den hohen Stufen; ein Beleg
+  für eine Abwertung von Buche und Eiche ergibt sich daraus nicht (siehe auch den zurückgenommenen Versuch vom 10.10.).
+- **Grenzen:** Nur zwei Fundorte (52,81 / 13,82 und 52,86 / 13,86), also keine 12 unabhängigen Stichproben. Wer dort sucht, wo
+  die Karte hohe Stufen zeigt, findet dort eher: Die Trefferquote belegt das Modell nur schwach. Aussagekräftig sind
+  Fehlanzeigen. Die DLR-Baumartenkarte (2022, 10 m) weicht an den Fundstellen von den Angaben des Nutzers ab.
+- **Entscheidung:** Modell und Wachstumsindex bleiben unverändert, bis mehr unabhängige Funde und Fehlanzeigen vorliegen.
