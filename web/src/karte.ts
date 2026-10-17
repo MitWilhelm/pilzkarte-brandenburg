@@ -1,7 +1,8 @@
 // Karten-Rand: MapLibre mit OpenStreetMap-Hintergrund, Heatmap-Bildern je Gebiet und Bodenflächen.
 // OSM-Kacheln: Nutzungsrichtlinie verlangt Namensnennung und geringe Last (private Nutzung).
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import { faerbeOverlay, kreisPolygon, standortAusGpsEreignis, type Gebiet, type Grenze, type Pilzkanal, type Standort } from "./geo.ts";
+import type { FeatureCollection } from "geojson";
 import type { Pilzart } from "./wachstum.ts";
 import { faerbeBrennpunkte, type Brennpunktflaeche } from "./hotspots.ts";
 
@@ -223,7 +224,7 @@ function zeigeGenauigkeit(karte: maplibregl.Map, standort: Standort): void {
   };
   const quelle = karte.getSource(GPS_QUELLE);
   if (quelle instanceof maplibregl.GeoJSONSource) {
-    quelle.setData(flaeche);
+    void quelle.setData(flaeche);
     return;
   }
   karte.addSource(GPS_QUELLE, { type: "geojson", data: flaeche });
@@ -550,7 +551,7 @@ export interface Tippsatz {
 
 const PILZARTEN_MIT_TIPPS: readonly Pilzart[] = ["steinpilz", "pfifferling", "edelreizker"];
 
-function rahmen(tipps: readonly Tippmarke[]): GeoJSON.FeatureCollection {
+function rahmen(tipps: readonly Tippmarke[]): FeatureCollection {
   return {
     type: "FeatureCollection",
     features: tipps.map((tipp) => ({
@@ -561,7 +562,7 @@ function rahmen(tipps: readonly Tippmarke[]): GeoJSON.FeatureCollection {
   };
 }
 
-function mitten(tipps: readonly Tippmarke[]): GeoJSON.FeatureCollection {
+function mitten(tipps: readonly Tippmarke[]): FeatureCollection {
   return {
     type: "FeatureCollection",
     features: tipps.map((tipp) => ({
@@ -650,8 +651,8 @@ export function erzeugeTipps(karte: maplibregl.Map, jePilz: Readonly<Record<Pilz
           }
         }
       }
-      quelle.setData(rahmen(jePilz[gewaehlt]));
-      punkte.setData(mitten(jePilz[gewaehlt]));
+      void quelle.setData(rahmen(jePilz[gewaehlt]));
+      void punkte.setData(mitten(jePilz[gewaehlt]));
       return jePilz[gewaehlt].length;
     },
   };

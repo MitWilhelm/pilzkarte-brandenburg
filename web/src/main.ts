@@ -1,6 +1,6 @@
 // Einstieg der Webseite: baut die Karte, lädt die 10-km-Kacheln erst, wenn sie ins Bild kommen, und verbindet
 // Bedienung, Wetter und Tafel.
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import {
   bodenAnPunkt,
   erzeugeKarte,
