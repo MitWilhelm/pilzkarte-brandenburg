@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: python -m pipeline.io_stok_abfrage --quelle "$QUELLE" --ziel /tmp/test.jsonl --anzahl 3
@@ -39,7 +39,7 @@ jobs:
     timeout-minutes: 355
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: python -m pipeline.io_stok_abfrage --quelle "$QUELLE" --ziel daten/barnim_stok_antworten_1.jsonl --von 0 --bis "$TEILGROESSE" --fortsetzen
@@ -61,7 +61,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref_name }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: python -m pipeline.io_stok_abfrage --quelle "$QUELLE" --ziel daten/barnim_stok_antworten_2.jsonl --von "$TEILGROESSE" --fortsetzen
