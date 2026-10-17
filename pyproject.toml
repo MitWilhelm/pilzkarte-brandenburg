@@ -8,7 +8,7 @@ dependencies = [
     "pyogrio>=0.10",
     "pyproj>=3.7",
     "pydantic>=2.9",
-    "laspy>=2.5",
+    "laspy>=2.7.0",
     "lazrs>=0.6",
 ]
 
