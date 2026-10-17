@@ -8,6 +8,12 @@ export type Speicher = Pick<Storage, "getItem" | "setItem" | "removeItem" | "key
 export interface GespeicherteMeldung {
   readonly meldung: Meldung;
   readonly geoeffnetAm: string | null; // wann das GitHub-Issue zuletzt geöffnet wurde (nicht: abgeschickt)
+  readonly gesendet: GesendeteMeldung | null; // über den Meldeserver angelegt: dann steht die Issue-Nummer fest
+}
+
+export interface GesendeteMeldung {
+  readonly am: string; // ISO-Zeitpunkt
+  readonly issueNummer: number;
 }
 
 export interface UnlesbarerEintrag {
@@ -22,6 +28,7 @@ export interface GespeicherteMeldungen {
 
 const PRAEFIX_MELDUNG = "pilzkarte-meldung:";
 const PRAEFIX_GEOEFFNET = "pilzkarte-geoeffnet:";
+const PRAEFIX_GESENDET = "pilzkarte-gesendet:";
 
 function schluesselVon(speicher: Speicher): string[] {
   const schluessel: string[] = [];
@@ -50,9 +57,34 @@ export function markiereGeoeffnet(speicher: Speicher, id: string, zeitpunkt: Dat
   }
 }
 
+/** Vermerkt, dass der Meldeserver die Meldung als Issue angelegt hat; sie wird dann nicht noch einmal gesendet. */
+export function markiereGesendet(speicher: Speicher, id: string, gesendet: GesendeteMeldung): void {
+  try {
+    speicher.setItem(`${PRAEFIX_GESENDET}${id}`, JSON.stringify(gesendet));
+  } catch (fehler) {
+    throw new Error("Vermerk im Handy nicht möglich (Speicher voll oder gesperrt)", { cause: fehler });
+  }
+}
+
+function leseGesendet(speicher: Speicher, id: string): GesendeteMeldung | null {
+  const inhalt = speicher.getItem(`${PRAEFIX_GESENDET}${id}`);
+  if (inhalt === null) {
+    return null;
+  }
+  const parsed: unknown = JSON.parse(inhalt);
+  if (typeof parsed === "object" && parsed !== null && "am" in parsed && "issueNummer" in parsed) {
+    const { am, issueNummer } = parsed;
+    if (typeof am === "string" && typeof issueNummer === "number") {
+      return { am, issueNummer };
+    }
+  }
+  throw new Error(`Invariante verletzt: Sendevermerk von ${id} ist unlesbar: ${inhalt}`);
+}
+
 export function loescheMeldung(speicher: Speicher, id: string): void {
   speicher.removeItem(`${PRAEFIX_MELDUNG}${id}`);
   speicher.removeItem(`${PRAEFIX_GEOEFFNET}${id}`);
+  speicher.removeItem(`${PRAEFIX_GESENDET}${id}`);
 }
 
 export function ladeMeldungen(speicher: Speicher): GespeicherteMeldungen {
@@ -69,7 +101,11 @@ export function ladeMeldungen(speicher: Speicher): GespeicherteMeldungen {
       }
       const parsed: unknown = JSON.parse(inhalt);
       const meldung = pruefeMeldung(parsed);
-      meldungen.push({ meldung, geoeffnetAm: speicher.getItem(`${PRAEFIX_GEOEFFNET}${meldung.id}`) });
+      meldungen.push({
+        meldung,
+        geoeffnetAm: speicher.getItem(`${PRAEFIX_GEOEFFNET}${meldung.id}`),
+        gesendet: leseGesendet(speicher, meldung.id),
+      });
     } catch (fehler) {
       // Beschädigter Eintrag: nicht löschen (die Rohdaten bleiben erhalten), aber mit Ursache melden.
       unlesbar.push({ schluessel, grund: fehler instanceof Error ? fehler.message : String(fehler) });

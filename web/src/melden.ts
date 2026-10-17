@@ -1,4 +1,5 @@
-// Melde-Ablauf: Knopf (nur mit GPS-Standort), Formular, Speichern im Handy, Liste mit Link zum GitHub-Issue.
+// Melde-Ablauf: Knopf (nur mit GPS-Standort), Formular, Speichern im Handy, Liste mit Senden über den Meldeserver
+// (ohne GitHub-Konto) und Ausweichlink zum GitHub-Issue.
 // Rand-Modul (Bedienelemente und Browser-Speicher); die Regeln für Prüfung und Issue-Text stehen in meldung.ts.
 import { element } from "./ansicht.ts";
 import { KANAL_JE_PILZ, pixelAnStelle, type Standort } from "./geo.ts";
@@ -19,7 +20,9 @@ import {
   ladeMeldungen,
   loescheMeldung,
   markiereGeoeffnet,
+  markiereGesendet,
   speichereMeldung,
+  type GesendeteMeldung,
   type GespeicherteMeldungen,
   type Speicher,
 } from "./clients/meldespeicher.ts";
@@ -38,6 +41,8 @@ export interface Meldeumgebung {
   /** Wachstumsindex heute an einer Stelle für eine Pilzart. */
   readonly indexHeute: (stelle: Standort, pilz: Pilzart) => Promise<number>;
   readonly speicher: Speicher;
+  /** Sendet die Meldung an den Meldeserver und liefert die Nummer des angelegten GitHub-Issues. */
+  readonly sende: (meldung: Meldung) => Promise<number>;
 }
 
 function runden(wert: number): number {
@@ -109,29 +114,45 @@ function standortStatus(standort: Standort | null, jetztMs: number): { readonly 
   return { isBereit: true, text: `GPS bereit (±${String(genauigkeit)} m).` };
 }
 
+function meldeStand(gesendet: GesendeteMeldung | null, geoeffnetAm: string | null): string {
+  if (gesendet !== null) {
+    return `gesendet (Issue #${String(gesendet.issueNummer)})`;
+  }
+  return geoeffnetAm === null ? "noch nicht gesendet" : "GitHub-Issue geöffnet";
+}
+
+function meldeKnopf(beschriftung: string, aktion: string, id: string): HTMLButtonElement {
+  const knopf = document.createElement("button");
+  knopf.type = "button";
+  knopf.className = "knopf knopf-klein";
+  knopf.textContent = beschriftung;
+  knopf.dataset["aktion"] = aktion;
+  knopf.dataset["id"] = id;
+  return knopf;
+}
+
 function zeigeListe(liste: HTMLElement, gespeichert: GespeicherteMeldungen): void {
-  const eintraege: HTMLElement[] = gespeichert.meldungen.map(({ meldung, geoeffnetAm }) => {
+  const eintraege: HTMLElement[] = gespeichert.meldungen.map(({ meldung, geoeffnetAm, gesendet }) => {
     const punkt = document.createElement("li");
     punkt.className = "melde-eintrag";
     const beschreibung = document.createElement("span");
     beschreibung.className = "melde-text";
-    const stand = geoeffnetAm === null ? "noch nicht gesendet" : "Issue geöffnet";
-    beschreibung.textContent = `${kurztext(meldung)} · ${koordinatentext(meldung.breite, meldung.laenge)} · ${stand}`;
-    const senden = document.createElement("a");
-    senden.className = "knopf knopf-klein";
-    senden.href = issueUrl(meldung);
-    senden.target = "_blank";
-    senden.rel = "noopener";
-    senden.textContent = geoeffnetAm === null ? "Senden" : "Erneut senden";
-    senden.dataset["aktion"] = "senden";
-    senden.dataset["id"] = meldung.id;
-    const loeschen = document.createElement("button");
-    loeschen.type = "button";
-    loeschen.className = "knopf knopf-klein";
-    loeschen.textContent = "Löschen";
-    loeschen.dataset["aktion"] = "loeschen";
-    loeschen.dataset["id"] = meldung.id;
-    punkt.append(beschreibung, senden, loeschen);
+    beschreibung.textContent = `${kurztext(meldung)} · ${koordinatentext(meldung.breite, meldung.laenge)} · ${meldeStand(gesendet, geoeffnetAm)}`;
+    punkt.append(beschreibung);
+    if (gesendet === null) {
+      punkt.append(meldeKnopf("Senden", "senden", meldung.id));
+      // Ausweichweg ohne Meldeserver: vorausgefülltes Issue auf github.com (braucht ein GitHub-Konto).
+      const github = document.createElement("a");
+      github.className = "knopf knopf-klein";
+      github.href = issueUrl(meldung);
+      github.target = "_blank";
+      github.rel = "noopener";
+      github.textContent = "Über GitHub";
+      github.dataset["aktion"] = "github";
+      github.dataset["id"] = meldung.id;
+      punkt.append(github);
+    }
+    punkt.append(meldeKnopf("Löschen", "loeschen", meldung.id));
     return punkt;
   });
   const defekte = gespeichert.unlesbar.map(({ schluessel, grund }) => {
@@ -161,7 +182,7 @@ export function richteMeldenEin(umgebung: Meldeumgebung): (neuerStandort: Stando
   const zeigeMeldungen = (): void => {
     const gespeichert = ladeMeldungen(umgebung.speicher);
     zeigeListe(liste, gespeichert);
-    const offen = gespeichert.meldungen.filter(({ geoeffnetAm }) => geoeffnetAm === null).length;
+    const offen = gespeichert.meldungen.filter(({ geoeffnetAm, gesendet }) => geoeffnetAm === null && gesendet === null).length;
     const lage = standortStatus(standort, Date.now());
     const offenText = offen === 0 ? "" : `${String(offen)} Meldung(en) noch nicht gesendet.`;
     status.textContent = [hinweisNachSpeichern, lage.text, offenText].filter((teil) => teil !== "").join(" ");
@@ -251,6 +272,24 @@ export function richteMeldenEin(umgebung: Meldeumgebung): (neuerStandort: Stando
     })();
   });
 
+  const sendeMeldung = async (id: string, knopfSenden: HTMLButtonElement): Promise<void> => {
+    const treffer = ladeMeldungen(umgebung.speicher).meldungen.find((eintrag) => eintrag.meldung.id === id);
+    if (treffer === undefined || treffer.gesendet !== null) {
+      zeigeMeldungen();
+      return;
+    }
+    knopfSenden.disabled = true;
+    status.textContent = "Meldung wird gesendet …";
+    try {
+      const issueNummer = await umgebung.sende(treffer.meldung);
+      markiereGesendet(umgebung.speicher, id, { am: new Date().toISOString(), issueNummer });
+      hinweisNachSpeichern = `Gesendet als Issue #${String(issueNummer)}. Danke!`;
+    } catch (fehler) {
+      hinweisNachSpeichern = `Senden fehlgeschlagen: ${fehler instanceof Error ? fehler.message : String(fehler)}. Die Meldung bleibt im Handy; „Über GitHub“ geht mit GitHub-Konto.`;
+    }
+    zeigeMeldungen();
+  };
+
   liste.addEventListener("click", (ereignis) => {
     const ziel = ereignis.target instanceof Element ? ereignis.target.closest("[data-aktion]") : null;
     if (!(ziel instanceof HTMLElement)) {
@@ -260,10 +299,13 @@ export function richteMeldenEin(umgebung: Meldeumgebung): (neuerStandort: Stando
     if (id === undefined) {
       return;
     }
-    if (ziel.dataset["aktion"] === "senden") {
+    const aktion = ziel.dataset["aktion"];
+    if (aktion === "github") {
       markiereGeoeffnet(umgebung.speicher, id, new Date());
       window.setTimeout(zeigeMeldungen, 0); // erst nach dem Öffnen des Links neu zeichnen
-    } else if (ziel.dataset["aktion"] === "loeschen" && window.confirm("Diese Meldung wirklich aus dem Handy löschen?")) {
+    } else if (aktion === "senden" && ziel instanceof HTMLButtonElement) {
+      void sendeMeldung(id, ziel);
+    } else if (aktion === "loeschen" && window.confirm("Diese Meldung wirklich aus dem Handy löschen?")) {
       loescheMeldung(umgebung.speicher, id);
       zeigeMeldungen();
     }

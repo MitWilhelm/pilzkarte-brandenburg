@@ -193,11 +193,12 @@ curl -s -i -X OPTIONS '<URL>' -H 'Origin: https://mitwilhelm.github.io' | head -
 - Der Worker legt Issues unter **deinem** GitHub-Konto an. Wer Meldungen schickt, erscheint dort nicht namentlich.
 - Datenschutz: Die Meldung enthält Koordinaten, Zeit und Waldangaben, aber keine Namen. Das Issue ist öffentlich.
 
-## Schritt 7: Webseite anbinden (macht Claude)
+## Schritt 7: Webseite angebunden (erledigt)
 
-Wenn der Worker läuft, schicke Claude **nur die Worker-Adresse** (nicht den Schlüssel). Die Seite bekommt dann:
+In der Meldungs-Liste der Seite gibt es je Meldung **„Senden“**: Die Meldung geht an den Worker (Adresse in
+`web/src/clients/meldeserver.ts`), der ein Issue anlegt. Danach steht dort „gesendet (Issue #n)“, und ein zweites Senden
+ist nicht mehr möglich (kein doppeltes Issue). Bei Fehler oder ohne Netz bleibt die Meldung im Handy, die Seite nennt
+den Grund, und **„Über GitHub“** öffnet wie bisher das vorausgefüllte Issue (braucht ein GitHub-Konto).
 
-- den Knopf „Senden“ schickt die Meldung zuerst an den Worker; bei Erfolg steht sie als „gesendet“ in der Liste,
-- bei Fehler oder ohne Netz bleibt die Meldung im Handy gespeichert, und es gibt weiter den bisherigen Weg über das
-  GitHub-Issue,
-- Tests für den neuen Weg.
+Stand 2026-10-17: Der Worker nimmt Meldungen an (Test-Issue #11 mit den Labels `meldung`, `ungeprüft`). Das Feld
+`modell` (Habitat-Stufe, Index am Ort) wird vom Worker nicht übernommen; es lässt sich aus den Koordinaten nachrechnen.

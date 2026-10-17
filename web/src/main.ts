@@ -20,6 +20,7 @@ import { brennpunktArt, topSammelplaetze, wetterSchluessel, type Tagesbrennpunkt
 import { abstandMeter, baumartName, gebieteImAusschnitt, KANAL_JE_PILZ, pixelAnStelle, stufeninfo, type Gebiet } from "./geo.ts";
 import { ladeDatenbild, ladeGebiete, ladeTageswerte } from "./clients/daten.ts";
 import { richteMeldenEin } from "./melden.ts";
+import { sendeAnWorker } from "./clients/meldeserver.ts";
 import { ladeWetter, type Wetterreihe } from "./clients/openmeteo.ts";
 import { indexverlauf, tagesindex, type Pilzart } from "./wachstum.ts";
 import {
@@ -347,6 +348,7 @@ async function start(): Promise<void> {
     ringart,
     indexHeute: (stelle, pilz) => indexHeuteAn(stelle.breite, stelle.laenge, pilz),
     speicher: window.localStorage,
+    sende: (meldung) => sendeAnWorker(meldung),
   });
   const gpsKnopf = element("gps-knopf", HTMLButtonElement);
   richteGpsEin(karte, gpsKnopf, {

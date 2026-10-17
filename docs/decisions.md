@@ -347,3 +347,15 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   das Kartenmaterial ist dort ungenau.
 - Ein Versuch, Buche und Eiche für Steinpilz von 1,0 auf 0,7 abzuwerten, wurde auf Wunsch des Nutzers zurückgenommen
   (nie auf main). Das Modell bleibt unverändert.
+
+## 2026-10-17: Senden über den Meldeserver (Cloudflare Worker)
+
+- **Entscheidung:** Meldungen gehen über einen Cloudflare Worker (`pilzkarte-meldungen.timw-andreae.workers.dev`) an GitHub,
+  damit auch Fremde ohne GitHub-Konto melden können. Der GitHub-Schlüssel liegt nur im Worker (Secret), nie auf der Seite.
+- **Sicherheit:** Der Worker prüft Herkunft (nur die Pilzkarten-Seite), Größe, Werte, Genauigkeit und Koordinaten; die
+  Issues tragen das Label `ungeprüft`. Der Herkunftsschutz hält nur andere Webseiten ab, kein eigenes Skript.
+- **Fehler gefunden und behoben:** Die Vorabfrage des Browsers (OPTIONS) gab Fehler 500, weil eine Antwort mit Status
+  204 keinen Inhalt haben darf. Ein echter Aufruf zeigte das; der Worker-Code ist korrigiert.
+- **Kein automatisches Wiederholen:** Ein zweiter Versuch nach unklarer Antwort könnte ein doppeltes Issue anlegen
+  (so kamen Issue 4 und 5 am 10.10. zustande). Nach Erfolg gilt die Meldung als gesendet (Vermerk im Handy).
+- **Nicht übernommen:** `modell` (Habitat-Stufe, Index) fehlt im Issue; aus den Koordinaten nachrechenbar.

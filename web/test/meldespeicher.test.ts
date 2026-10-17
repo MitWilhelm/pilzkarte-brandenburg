@@ -1,7 +1,7 @@
 // Tests für den Handy-Speicher der Meldungen (src/clients/meldespeicher.ts) mit einem einfachen Speicher im Arbeitsspeicher.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ladeMeldungen, loescheMeldung, markiereGeoeffnet, speichereMeldung, type Speicher } from "../src/clients/meldespeicher.ts";
+import { ladeMeldungen, loescheMeldung, markiereGeoeffnet, markiereGesendet, speichereMeldung, type Speicher } from "../src/clients/meldespeicher.ts";
 import { pruefeMeldung } from "../src/meldung.ts";
 
 class Arbeitsspeicher implements Speicher {
@@ -99,4 +99,34 @@ test("ein Speicher, der das Schreiben verweigert, meldet das mit Ursache", () =>
     },
     (fehler: unknown) => fehler instanceof Error && /nicht möglich/.test(fehler.message) && fehler.cause instanceof Error,
   );
+});
+
+test("ein Sendevermerk mit Issue-Nummer wird geladen und mit der Meldung gelöscht", () => {
+  const speicher = new Arbeitsspeicher();
+  const meldung = pruefeMeldung({
+    id: "m3", zeitpunkt: "2026-10-17T08:00:00.000Z", breite: 52.9, laenge: 13.7, genauigkeitMeter: 6,
+    ergebnis: "nichts", pilz: "edelreizker", groesse: null, kronendach: ["Kiefer"], unterstand: ["Kein Unterstand"],
+    bestandsalter: "mittel", dichte: "licht", notiz: "", modell: { gebiet: null, stufe: null, brennpunkt: null, wachstumsindex: null },
+  });
+  speichereMeldung(speicher, meldung);
+  assert.equal(ladeMeldungen(speicher).meldungen[0]?.gesendet, null);
+  markiereGesendet(speicher, "m3", { am: "2026-10-17T09:00:00.000Z", issueNummer: 12 });
+  assert.deepEqual(ladeMeldungen(speicher).meldungen[0]?.gesendet, { am: "2026-10-17T09:00:00.000Z", issueNummer: 12 });
+  loescheMeldung(speicher, "m3");
+  assert.equal(ladeMeldungen(speicher).meldungen.length, 0);
+  assert.equal(speicher.getItem("pilzkarte-gesendet:m3"), null);
+});
+
+test("ein beschädigter Sendevermerk macht nur diese Meldung unlesbar und nennt die Ursache", () => {
+  const speicher = new Arbeitsspeicher();
+  const meldung = pruefeMeldung({
+    id: "m4", zeitpunkt: "2026-10-17T08:00:00.000Z", breite: 52.9, laenge: 13.7, genauigkeitMeter: 6,
+    ergebnis: "nichts", pilz: "steinpilz", groesse: null, kronendach: ["Kiefer"], unterstand: ["Kein Unterstand"],
+    bestandsalter: "mittel", dichte: "licht", notiz: "", modell: { gebiet: null, stufe: null, brennpunkt: null, wachstumsindex: null },
+  });
+  speichereMeldung(speicher, meldung);
+  speicher.setItem("pilzkarte-gesendet:m4", "{\"am\":1}");
+  const geladen = ladeMeldungen(speicher);
+  assert.equal(geladen.meldungen.length, 0);
+  assert.match(geladen.unlesbar[0]?.grund ?? "", /Invariante verletzt: Sendevermerk von m4/);
 });
