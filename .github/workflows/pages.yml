@@ -2,6 +2,7 @@
 # Prüft vorher Typen, Lint und Tests – eine fehlerhafte Version wird nicht veröffentlicht.
 # Täglich morgens neu, damit tageswerte.json (Brennpunkte mit Wetter, Tipps) aktuell ist.
 name: Webseite veröffentlichen
+# Aktionen sind mit festem Commit angegeben (Kommentar = Version); Dependabot schlägt Aktualisierungen vor.
 
 on:
   push:
@@ -12,10 +13,9 @@ on:
     # 04:00 UTC = 06:00 Sommerzeit / 05:00 Winterzeit. GitHub startet geplante Läufe oft einige Minuten später.
     - cron: "0 4 * * *"
 
+# Grundrecht nur lesen; Schreibrechte für Pages bekommt allein der Veröffentlichen-Job.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -28,8 +28,8 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
           cache: npm
@@ -43,15 +43,18 @@ jobs:
       - name: Tageswerte (Brennpunkte mit Wetter) vorberechnen
         run: node scripts/tageswerte.ts dist/daten/barnim/tageswerte.json
         continue-on-error: true
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           path: web/dist
   veroeffentlichen:
     needs: bauen
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

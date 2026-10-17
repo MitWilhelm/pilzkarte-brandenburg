@@ -29,120 +29,18 @@ Schritt 4 bei Cloudflare ein. Er gehört nie in eine Datei oder ins Repository.
 
 ## Schritt 3: Code einfügen
 
-Im Editor alles löschen und den folgenden Code einfügen, dann **„Deploy“**. Er prüft jede Meldung streng (nur
-erlaubte Werte, nur Koordinaten rund um Barnim, Genauigkeit höchstens ±30 m, Texte begrenzt) und akzeptiert nur
-Anfragen, die von `https://mitwilhelm.github.io` kommen. Ich habe ihn lokal mit Beispielmeldungen und einer
-nachgebildeten GitHub-Antwort getestet; gegen das echte GitHub und Cloudflare ist er noch nicht gelaufen.
+Im Editor alles löschen, den **gesamten Inhalt der Datei [`worker/meldungen.js`](../worker/meldungen.js)** einfügen und
+**„Deploy“** drücken. Die Datei ist die einzige Fassung des Codes (kein Abschreiben, kein Auseinanderlaufen). Der Worker:
 
-```js
-// Cloudflare Worker: nimmt Meldungen von der Pilzkarte entgegen und legt daraus ein GitHub-Issue an.
-// Der GitHub-Schlüssel (GITHUB_TOKEN) liegt nur hier als Secret, nie auf der Webseite.
+- akzeptiert nur Anfragen von `https://mitwilhelm.github.io`,
+- prüft jede Meldung streng (nur erlaubte Werte, Koordinaten rund um Barnim, Genauigkeit höchstens ±30 m, Texte begrenzt,
+  Meldungs-ID im Format der Seite, Zeitpunkt ein echtes ISO-Datum der letzten 24 Stunden),
+- begrenzt Massenmeldungen: höchstens 5 je IP-Adresse in 10 Minuten und 30 in der Stunde insgesamt,
+- legt bei gleicher Meldungs-ID kein zweites Issue an, sondern nennt das erste,
+- zeigt in Fehlermeldungen nie Eingaben oder Interna.
 
-const ERLAUBTER_URSPRUNG = "https://mitwilhelm.github.io";
-const ERGEBNISSE = ["fund", "nichts"];
-const PILZE = ["steinpilz", "pfifferling", "edelreizker"];
-const GROESSEN = ["jung", "mittel", "alt", "gemischt"];
-const BESTANDSALTER = ["jung", "mittel", "alt", "unbekannt"];
-const DICHTEN = ["licht", "mittel", "dicht"];
-const GEBIET = { sued: 52.5, nord: 53.2, west: 13.2, ost: 14.3 }; // grob um den Landkreis Barnim
-const MAX_BYTES = 6000;
-const MAX_GENAUIGKEIT_METER = 30;
-
-function antwort(status, daten) {
-  const kopf = {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": ERLAUBTER_URSPRUNG,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-  };
-  // Status 204 (Vorabfrage des Browsers) darf keinen Inhalt haben, sonst wirft Cloudflare einen Fehler 500.
-  const inhalt = status === 204 ? null : JSON.stringify(daten);
-  return new Response(inhalt, { status, headers: kopf });
-}
-
-function text(wert, maximum) {
-  if (typeof wert !== "string" || wert.length > maximum) throw new Error("Text fehlt oder ist zu lang");
-  return wert.replaceAll("`", "'");
-}
-
-function auswahl(wert, erlaubt) {
-  if (!erlaubt.includes(wert)) throw new Error(`Wert ${String(wert)} nicht erlaubt`);
-  return wert;
-}
-
-function liste(wert, maximalAnzahl) {
-  if (!Array.isArray(wert) || wert.length > maximalAnzahl) throw new Error("Liste fehlt oder ist zu lang");
-  return wert.map((eintrag) => text(eintrag, 40));
-}
-
-function zahl(wert, minimum, maximum) {
-  if (typeof wert !== "number" || !Number.isFinite(wert) || wert < minimum || wert > maximum) {
-    throw new Error("Zahl fehlt oder liegt außerhalb");
-  }
-  return wert;
-}
-
-export function pruefe(roh) {
-  if (typeof roh !== "object" || roh === null) throw new Error("Meldung fehlt");
-  const ergebnis = auswahl(roh.ergebnis, ERGEBNISSE);
-  const zeitpunkt = text(roh.zeitpunkt, 30);
-  if (Number.isNaN(Date.parse(zeitpunkt))) throw new Error("Zeitpunkt ungültig");
-  return {
-    id: text(roh.id, 40),
-    zeitpunkt,
-    breite: zahl(roh.breite, GEBIET.sued, GEBIET.nord),
-    laenge: zahl(roh.laenge, GEBIET.west, GEBIET.ost),
-    genauigkeitMeter: zahl(roh.genauigkeitMeter, 0, MAX_GENAUIGKEIT_METER),
-    ergebnis,
-    pilz: auswahl(roh.pilz, PILZE),
-    groesse: ergebnis === "fund" ? auswahl(roh.groesse, GROESSEN) : null,
-    kronendach: liste(roh.kronendach, 8),
-    unterstand: liste(roh.unterstand, 8),
-    bestandsalter: auswahl(roh.bestandsalter, BESTANDSALTER),
-    dichte: auswahl(roh.dichte, DICHTEN),
-    notiz: text(roh.notiz ?? "", 500),
-  };
-}
-
-function alsIssue(meldung) {
-  const art = meldung.ergebnis === "fund" ? "Fund" : "Nichts gefunden";
-  const datum = meldung.zeitpunkt.slice(0, 10);
-  return {
-    title: `Meldung (Web): ${art} ${meldung.pilz}, ${datum} ${meldung.breite.toFixed(5)}, ${meldung.laenge.toFixed(5)}`,
-    body: "Eingang über die Webseite ohne GitHub-Konto, ungeprüft.\n\n```json\n" + JSON.stringify(meldung, null, 2) + "\n```",
-    labels: ["meldung", "ungeprüft"],
-  };
-}
-
-export default {
-  async fetch(anfrage, umgebung) {
-    if (anfrage.method === "OPTIONS") return antwort(204, {});
-    if (anfrage.method !== "POST") return antwort(405, { fehler: "Nur POST" });
-    if (anfrage.headers.get("Origin") !== ERLAUBTER_URSPRUNG) return antwort(403, { fehler: "Ursprung nicht erlaubt" });
-    const rohtext = await anfrage.text();
-    if (rohtext.length > MAX_BYTES) return antwort(413, { fehler: "Meldung zu groß" });
-    let meldung;
-    try {
-      meldung = pruefe(JSON.parse(rohtext));
-    } catch (fehler) {
-      return antwort(400, { fehler: String(fehler.message) });
-    }
-    const github = await fetch(`https://api.github.com/repos/${umgebung.REPO}/issues`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${umgebung.GITHUB_TOKEN}`,
-        Accept: "application/vnd.github+json",
-        "User-Agent": "pilzkarte-meldungen",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(alsIssue(meldung)),
-    });
-    if (!github.ok) return antwort(502, { fehler: `GitHub antwortete ${github.status}` });
-    const issue = await github.json();
-    return antwort(201, { ok: true, nummer: issue.number });
-  },
-};
-```
+Getestet mit `node --test worker/meldungen.test.mjs` (12 Tests, nachgebildetes GitHub, kein Netzwerk). Gegen das echte
+Cloudflare und GitHub ist jede Änderung erst nach deinem „Deploy“ und dem Test in Schritt 5 geprüft.
 
 ## Schritt 4: GitHub-Schlüssel erzeugen und bei Cloudflare eintragen
 
@@ -167,31 +65,33 @@ Für Issues reicht die Berechtigung „Issues“; wenn doch ein 403 kommt, melde
 
 ## Schritt 5: Testen (ohne die Webseite)
 
-Ersetze `<URL>` durch deine Worker-Adresse. Erwartet: Antwort `{"ok":true,"nummer":…}` und ein neues Issue
-bei GitHub.
+Erwartet: Antwort `{"ok":true,"nummer":…}` und ein neues Issue bei GitHub. Die Meldungs-ID und der Zeitpunkt müssen aktuell
+sein; der Befehl erzeugt sie selbst. Ersetze `<URL>` durch deine Worker-Adresse.
 
 ```bash
+JETZT=$(date -u +%s)000; ZEIT=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
 curl -s -X POST '<URL>' -H 'Origin: https://mitwilhelm.github.io' -H 'Content-Type: application/json' \
-  -d '{"id":"test1","zeitpunkt":"2026-10-10T10:00:00Z","breite":52.81,"laenge":13.82,"genauigkeitMeter":5,"ergebnis":"nichts","pilz":"steinpilz","groesse":null,"kronendach":["Kiefer"],"unterstand":["Kein Unterstand"],"bestandsalter":"alt","dichte":"mittel","notiz":"Test, bitte schließen"}'
+  -d "{\"id\":\"m$JETZT\",\"zeitpunkt\":\"$ZEIT\",\"breite\":52.81,\"laenge\":13.82,\"genauigkeitMeter\":5,\"ergebnis\":\"nichts\",\"pilz\":\"steinpilz\",\"groesse\":null,\"kronendach\":[\"Kiefer\"],\"unterstand\":[\"Kein Unterstand\"],\"bestandsalter\":\"alt\",\"dichte\":\"mittel\",\"notiz\":\"Test, bitte schließen\"}"
 ```
 
-Schließe das Test-Issue danach. Ohne den `Origin`-Kopf muss die Antwort `403` sein.
+Schließe das Test-Issue danach. Weitere Prüfungen (alle ohne neues Issue):
 
-Zusätzlich die Vorabfrage des Browsers prüfen (CORS). Erwartet: `HTTP/2 204` (nicht 500):
-
-```bash
-curl -s -i -X OPTIONS '<URL>' -H 'Origin: https://mitwilhelm.github.io' | head -3
-```
+- Ohne `Origin`-Kopf: `403`. Vorabfrage des Browsers: `curl -s -i -X OPTIONS '<URL>' -H 'Origin: https://mitwilhelm.github.io' | head -3` zeigt `204`.
+- Derselbe Befehl zweimal mit **gleicher** ID: Das zweite Mal kommt `"doppelt":true` mit der Nummer des ersten Issues.
+- Mehr als 5 Meldungen in 10 Minuten von einer Adresse: `429`.
 
 ## Schritt 6: Missbrauch begrenzen
 
-- **Ratenbegrenzung:** Cloudflare → dein Konto → **Security** → **WAF** → **Rate limiting rules** (steht nur zur Verfügung,
-  wenn eine Domain im Konto ist; sonst lass es zunächst weg). Alternativ nur ein paar Tage die Issues beobachten.
-- **Der `Origin`-Schutz hält nur andere Webseiten ab**, nicht jemanden mit einem eigenen Skript. Deshalb gibt es das
-  Label `ungeprüft`, die Wertebereiche und die Koordinatenbegrenzung, und nichts fließt ungeprüft ins Modell.
-- Bei Spam: Worker unter **Settings** → **Domains & Routes** deaktivieren oder den GitHub-Schlüssel widerrufen.
-- Der Worker legt Issues unter **deinem** GitHub-Konto an. Wer Meldungen schickt, erscheint dort nicht namentlich.
-- Datenschutz: Die Meldung enthält Koordinaten, Zeit und Waldangaben, aber keine Namen. Das Issue ist öffentlich.
+Eingebaut (siehe Schritt 3): Herkunftsprüfung, strenge Werte, Zeitfenster, Obergrenzen je IP und je Stunde, Doppelschutz.
+Was **du** tun kannst:
+
+- Schau in den ersten Tagen gelegentlich auf die Issues; alles mit dem Label `ungeprüft` prüfst du selbst, bevor es ins Modell geht.
+- Die **Herkunftsprüfung** hält nur andere Webseiten ab, nicht jemanden mit einem eigenen Skript (der kann den Kopf fälschen).
+  Echten Schutz davor bietet ein Captcha (Cloudflare Turnstile, kostenlos): Es braucht ein Widget in deinem Cloudflare-Konto und
+  einen Schlüssel im Worker. Sag Bescheid, wenn du das willst.
+- Bei Spam: Worker unter **Settings** → **Domains & Routes** deaktivieren oder den GitHub-Schlüssel bei GitHub widerrufen.
+- Der Worker legt Issues unter **deinem** GitHub-Konto an. Wer meldet, erscheint dort nicht namentlich. Die Issues sind öffentlich.
+- Setze dir einen Kalendertermin vor dem Ablauf des GitHub-Schlüssels (nach 1 Jahr).
 
 ## Schritt 7: Webseite angebunden (erledigt)
 
