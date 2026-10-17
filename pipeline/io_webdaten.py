@@ -46,12 +46,14 @@ VORSCHAU_PIXEL_METER_WEB = (
     166.0  # 100 m am Boden: in Web-Mercator sind Strecken bei 52,8° Breite um 1/cos(Breite) länger
 )
 GRENZE_VEREINFACHUNG_METER = 50.0
-# Weicher Übergang am Rand: Das Bild reicht MASKE_RAND_WEB über die Grenze hinaus (Web-Mercator-Meter, ~12 km am Boden),
-# die Zellen sind 250 m groß, der Weichzeichner hat Sigma 14 Zellen (~2 km am Boden). Außerhalb des Bildes malt
-# die Seite dasselbe Grau mit voller Deckkraft.
-MASKE_RAND_WEB = 20_000.0
-MASKE_ZELLE_WEB = 250.0
-MASKE_SIGMA_ZELLEN = 14.0
+# Weicher Übergang am Rand: Das Bild reicht MASKE_RAND_WEB über die Grenze hinaus (Web-Mercator-Meter, ~66 km am
+# Boden) und begrenzt zugleich Verschieben und Herauszoomen (Seite: begrenzeKarte). Der Rand ist so breit, dass auch
+# ein hohes Handy-Bild bei "ganzer Barnim im Bild" ganz im Grau liegt (sonst endet die Karte sichtbar).
+# Zellen 500 m, Weichzeichner Sigma 7 Zellen (~3,5 km Web-Meter, ~2 km am Boden); außerhalb des Bildes malt die Seite
+# dasselbe Grau.
+MASKE_RAND_WEB = 110_000.0
+MASKE_ZELLE_WEB = 500.0
+MASKE_SIGMA_ZELLEN = 7.0
 MASKE_DECKKRAFT = 199  # 78 % von 255
 MASKE_GRAU = (141, 146, 141)
 BARNIM_ZIEL = ZIEL / "barnim"

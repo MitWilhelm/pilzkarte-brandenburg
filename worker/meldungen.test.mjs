@@ -161,3 +161,17 @@ test("der Schlüssel taucht in keiner Antwort auf", async () => {
   const { daten } = await sende(meldung());
   assert.doesNotMatch(JSON.stringify(daten), /geheim-nur-im-test/);
 });
+
+test("gleiche ID sofort nochmal (GitHub-Liste noch leer): kein zweites Issue, die erste Nummer, und es zählt nicht für die IP-Grenze", async () => {
+  const gh = githubAttrappe(); // Liste bleibt leer, wie in der Praxis in den ersten Sekunden nach dem Anlegen
+  const cache = einfacherCache();
+  const eintrag = meldung();
+  const erste = await sende(eintrag, {}, cache);
+  const zweite = await sende(eintrag, {}, cache);
+  assert.equal(erste.status, 201);
+  assert.deepEqual(zweite, { status: 200, daten: { ok: true, nummer: erste.daten.nummer, doppelt: true } });
+  assert.equal(gh.angelegt.length, 1);
+  for (let nummer = 0; nummer < 4; nummer += 1) {
+    assert.equal((await sende(eintrag, {}, cache)).status, 200); // beliebig oft wiederholt: weiter 200, kein 429
+  }
+});

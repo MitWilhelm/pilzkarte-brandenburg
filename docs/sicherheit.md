@@ -1,6 +1,6 @@
 # Sicherheit: Angriffsszenarien, Maßnahmen, Restrisiken
 
-Stand 2026-10-17, drei Prüfrunden (Analyse, Härtung, erneuter Angriff auf die eigenen Lösungen). Geprüft wurden die Seite
+Stand 2026-10-17, vier Prüfrunden (Analyse, Härtung, erneuter Angriff auf die eigenen Lösungen, Prüfung der live laufenden Fassung). Geprüft wurden die Seite
 (GitHub Pages), der Meldeserver (Cloudflare Worker), das Repository mit GitHub Actions und der nächtliche Prüfauftrag.
 Es ist eine eigene Prüfung, kein Gutachten und kein Penetrationstest durch Dritte.
 
@@ -46,6 +46,26 @@ Es ist eine eigene Prüfung, kein Gutachten und kein Penetrationstest durch Drit
    folgt aus `script-src 'self'` ohne `unsafe-eval`; (c) beim Einbetten in einen fremden Rahmen meldet der Browser zwar `onload`, die CSP
    hat den Inhalt aber blockiert (Verstoß `frame-src` gemeldet). Keine neuen Lücken gefunden, die eine Änderung nötig machten.
 
+4. **Runde 4 (live laufende Fassung, nach deinen Einstellungen bei GitHub und Cloudflare):**
+   - Der bei Cloudflare laufende Worker-Code stimmt mit `worker/meldungen.js` überein (über die Cloudflare-Verbindung gelesen).
+   - Zehn Abweisungs-Tests live (Zeitstempel mit `@evil`, `(@evil)`, falsche ID, Skript als Baumart, unbekannte Baumart und Pilzart, zu altes
+     Datum, Koordinate außerhalb, kaputtes JSON, 7 KB, falsche Herkunft, falsche Methode): alle mit 400/403/405/413 abgewiesen, Fehlertexte
+     nennen nur das Feld, nie die Eingabe; Vorabfrage 204 mit `nosniff` und `no-store`.
+   - **Neuer Befund:** Der Doppelschutz über die GitHub-Liste griff nicht sofort. Dieselbe Meldungs-ID vier Sekunden später legte ein zweites
+     Issue an (Issues 28 und 29), weil die Liste bei GitHub nach dem Anlegen noch einige Sekunden hinterherhinkt. **Behoben:** Der Worker
+     merkt sich jede angelegte ID zusätzlich eine Stunde im Cache des Rechenzentrums und antwortet bei Wiederholung sofort mit der ersten
+     Nummer (dann zählt der Versuch auch nicht für die IP-Grenze). Neuer Test mit leerer GitHub-Liste (13 Tests grün). Die neue Fassung
+     muss bei Cloudflare noch einmal eingespielt werden.
+   - **Neuer Befund (Fehler auf dem PC):** Auf einem breiten Bildschirm ließ sich weiter herauszoomen, als die graue Fläche reichte; links und rechts
+     war die Karte wieder bunt. Ursachen: Die Außenfläche (Welt mit Loch) wurde nicht gezeichnet, und der Bewegungsraum (0,5° um den Barnim) war
+     kleiner als ein breites Bild. **Behoben:** Das Verlaufsbild reicht jetzt 66 km über die Grenze (610 × 630 Pixel, 12 KB) und ist selbst die
+     Grenze für Verschieben und Herauszoomen; das Loch der Außenfläche ist im Uhrzeigersinn gezeichnet. Geprüft auf 1400 × 850 (sichtbar 147 × 89 km,
+     alles grau) und auf Handygröße 375 × 812 (sichtbar 75 × 163 km, ganzer Barnim im Bild, alles grau).
+   - Push-Zugang, Live-Seite (CSP, keine Google-Anfrage, HSTS), `npm audit` (0 Funde), Suche nach Schlüsseln (nichts) und die Dependabot-Vorschläge
+     (15 offene Pull-Requests, darunter große Sprünge wie TypeScript 5.9 → 7.0 und ESLint 9 → 10) geprüft. Nichts davon wurde übernommen.
+   - Nicht geprüft: Push protection (ein absichtlicher Test mit falschem Schlüssel würde diesen öffentlich machen) und die IP-Grenze live (die
+     Grenze liegt für alle auf deiner Adresse; der Test hätte deine eigenen Meldungen 10 Minuten blockiert). Beides ist lokal getestet.
+
 ## Offen / nur du kannst es tun
 
 - **Worker neu einspielen:** `worker/meldungen.js` bei Cloudflare einfügen und „Deploy“ drücken (Anleitung Schritt 3); danach Schritt 5 testen.
@@ -53,8 +73,9 @@ Es ist eine eigene Prüfung, kein Gutachten und kein Penetrationstest durch Drit
 - **2-Faktor-Anmeldung** bei GitHub und Cloudflare einschalten.
 - **GitHub-Einstellungen** (Repository → Settings): Secret scanning mit Push protection, Dependabot alerts, Private vulnerability reporting
   aktivieren; Branch-Schutz für `main` (Pull-Request nötig) nur, wenn du das willst, denn es bremst die direkten Pushes.
-- **Zugangsschlüssel auf dem Mac:** Der klassische Schlüssel für Pushes hat weite Rechte. Besser einen feingranularen Schlüssel nur für
-  dieses Repository (Contents: Lesen und Schreiben, Workflows nur falls nötig).
+- **Zugangsschlüssel auf dem Mac:** Der klassische Schlüssel für Pushes darf alle Repositories des Kontos ändern (auch künftige). Solange es nur
+  dieses eine Repository gibt, ist das Risiko begrenzt (Entscheidung des Nutzers, 2026-10-17); sinnvoll bleibt ein feingranularer Schlüssel nur
+  für dieses Repository (Contents und Workflows: Lesen und Schreiben).
 - **Private E-Mail:** In GitHub unter Settings → Emails „Keep my email addresses private“ und „Block command line pushes that expose my
   email“ einschalten; deine echte Adresse steht in älteren Commits und bleibt dort sichtbar.
 - **Captcha** (Cloudflare Turnstile) für den Meldeweg, wenn Spam auftritt.

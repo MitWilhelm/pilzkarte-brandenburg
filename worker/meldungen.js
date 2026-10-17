@@ -125,7 +125,25 @@ async function pruefeIp(anfrage, cache) {
   await cache.put(schluessel, new Response(String(bisher + 1), { headers: { "Cache-Control": `max-age=${String(IP_FENSTER_SEKUNDEN)}` } }));
 }
 
-// Obergrenze insgesamt und Doppelschutz: Die Issues der letzten Stunde bei GitHub sind der gemeinsame Speicher.
+// Doppelschutz sofort: Die Liste der Issues bei GitHub hinkt nach dem Anlegen einige Sekunden hinterher (gemessen: Das zweite
+// Senden vier Sekunden später legte noch ein zweites Issue an). Deshalb merkt sich der Cache des Rechenzentrums jede
+// angelegte Meldungs-ID eine Stunde lang mit der Issue-Nummer.
+function idSchluessel(id) {
+  return new Request(`https://meldung.invalid/${encodeURIComponent(id)}`);
+}
+
+async function bekannteNummer(id, cache) {
+  const treffer = await cache.match(idSchluessel(id));
+  if (treffer === undefined) return null;
+  const nummer = Number(await treffer.text());
+  return Number.isInteger(nummer) && nummer > 0 ? nummer : null;
+}
+
+async function merkeNummer(id, nummer, cache) {
+  await cache.put(idSchluessel(id), new Response(String(nummer), { headers: { "Cache-Control": `max-age=${String(STUNDE_MS / 1000)}` } }));
+}
+
+// Obergrenze insgesamt und Doppelschutz über die Zeit: Die Issues der letzten Stunde bei GitHub sind der gemeinsame Speicher.
 // Gleiche Meldungs-ID: kein zweites Issue, sondern die Nummer des ersten (so zählt ein erneutes Senden nicht doppelt).
 async function pruefeGitHub(meldung, umgebung) {
   const seitMs = Date.now() - STUNDE_MS;
@@ -157,6 +175,8 @@ export default {
         return antwort(400, { fehler: "Kein gültiges JSON" });
       }
       const meldung = pruefe(roh);
+      const gemerkt = await bekannteNummer(meldung.id, cache);
+      if (gemerkt !== null) return antwort(200, { ok: true, nummer: gemerkt, doppelt: true }); // zählt nicht für die IP-Grenze
       await pruefeIp(anfrage, cache);
       const vorhandenes = await pruefeGitHub(meldung, umgebung);
       if (vorhandenes !== null) return antwort(200, { ok: true, nummer: vorhandenes, doppelt: true });
@@ -167,6 +187,7 @@ export default {
       });
       if (!github.ok) throw new Abweisung(502, `GitHub antwortete ${String(github.status)}`);
       const issue = await github.json();
+      await merkeNummer(meldung.id, issue.number, cache);
       return antwort(201, { ok: true, nummer: issue.number });
     } catch (fehler) {
       if (fehler instanceof Abweisung) return antwort(fehler.status, { fehler: fehler.message });

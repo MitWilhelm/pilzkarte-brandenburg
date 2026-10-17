@@ -387,7 +387,7 @@ async function start(): Promise<void> {
     throw new Error(`Invariante verletzt: ${MASKE_UEBERSICHT} enthält kein Gebiet`);
   }
   zeigeRandverlauf(karte, maske);
-  begrenzeKarte(karte, grenze);
+  begrenzeKarte(karte, grenze, maske);
   const vorschauGebiet = vorschauGebiete[0];
   if (vorschauGebiet === undefined) {
     throw new Error(`Invariante verletzt: ${VORSCHAU_UEBERSICHT} enthält kein Gebiet`);

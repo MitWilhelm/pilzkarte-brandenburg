@@ -22,7 +22,6 @@ const MASKE_FARBE = "#8d928d"; // wie in pipeline/io_webdaten.py (MASKE_GRAU)
 const MASKE_DECKKRAFT = 0.78; // 199/255 wie im Bild; Orte darunter bleiben lesbar
 const WELT: [number, number][] = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]];
 const GRENZE_RAND_PIXEL: maplibregl.PaddingOptions = { top: 96, bottom: 150, left: 12, right: 64 }; // Platz für Kopfleiste, Tafel, Knöpfe
-const BEWEGUNGSRAUM_GRAD = 0.5; // Spielraum um die Barnim-Grenze; zu klein, begrenzt er auf hohen Handys das Herauszoomen (Höhe des Bildes)
 const MIN_ZOOM_SPIELRAUM = 0.15; // etwas weiter heraus als "gesamter Barnim im Bild"
 
 // Dunkelmodus: OSM-Kacheln gibt es nur hell; Helligkeit umkehren und Farbton drehen ergibt eine dunkle Karte
@@ -665,7 +664,7 @@ export function erzeugeTipps(karte: maplibregl.Map, jePilz: Readonly<Record<Pilz
  */
 export function zeigeRandverlauf(karte: maplibregl.Map, maske: Gebiet): void {
   const [obenLinks, obenRechts, untenRechts, untenLinks] = maske.ecken;
-  const bildRand: [number, number][] = [obenLinks, untenLinks, untenRechts, obenRechts, obenLinks].map(([laenge, breite]): [number, number] => [
+  const bildRand: [number, number][] = [obenLinks, obenRechts, untenRechts, untenLinks, obenLinks].map(([laenge, breite]): [number, number] => [
     laenge,
     breite,
   ]);
@@ -692,16 +691,20 @@ export function zeigeRandverlauf(karte: maplibregl.Map, maske: Gebiet): void {
   karte.addLayer({ id: "barnim-verlauf", type: "raster", source: "barnim-verlauf", paint: { "raster-opacity": 1, "raster-resampling": "linear" } });
 }
 
-/** Begrenzt Verschieben und Herauszoomen: Der ganze Barnim passt gerade aufs Handy, weiter hinaus geht es nicht. */
-export function begrenzeKarte(karte: maplibregl.Map, grenze: Grenze): void {
+/**
+ * Begrenzt Verschieben und Herauszoomen auf den grauen Bereich: Das Bild des Randverlaufs (`maske`) ist die Grenze, die Ansicht
+ * liegt immer ganz darin. Zusätzlich passt der Barnim bei der kleinsten Stufe gerade aufs Bild (mit Platz für Leiste und Tafel).
+ */
+export function begrenzeKarte(karte: maplibregl.Map, grenze: Grenze, maske: Gebiet): void {
   const ausschnitt: maplibregl.LngLatBoundsLike = [[grenze.west, grenze.sued], [grenze.ost, grenze.nord]];
   const kamera = karte.cameraForBounds(ausschnitt, { padding: GRENZE_RAND_PIXEL });
   if (kamera === undefined || kamera.zoom === undefined) {
     throw new Error("Invariante verletzt: Kamera für die Barnim-Grenze nicht berechenbar");
   }
+  const [obenLinks, , untenRechts] = maske.ecken;
   karte.setMinZoom(kamera.zoom - MIN_ZOOM_SPIELRAUM);
   karte.setMaxBounds([
-    [grenze.west - BEWEGUNGSRAUM_GRAD, grenze.sued - BEWEGUNGSRAUM_GRAD],
-    [grenze.ost + BEWEGUNGSRAUM_GRAD, grenze.nord + BEWEGUNGSRAUM_GRAD],
+    [obenLinks[0], untenRechts[1]],
+    [untenRechts[0], obenLinks[1]],
   ]);
 }

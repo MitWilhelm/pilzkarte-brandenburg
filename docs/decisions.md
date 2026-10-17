@@ -440,3 +440,11 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
 - **Schwärzesee-Hinweis entfernt** (auf Wunsch): Es war der einzige Eintrag der Schutzgebiets-Hinweise; der ganze Mechanismus
   (`SCHUTZGEBIETE`, `zeigeSchutzhinweis`, Element `schutz-hinweis`) entfällt. Der allgemeine Hinweis im Tutorial („In
   Naturschutzgebieten kann das Sammeln verboten sein“) bleibt.
+
+## 2026-10-17: Zoomgrenze auf dem PC, Doppelschutz im Cache
+
+- **Zoomgrenze:** Das Verlaufsbild (`maske.png`) reicht jetzt 110 km Web-Mercator (~66 km am Boden) über die Grenze und ist die Grenze für
+  Verschieben und Herauszoomen (`begrenzeKarte` mit `setMaxBounds`). Der frühere Spielraum von 0,5° war kleiner als ein breites Bild; die
+  Außenfläche (Welt mit Loch) wurde nicht gezeichnet. Folge war bei breiten Bildschirmen ein bunter Rand links und rechts.
+- **Doppelschutz:** GitHubs Issue-Liste hinkt nach dem Anlegen einige Sekunden hinterher; deshalb merkt der Worker die Meldungs-ID zusätzlich
+  eine Stunde im Cache (siehe `docs/sicherheit.md`, Runde 4).
