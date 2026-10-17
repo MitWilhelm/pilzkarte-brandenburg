@@ -17,6 +17,8 @@ import numpy as np
 import numpy.typing as npt
 import rasterio
 from pyproj import Transformer
+from rasterio.features import rasterize
+from rasterio.transform import from_origin
 from rasterio.warp import Resampling, calculate_default_transform, reproject
 from rasterio.windows import from_bounds
 from shapely.geometry import box, shape
@@ -25,6 +27,7 @@ from pipeline.gebiete import CODE_KEIN_WERT
 from pipeline.habitat import beschreibe_standort
 from pipeline.io_heatmap import BARNIM_ANTWORTEN, lies_anteile
 from pipeline.kacheln import KANTE_METER, Kachel, kacheln_fuer
+from pipeline.maske import verlauf_ausserhalb
 
 __all__ = ["main"]
 
@@ -36,13 +39,21 @@ CODE_KRONENVERLUST = 666
 INDEX_KRONENVERLUST = 10  # passt in einen Farbkanal; 0..9 sind die übrigen DLR-Codes
 INDEX_KEIN_WERT = 255
 UNDURCHSICHTIG = 255
-VEREINFACHUNG_METER = 3.0  # Bodenflächen: 3 m Toleranz reicht für die Karte und spart Platz
+VEREINFACHUNG_METER = 3.0  # Bodenflaechen: 3 m Toleranz reicht für die Karte und spart Platz
 NACHKOMMASTELLEN_GRAD = 6
 EPSG_LFB = 25833
 VORSCHAU_PIXEL_METER_WEB = (
     166.0  # 100 m am Boden: in Web-Mercator sind Strecken bei 52,8° Breite um 1/cos(Breite) länger
 )
 GRENZE_VEREINFACHUNG_METER = 50.0
+# Weicher Übergang am Rand: Das Bild reicht MASKE_RAND_WEB über die Grenze hinaus (Web-Mercator-Meter, ~12 km am Boden),
+# die Zellen sind 250 m groß, der Weichzeichner hat Sigma 14 Zellen (~2 km am Boden). Außerhalb des Bildes malt
+# die Seite dasselbe Grau mit voller Deckkraft.
+MASKE_RAND_WEB = 20_000.0
+MASKE_ZELLE_WEB = 250.0
+MASKE_SIGMA_ZELLEN = 14.0
+MASKE_DECKKRAFT = 199  # 78 % von 255
+MASKE_GRAU = (141, 146, 141)
 BARNIM_ZIEL = ZIEL / "barnim"
 BARNIM_GRENZE = DATEN / "barnim_grenze_25833.geojson"
 LESERAND_METER = 500.0
@@ -138,7 +149,7 @@ def _exportiere_kachel(kachel: Kachel) -> dict[str, object] | None:
 
 def _exportiere_kachel_boden(kachel: Kachel, flaechen: gpd.GeoDataFrame) -> int:
     rechteck = box(kachel.links, kachel.unten, kachel.links + KANTE_METER, kachel.unten + KANTE_METER)
-    # Zuschnitt auf die Kachel: Die Karte fragt Bodenflächen nur an der getippten Stelle ab, Überhang wäre Ballast.
+    # Zuschnitt auf die Kachel: Die Karte fragt Bodenflaechen nur an der getippten Stelle ab, Überhang wäre Ballast.
     teil = gpd.clip(flaechen, rechteck)
     teil = teil.loc[~teil.geometry.is_empty]
     teil["geometry"] = teil.geometry.simplify(VEREINFACHUNG_METER)
@@ -170,9 +181,10 @@ def _barnim() -> None:
         uebersicht.append(meta)
         groesse = sum((BARNIM_ZIEL / f"{kachel.name}{endung}").stat().st_size for endung in (".png", "_boden.geojson"))
         pixel = f"{meta['breitePixel']}x{meta['hoehePixel']} Pixel"
-        print(f"{kachel.name}: {pixel}, {anzahl} Bodenflächen, {groesse // 1024} KB")
+        print(f"{kachel.name}: {pixel}, {anzahl} Bodenflaechen, {groesse // 1024} KB")
     (BARNIM_ZIEL / "kacheln.json").write_text(json.dumps(uebersicht, ensure_ascii=False, indent=1), encoding="utf-8")
     _exportiere_vorschau_und_grenze(grenze)
+    _exportiere_maske(grenze)
 
 
 def _vorschau_raster(datei: Path, transform: rasterio.Affine, form: tuple[int, int]) -> npt.NDArray[np.uint8]:
@@ -236,6 +248,39 @@ def _exportiere_vorschau_und_grenze(grenze: shape) -> None:
         (BARNIM_ZIEL / name).stat().st_size for name in ("vorschau.png", "vorschau_reizker.png", "grenze.geojson")
     )
     print(f"vorschau: {breite}x{hoehe} Pixel, mit Grenze {groesse // 1024} KB")
+
+
+def _exportiere_maske(grenze: shape) -> None:
+    flaeche = gpd.GeoSeries([grenze], crs=EPSG_LFB).to_crs(EPSG_WEB).iloc[0]
+    links, unten, rechts, oben = flaeche.bounds
+    links, unten, rechts, oben = (
+        links - MASKE_RAND_WEB,
+        unten - MASKE_RAND_WEB,
+        rechts + MASKE_RAND_WEB,
+        oben + MASKE_RAND_WEB,
+    )
+    breite = int(np.ceil((rechts - links) / MASKE_ZELLE_WEB))
+    hoehe = int(np.ceil((oben - unten) / MASKE_ZELLE_WEB))
+    transform = from_origin(links, oben, MASKE_ZELLE_WEB, MASKE_ZELLE_WEB)
+    innen = (
+        np.asarray(rasterize([(flaeche, 1)], out_shape=(hoehe, breite), transform=transform, fill=0, dtype="uint8"))
+        == 1
+    )
+    deckkraft = verlauf_ausserhalb(innen, MASKE_SIGMA_ZELLEN, MASKE_DECKKRAFT)
+    kanaele = [np.full((hoehe, breite), farbe, dtype=np.uint8) for farbe in MASKE_GRAU]
+    profil = {"driver": "PNG", "width": breite, "height": hoehe, "count": 4, "dtype": "uint8"}
+    with rasterio.open(BARNIM_ZIEL / "maske.png", "w", **profil) as ziel:
+        ziel.write(np.stack([*kanaele, deckkraft]))
+    meta = {
+        "name": "maske",
+        "anzeigename": "Barnim (Rand)",
+        "mitte": [0.0, 0.0],
+        "breitePixel": breite,
+        "hoehePixel": hoehe,
+        "ecken": _ecken_wgs84(transform, breite, hoehe),
+    }
+    (BARNIM_ZIEL / "maske.json").write_text(json.dumps([meta], ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"maske: {breite}x{hoehe} Pixel, {(BARNIM_ZIEL / 'maske.png').stat().st_size // 1024} KB")
 
 
 def main() -> None:

@@ -1,7 +1,7 @@
 // Karten-Rand: MapLibre mit OpenStreetMap-Hintergrund, Heatmap-Bildern je Gebiet und Bodenflächen.
 // OSM-Kacheln: Nutzungsrichtlinie verlangt Namensnennung und geringe Last (private Nutzung).
 import maplibregl from "maplibre-gl";
-import { faerbeOverlay, kreisPolygon, standortAusGpsEreignis, type Ecke, type Gebiet, type Grenze, type Pilzkanal, type Standort } from "./geo.ts";
+import { faerbeOverlay, kreisPolygon, standortAusGpsEreignis, type Gebiet, type Grenze, type Pilzkanal, type Standort } from "./geo.ts";
 import type { Pilzart } from "./wachstum.ts";
 import { faerbeBrennpunkte, type Brennpunktflaeche } from "./hotspots.ts";
 
@@ -14,10 +14,8 @@ const START_ZOOM = 13;
 const HEATMAP_DECKKRAFT = 0.6; // etwas durchsichtiger, damit Wege darunter lesbar bleiben
 const BODEN_LINIENBREITE = 0.6;
 const WEGE_MIN_ZOOM = 11.5; // darunter sind 26 Kacheln voller Wege nur Last und Gekrissel
-const MASKE_FARBE = "#8d928d";
-const MASKE_DECKKRAFT = 0.78; // Fläche außerhalb des Barnims: grau, aber Orte darunter bleiben lesbar
-const GRENZE_FARBE = "#0b5d2a";
-const GRENZE_RAND_FARBE = "#ffffff";
+const MASKE_FARBE = "#8d928d"; // wie in pipeline/io_webdaten.py (MASKE_GRAU)
+const MASKE_DECKKRAFT = 0.78; // 199/255 wie im Bild; Orte darunter bleiben lesbar
 const WELT: [number, number][] = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]];
 const GRENZE_RAND_PIXEL: maplibregl.PaddingOptions = { top: 96, bottom: 150, left: 12, right: 64 }; // Platz für Kopfleiste, Tafel, Knöpfe
 const BEWEGUNGSRAUM_GRAD = 0.5; // Spielraum um die Barnim-Grenze; zu klein, begrenzt er auf hohen Handys das Herauszoomen (Höhe des Bildes)
@@ -584,35 +582,38 @@ export function erzeugeTipps(karte: maplibregl.Map, jePilz: Readonly<Record<Pilz
   };
 }
 
-function alsPositionen(ring: readonly Ecke[]): [number, number][] {
-  return ring.map(([laenge, breite]): [number, number] => [laenge, breite]);
-}
-
-/** Graue Fläche außerhalb des Barnims und kräftige Grenzlinie; liegt über der Hintergrundkarte, unter der Heatmap. */
-export function zeigeGrenze(karte: maplibregl.Map, grenze: Grenze): void {
-  karte.addSource("barnim-maske", {
+/**
+ * Weicher Übergang am Barnim-Rand: Innen bleibt die Karte farbig, nach außen wird sie stetig grau (Bild `maske.png`, aus
+ * dem Abstand zur Grenze berechnet, ohne harte Linie). Außerhalb des Bildes liegt dasselbe Grau mit voller Deckkraft.
+ * Die Ebenen liegen über der Hintergrundkarte und unter der Heatmap.
+ */
+export function zeigeRandverlauf(karte: maplibregl.Map, maske: Gebiet): void {
+  const [obenLinks, obenRechts, untenRechts, untenLinks] = maske.ecken;
+  const bildRand: [number, number][] = [obenLinks, untenLinks, untenRechts, obenRechts, obenLinks].map(([laenge, breite]): [number, number] => [
+    laenge,
+    breite,
+  ]);
+  karte.addSource("barnim-aussen", {
     type: "geojson",
-    data: { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [WELT, ...grenze.ringe.map(alsPositionen)] } },
-  });
-  karte.addLayer({ id: "barnim-maske", type: "fill", source: "barnim-maske", paint: { "fill-color": MASKE_FARBE, "fill-opacity": MASKE_DECKKRAFT } });
-  karte.addSource("barnim-grenze", {
-    type: "geojson",
-    data: { type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: grenze.ringe.map(alsPositionen) } },
+    data: { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [WELT, bildRand] } },
   });
   karte.addLayer({
-    id: "barnim-grenze-rand",
-    type: "line",
-    source: "barnim-grenze",
-    layout: { "line-join": "round" },
-    paint: { "line-color": GRENZE_RAND_FARBE, "line-width": 6, "line-opacity": 0.9 },
+    id: "barnim-aussen",
+    type: "fill",
+    source: "barnim-aussen",
+    paint: { "fill-color": MASKE_FARBE, "fill-opacity": MASKE_DECKKRAFT, "fill-antialias": false },
   });
-  karte.addLayer({
-    id: "barnim-grenze",
-    type: "line",
-    source: "barnim-grenze",
-    layout: { "line-join": "round" },
-    paint: { "line-color": GRENZE_FARBE, "line-width": 3 },
+  karte.addSource("barnim-verlauf", {
+    type: "image",
+    url: `${maske.ordner}/${maske.name}.png`,
+    coordinates: [
+      [obenLinks[0], obenLinks[1]],
+      [obenRechts[0], obenRechts[1]],
+      [untenRechts[0], untenRechts[1]],
+      [untenLinks[0], untenLinks[1]],
+    ],
   });
+  karte.addLayer({ id: "barnim-verlauf", type: "raster", source: "barnim-verlauf", paint: { "raster-opacity": 1, "raster-resampling": "linear" } });
 }
 
 /** Begrenzt Verschieben und Herauszoomen: Der ganze Barnim passt gerade aufs Handy, weiter hinaus geht es nicht. */

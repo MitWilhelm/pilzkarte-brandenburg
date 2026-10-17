@@ -11,7 +11,7 @@ import {
   richteGpsEin,
   zeigeHeatmap,
   erzeugeTipps,
-  zeigeGrenze,
+  zeigeRandverlauf,
   begrenzeKarte,
   fuegeVorschauHinzu,
   entferneVorschau,
@@ -55,6 +55,7 @@ const PILZNAMEN: Readonly<Record<Pilzart, string>> = { steinpilz: "Steinpilz", p
 const KACHEL_ORDNER = "daten/barnim";
 const KACHEL_UEBERSICHT = "kacheln.json";
 const VORSCHAU_UEBERSICHT = "vorschau.json";
+const MASKE_UEBERSICHT = "maske.json";
 // Alle Kacheln (zusammen ~8 MB) kommen nach dem Start nacheinander im Hintergrund, die nächsten zur Kartenmitte zuerst;
 // bis dahin zeigt die grobe Vorschau den ganzen Barnim.
 const GLEICHZEITIG_LADEN = 2;
@@ -330,11 +331,12 @@ async function start(): Promise<void> {
   fuelleLegende();
   zeigeVersion(typeof __BUILD_ZEIT__ === "string" ? __BUILD_ZEIT__ : "");
   richteTutorialEin(window.localStorage);
-  const [kacheln, tageswerte, vorschauGebiete, grenze] = await Promise.all([
+  const [kacheln, tageswerte, vorschauGebiete, grenze, maskeGebiete] = await Promise.all([
     ladeGebiete(KACHEL_ORDNER, KACHEL_UEBERSICHT),
     ladeTageswerteOderNull(),
     ladeGebiete(KACHEL_ORDNER, VORSCHAU_UEBERSICHT),
     ladeGrenze(KACHEL_ORDNER),
+    ladeGebiete(KACHEL_ORDNER, MASKE_UEBERSICHT),
   ]);
   const zustand: Zustand = {
     pilz: "steinpilz",
@@ -353,7 +355,11 @@ async function start(): Promise<void> {
   // "style.load" statt "load": "load" wartet auf die OSM-Kacheln, und bei schwachem Netz im Wald
   // würde die Heatmap sonst erst mit dem Hintergrund erscheinen.
   await karte.once("style.load");
-  zeigeGrenze(karte, grenze);
+  const maske = maskeGebiete[0];
+  if (maske === undefined) {
+    throw new Error(`Invariante verletzt: ${MASKE_UEBERSICHT} enthält kein Gebiet`);
+  }
+  zeigeRandverlauf(karte, maske);
   begrenzeKarte(karte, grenze);
   const vorschauGebiet = vorschauGebiete[0];
   if (vorschauGebiet === undefined) {

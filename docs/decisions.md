@@ -397,3 +397,13 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   hohen Handy wegen der Bildhöhe das Herauszoomen, sodass der Barnim breiter als der Bildschirm war.
 - **Grenze der Prüfung:** Das Verhalten der Vorschau beim ersten Laden (vor den Kacheln) habe ich nicht am Bildschirm
   gesehen, weil der Testbrowser erst nach einem Bildschirmfoto zeichnet.
+
+## 2026-10-17: Weicher Rand statt harter Barnim-Grenze
+
+- **Entscheidung (Nutzer):** Keine harte Grenzlinie; stattdessen ein Verlauf von farbig zu grau, passend zum Liquid-Glass-Design.
+- **Umsetzung:** `maske.png` (499 × 539 Pixel, 23 KB, Deckkraft je Pixel aus einem Weichzeichner der Innen-Maske, `pipeline/maske.py`):
+  innen und am Rand 0, nach außen stetig bis 78 % Grau, volle Deckkraft ab etwa 4 km Abstand. Außerhalb des Bildes malt die Seite
+  dasselbe Grau als Fläche. Die weiß-grüne Linie und die harte graue Fläche entfallen; `grenze.geojson` dient nur noch dem
+  Zoomlimit. Der Verlauf liegt über der Hintergrundkarte und unter der Heatmap.
+- **Verworfen:** Verlauf im Browser per Canvas-Weichzeichner (ctx.filter fehlt in älteren Safari-Versionen) und eine Fläche
+  mit festem Streifen (sähe wieder wie eine Linie aus).
