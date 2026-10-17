@@ -1,13 +1,15 @@
-// Ansicht des Tutorials: zeigt die Schritte im <dialog> und merkt sich, dass es gesehen wurde. Nur DOM-Knoten (Regel 12).
+// Ansicht des Tutorials: zeigt die Schritte im <dialog>, bei jedem Öffnen der Seite. Nur DOM-Knoten (Regel 12).
 import { element } from "./ansicht.ts";
-import { merkeTutorialGesehen, warTutorialGesehen, type Speicher } from "./clients/tutorialspeicher.ts";
 import { fortschrittText, istLetzterSchritt, naechsterSchritt } from "./tutorial.ts";
 
 const TEXT_WEITER = "Weiter";
 const TEXT_ENDE = "Los geht’s";
 
-/** Richtet das Tutorial ein und zeigt es sofort, wenn es auf diesem Gerät noch nie gezeigt wurde. */
-export function richteTutorialEin(speicher: Speicher): void {
+/**
+ * Richtet das Tutorial ein und zeigt es sofort bei jedem Öffnen der Seite. Während es offen ist, lädt die Karte im
+ * Hintergrund weiter; wer es überspringt, bevor sie fertig ist, sieht den Ladeschleier (ansicht.ts).
+ */
+export function richteTutorialEin(): void {
   const dialog = element("tutorial", HTMLDialogElement);
   const schritte = Array.from(dialog.querySelectorAll<HTMLElement>("[data-schritt]"));
   const punkte = element("tutorial-punkte", HTMLOListElement);
@@ -52,13 +54,7 @@ export function richteTutorialEin(speicher: Speicher): void {
   element("tutorial-ueberspringen", HTMLButtonElement).addEventListener("click", () => {
     dialog.close();
   });
-  // "close" feuert bei Knopf, Esc-Taste und Zurück-Geste gleichermaßen: Wer das Fenster schließt, kennt es jetzt.
-  dialog.addEventListener("close", () => {
-    merkeTutorialGesehen(speicher);
-  });
   element("tutorial-oeffnen", HTMLButtonElement).addEventListener("click", oeffne);
 
-  if (!warTutorialGesehen(speicher)) {
-    oeffne();
-  }
+  oeffne();
 }

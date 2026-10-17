@@ -110,7 +110,7 @@ p, h1, ol, dl, dd { margin: 0; }
 .tafel-griff:focus-visible { outline: 3px solid var(--text); outline-offset: -3px; border-radius: 12px; }
 /* Handy: Tafel startet eingeklappt (nur Index-Zeile); data-offen setzt src/ansicht.ts. */
 @media (max-width: 899px) {
-  .tafel:not([data-offen="ja"]) > :not(.tafel-griff, #lade-hinweis, #gps-hinweis, #schutz-hinweis, #block-index, #block-punkt) { display: none; }
+  .tafel:not([data-offen="ja"]) > :not(.tafel-griff, #lade-hinweis, #gps-hinweis, #block-index, #block-punkt) { display: none; }
   .tafel:not([data-offen="ja"]) #trend, .tafel:not([data-offen="ja"]) #index-grund { display: none; }
   .tafel:not([data-offen="ja"]) .index-zahl { width: 48px; height: 48px; font-size: 20px; }
 }
@@ -145,7 +145,7 @@ p, h1, ol, dl, dd { margin: 0; }
 .stufe-chip[data-klasse="Möglich"] { background: #fae496; color: #2a2304; border-color: transparent; }
 .punkt-index { color: var(--leise); font-size: 14px; }
 /* Gewählte Stelle: kompakte Vorschau; die übrige Tafel ist solange ausgeblendet (data-auswahl, gesetzt in src/ansicht.ts). */
-.tafel[data-auswahl="ja"] > :not(.tafel-griff, #block-punkt, #schutz-hinweis) { display: none; }
+.tafel[data-auswahl="ja"] > :not(.tafel-griff, #block-punkt) { display: none; }
 /* Standort-Hinweis: eigenes Banner oben, damit er bei jeder Tafel-Stellung sichtbar ist (Ursache von "GPS-Knopf: gar nichts") */
 .gps-banner {
   position: absolute; z-index: 5; left: 10px; right: 66px; top: calc(env(safe-area-inset-top, 0px) + 66px);
@@ -375,3 +375,7 @@ p, h1, ol, dl, dd { margin: 0; }
   .ladepunkte span { animation: none; opacity: 1; }
   .ladeschleier, .ladebalken span, .ladeschleier::before { transition: none; }
 }
+
+/* Solange das Tutorial offen ist, lädt die Karte dahinter weiter; die Lade-Box erscheint erst, wenn es geschlossen ist und noch geladen wird. */
+body:has(#tutorial[open]) .ladekarte { opacity: 0; }
+.ladekarte { transition: opacity 0.4s ease; }

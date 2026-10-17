@@ -49,7 +49,6 @@ import {
   zeigePunkt,
   zeigePunktwetter,
   zeigePunktwetterFehler,
-  zeigeSchutzhinweis,
 } from "./ansicht.ts";
 import { richteTutorialEin } from "./tutorialansicht.ts";
 
@@ -67,15 +66,6 @@ const GLEICHZEITIG_LADEN = 3;
 // Boden und Wege (zusammen 17 MB für den ganzen Barnim) erst ab diesem Zoom und nur für Kacheln im Bild.
 const DETAILS_AB_ZOOM = 11;
 const START_MITTE: readonly [number, number] = [13.8199, 52.8337]; // Eberswalde [Länge, Breite]
-// Hinweis, sobald Kartenmitte oder GPS-Standort näher als `radiusMeter` an einem Schutzgebiet liegt.
-const SCHUTZGEBIETE: readonly { readonly mitte: readonly [number, number]; readonly radiusMeter: number; readonly text: string }[] = [
-  {
-    mitte: [13.712, 52.815], // Schwärzesee
-    radiusMeter: 2000,
-    text: "Der Schwärzesee und das Schwärzetal liegen im Naturschutzgebiet „Nonnenfließ-Schwärzetal“. Dort kann das Sammeln verboten sein. Bitte Schilder vor Ort beachten.",
-  },
-];
-
 /** Ort, für den der Index oben gilt: GPS-Standort oder Kartenmitte. */
 interface Indexort {
   readonly name: string;
@@ -114,15 +104,9 @@ function fehlertext(fehler: unknown): string {
   return fehler instanceof Error ? fehler.message : String(fehler);
 }
 
-function schutzhinweisAn(ort: Indexort): string | null {
-  const nahe = SCHUTZGEBIETE.find((gebiet) => abstandMeter(gebiet.mitte, [ort.laenge, ort.breite]) <= gebiet.radiusMeter);
-  return nahe === undefined ? null : nahe.text;
-}
-
 async function aktualisiereIndex(zustand: Zustand): Promise<void> {
   const { indexOrt, pilz } = zustand;
   element("index-ort", HTMLElement).textContent = indexOrt.name;
-  zeigeSchutzhinweis(schutzhinweisAn(indexOrt));
   try {
     const reihe = await wetterFuer(indexOrt.breite, indexOrt.laenge);
     if (zustand.indexOrt === indexOrt && zustand.pilz === pilz) {
@@ -371,7 +355,7 @@ function richteMeldeKnopfAufKarteEin(karte: maplibregl.Map, gpsKnopf: HTMLButton
 async function start(): Promise<void> {
   fuelleLegende();
   zeigeVersion(typeof __BUILD_ZEIT__ === "string" ? __BUILD_ZEIT__ : "");
-  richteTutorialEin(window.localStorage);
+  richteTutorialEin();
   // tageswerte.json (~0,5 MB) blockiert den Start nicht: Die Karte erscheint zuerst, die Tipps kommen nach.
   const tageswerteVersprechen = ladeTageswerteOderNull();
   const [kacheln, vorschauGebiete, grenze, maskeGebiete] = await Promise.all([

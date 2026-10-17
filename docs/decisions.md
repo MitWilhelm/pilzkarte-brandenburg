@@ -424,3 +424,19 @@ Größere Entscheidungen mit Kontext, Entscheidung und verworfener Alternative.
   Fortschrittsbalken. Das Tutorial (modaler Dialog) liegt darüber, im Hintergrund lädt die Karte weiter. Der Schleier blockiert keine
   Eingaben und verschwindet weich, auch wenn einzelne Kacheln fehlschlugen (der Hinweis nennt sie).
 - **Messung lokal (ohne Netz-Drosselung):** Beim Start nur noch 1 GeoJSON (Grenze); alle 26 Kacheln in 1,3 s.
+
+## 2026-10-17: Tutorial bei jedem Öffnen, Lade-Box erst nach dem Tutorial, Schwärzesee-Hinweis entfernt
+
+- **Nutzerwunsch (genau):** Wer die Seite (neu) öffnet, sieht das Tutorial. Dahinter lädt die Karte weiter. Wird das Tutorial
+  übersprungen, bevor die Karte fertig ist, erscheint der Ladeschleier mit der Box „Pilze werden gesucht“.
+- **Ursache für „Tutorial nicht mehr sichtbar“:** Es war so gebaut, dass es nur beim ersten Öffnen erschien (Merker in
+  localStorage); wer es einmal geschlossen hatte, sah es nie wieder, nur noch über die Legende. Das war keine Folge der
+  Lade-Änderung, sondern die damalige Auslegung von „beim ersten Öffnen“.
+- **Umsetzung:** Das Tutorial öffnet bei jedem Laden der Seite; der Merker (`clients/tutorialspeicher.ts`) entfällt samt Tests.
+  Der Ladeschleier liegt unter dem Tutorial; seine Box ist unsichtbar, solange das Tutorial offen ist (CSS
+  `body:has(#tutorial[open]) .ladekarte`), und erscheint nach dem Schließen, solange noch geladen wird.
+- **Rückbau möglich:** Soll das Tutorial nur beim ersten Mal erscheinen, stellt der Git-Verlauf den Merker wieder her
+  (Commit vor diesem Eintrag).
+- **Schwärzesee-Hinweis entfernt** (auf Wunsch): Es war der einzige Eintrag der Schutzgebiets-Hinweise; der ganze Mechanismus
+  (`SCHUTZGEBIETE`, `zeigeSchutzhinweis`, Element `schutz-hinweis`) entfällt. Der allgemeine Hinweis im Tutorial („In
+  Naturschutzgebieten kann das Sammeln verboten sein“) bleibt.

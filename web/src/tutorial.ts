@@ -1,5 +1,5 @@
 // Tutorial beim ersten Öffnen: reine Schrittlogik (welcher Schritt kommt als nächster, wie heißt der Fortschritt).
-// Kein DOM, kein Speicher; die Anzeige steht in tutorialansicht.ts, der Merker in clients/tutorialspeicher.ts.
+// Kein DOM, kein Speicher; die Anzeige steht in tutorialansicht.ts.
 export type Richtung = "vor" | "zurueck";
 
 function pruefeSchritt(aktuell: number, anzahl: number): void {

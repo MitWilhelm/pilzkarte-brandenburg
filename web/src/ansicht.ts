@@ -244,8 +244,3 @@ export function fuelleLegende(): void {
   );
 }
 
-export function zeigeSchutzhinweis(text: string | null): void {
-  const hinweis = element("schutz-hinweis", HTMLElement);
-  hinweis.hidden = text === null;
-  hinweis.textContent = text ?? "";
-}
